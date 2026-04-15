@@ -215,6 +215,13 @@ export default function CaptainPage() {
     if (amt <= (a.currentBid || 0)) { setBidError('현재 입찰가보다 높아야 합니다.'); return; }
     const myCap = captains[captainId];
     if (!myCap || amt > myCap.budget) { setBidError('예산이 부족합니다.'); return; }
+    // Duplicate line restriction
+    const cp = players[a.currentPlayerId];
+    if (cp?.tierType && cp?.position) {
+      const playerLine = `${cp.tierType} ${cp.position}`;
+      const hasLine = Object.values(players).some(p => p.soldTo === captainId && `${p.tierType} ${p.position}` === playerLine);
+      if (hasLine) { setBidError('이미 해당 라인의 선수를 보유하고 있습니다.'); return; }
+    }
     const newTimerEnd = Math.max(a.timerEnd || Date.now(), Date.now()) + 5000;
     await update(ref(db), {
       [`rooms/${code}/auction/currentBid`]: amt,
@@ -335,6 +342,12 @@ export default function CaptainPage() {
   const myCaptain = captains[captainId];
   const captainsList = useMemo(() => Object.entries(captains).map(([id, c]) => ({ id, ...c })), [captains]);
   const currentPlayer = auction?.currentPlayerId ? players[auction.currentPlayerId] : null;
+  // Duplicate line restriction: is this captain already holding the current player's line?
+  const myLineDuplicate = useMemo(() => {
+    if (!captainId || !currentPlayer?.tierType || !currentPlayer?.position) return false;
+    const playerLine = `${currentPlayer.tierType} ${currentPlayer.position}`;
+    return Object.values(players).some(p => p.soldTo === captainId && `${p.tierType} ${p.position}` === playerLine);
+  }, [captainId, currentPlayer, players]);
   const playerOrder = useMemo(() => toArr(auction?.playerOrder), [auction?.playerOrder]);
   const currentIdx = auction?.currentIndex || 0;
   const queuePlayers = useMemo(() => playerOrder.slice(currentIdx + 1).map(pid => players[pid]).filter(Boolean), [playerOrder, currentIdx, players]);
@@ -510,6 +523,16 @@ export default function CaptainPage() {
           <p className="text-sm text-gray-400">예산 <span className="text-green-400 font-black text-xl">{myBudget}</span>P</p>
         </div>
       </header>
+
+      {/* Rules banner */}
+      <div className="px-6 py-1.5 border-b border-gray-800/60 bg-gray-900/30 flex-shrink-0">
+        <p className="text-gray-600 text-xs text-center">
+          경매 포인트: <span className="text-gray-500">{roomInfo?.budget || 1000}P</span>
+          &nbsp;|&nbsp; 최소 입찰가: <span className="text-gray-500">10P</span>
+          &nbsp;|&nbsp; 10 단위 입찰만 가능
+          &nbsp;|&nbsp; 같은 라인의 선수는 중복 선발 불가
+        </p>
+      </div>
 
       {/* 3-column layout */}
       <div className="flex-1 grid overflow-hidden" style={{ gridTemplateColumns: '240px 1fr 240px' }}>
@@ -695,40 +718,31 @@ export default function CaptainPage() {
               <p className="text-center text-gray-400 text-sm">
                 내 포인트: <span className="text-green-400 font-black text-lg">{myBudget}pt</span>
               </p>
-              {bidError && <p className="text-red-400 text-center text-sm">{bidError}</p>}
-              <div className="grid grid-cols-4 gap-2">
-                {quickBids.map(q => (
-                  <button key={q.label}
-                    onClick={() => placeBid(q.val)}
-                    className="py-3 text-center font-bold bg-orange-900/60 hover:bg-orange-800 border border-orange-700 rounded-xl transition-all text-orange-300 active:scale-95">
-                    <div className="text-sm">{q.label}</div>
-                    <div className="text-xs text-orange-400 mt-0.5">{q.val}pt</div>
-                  </button>
-                ))}
-              </div>
+              {myLineDuplicate ? (
+                <div className="text-center py-3 bg-red-950/40 border border-red-800 rounded-xl">
+                  <p className="text-red-400 font-bold text-sm">이미 해당 라인의 선수를 보유하고 있습니다</p>
+                  <p className="text-gray-500 text-xs mt-1">다른 팀장이 낙찰할 때까지 대기하세요</p>
+                </div>
+              ) : (
+                <>
+                  {bidError && <p className="text-red-400 text-center text-sm">{bidError}</p>}
+                  <div className="grid grid-cols-4 gap-2">
+                    {quickBids.map(q => (
+                      <button key={q.label}
+                        onClick={() => placeBid(q.val)}
+                        className="py-3 text-center font-bold bg-orange-900/60 hover:bg-orange-800 border border-orange-700 rounded-xl transition-all text-orange-300 active:scale-95">
+                        <div className="text-sm">{q.label}</div>
+                        <div className="text-xs text-orange-400 mt-0.5">{q.val}pt</div>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           )}
 
           {(!auction || auction?.status === 'idle') && (
             <div className="text-center py-16 text-gray-600 text-lg">관리자가 경매를 시작할 때까지 대기하세요.</div>
-          )}
-
-          {auction?.status === 'done' && !auction?.isReAuction && (
-            <div className="text-center py-16 space-y-3">
-              <p className="text-4xl">⏳</p>
-              <p className="text-white text-xl font-bold">1라운드 종료</p>
-              {unsoldPlayers.length > 0
-                ? <p className="text-yellow-400 text-base">유찰 선수 {unsoldPlayers.length}명 — 재경매 대기 중...</p>
-                : <p className="text-gray-400 text-base">관리자가 결과를 확정하는 중...</p>
-              }
-            </div>
-          )}
-
-          {auction?.status === 'done' && auction?.isReAuction && (
-            <div className="bg-purple-900/30 border border-purple-700 rounded-2xl p-5 text-center">
-              <p className="text-purple-300 text-2xl font-black">경매 완료!</p>
-              <p className="text-gray-400 mt-2">내 팀: {Object.values(players).filter(p => p.soldTo === captainId).length}명</p>
-            </div>
           )}
         </main>
 

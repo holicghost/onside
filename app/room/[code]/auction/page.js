@@ -71,6 +71,7 @@ export default function AuctionPage() {
 
   const auctionRef = useRef(null);
   const captainsRef = useRef({});
+  const playersRef = useRef({});
   const roleRef = useRef('spectator');
   const lastTimerEndRef = useRef(null);
   const goToNextPlayerRef = useRef(null);
@@ -80,6 +81,7 @@ export default function AuctionPage() {
 
   useEffect(() => { auctionRef.current = auction; }, [auction]);
   useEffect(() => { captainsRef.current = captains; }, [captains]);
+  useEffect(() => { playersRef.current = players; }, [players]);
   useEffect(() => { roleRef.current = role; }, [role]);
   useEffect(() => { setOrigin(window.location.origin); }, []);
 
@@ -260,6 +262,23 @@ export default function AuctionPage() {
       [`rooms/${code}/auction/currentBidCaptainId`]: null,
       [`rooms/${code}/auction/countdownEnd`]: Date.now() + 10000,
       [`rooms/${code}/auction/timerEnd`]: null,
+      [`rooms/${code}/auction/roundStartUnsoldCount`]: Object.keys(players).length,
+      [`rooms/${code}/auction/isReAuction`]: false,
+    });
+  };
+
+  // Returns true if any captain can viably bid on any unsold player
+  const checkViableBids = (unsoldEntries, currentCaptains, currentPlayers) => {
+    return unsoldEntries.some(([, p]) => {
+      const playerLine = (p.tierType && p.position) ? `${p.tierType} ${p.position}` : null;
+      return Object.entries(currentCaptains).some(([capId, cap]) => {
+        if ((cap.budget || 0) < 10) return false;
+        if (!playerLine) return true;
+        const hasLine = Object.values(currentPlayers).some(
+          rp => rp.soldTo === capId && `${rp.tierType} ${rp.position}` === playerLine
+        );
+        return !hasLine;
+      });
     });
   };
 
@@ -268,16 +287,45 @@ export default function AuctionPage() {
     if (!a) return;
     const order = toArr(a.playerOrder);
     const nextIndex = (a.currentIndex || 0) + 1;
+
     if (nextIndex >= order.length) {
-      if (a.isReAuction) {
-        // Re-auction finished → go to result for all clients
-        await update(ref(db), { [`rooms/${code}/auction/status`]: 'done', [`rooms/${code}/info/status`]: 'result' });
+      // Round complete — decide whether to auto re-auction or go to result
+      const currentPlayers = playersRef.current;
+      const currentCaptains = captainsRef.current;
+      const unsoldEntries = Object.entries(currentPlayers).filter(([, p]) => !p.soldTo);
+
+      // No progress check: if same count as when round started, stop looping
+      const prevUnsoldCount = a.roundStartUnsoldCount;
+      const noProgress = prevUnsoldCount !== undefined && unsoldEntries.length >= prevUnsoldCount;
+
+      const anyViable = !noProgress && unsoldEntries.length > 0 &&
+        checkViableBids(unsoldEntries, currentCaptains, currentPlayers);
+
+      if (anyViable) {
+        const unsoldMap = Object.fromEntries(unsoldEntries);
+        const ordered = buildPlayerOrder(unsoldMap);
+        await update(ref(db), {
+          [`rooms/${code}/auction/playerOrder`]: ordered,
+          [`rooms/${code}/auction/currentIndex`]: 0,
+          [`rooms/${code}/auction/currentPlayerId`]: ordered[0],
+          [`rooms/${code}/auction/status`]: 'countdown',
+          [`rooms/${code}/auction/currentBid`]: 0,
+          [`rooms/${code}/auction/currentBidCaptainId`]: null,
+          [`rooms/${code}/auction/countdownEnd`]: Date.now() + 10000,
+          [`rooms/${code}/auction/timerEnd`]: null,
+          [`rooms/${code}/auction/isReAuction`]: true,
+          [`rooms/${code}/auction/roundStartUnsoldCount`]: unsoldEntries.length,
+          [`rooms/${code}/info/status`]: 'auction',
+        });
       } else {
-        // First round finished → wait for admin to decide (re-auction or result)
-        await update(ref(db), { [`rooms/${code}/auction/status`]: 'done' });
+        await update(ref(db), {
+          [`rooms/${code}/auction/status`]: 'done',
+          [`rooms/${code}/info/status`]: 'result',
+        });
       }
       return;
     }
+
     await update(ref(db), {
       [`rooms/${code}/auction/currentIndex`]: nextIndex,
       [`rooms/${code}/auction/currentPlayerId`]: order[nextIndex],
@@ -306,24 +354,6 @@ export default function AuctionPage() {
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
     }
   }, [chatMessages]);
-
-  const startReAuction = async () => {
-    const unsoldMap = Object.fromEntries(Object.entries(players).filter(([, p]) => !p.soldTo));
-    const ordered = buildPlayerOrder(unsoldMap);
-    if (!ordered.length) return;
-    await update(ref(db), {
-      [`rooms/${code}/auction/playerOrder`]: ordered,
-      [`rooms/${code}/auction/currentIndex`]: 0,
-      [`rooms/${code}/auction/currentPlayerId`]: ordered[0],
-      [`rooms/${code}/auction/status`]: 'countdown',
-      [`rooms/${code}/auction/currentBid`]: 0,
-      [`rooms/${code}/auction/currentBidCaptainId`]: null,
-      [`rooms/${code}/auction/countdownEnd`]: Date.now() + 10000,
-      [`rooms/${code}/auction/timerEnd`]: null,
-      [`rooms/${code}/auction/isReAuction`]: true,
-      [`rooms/${code}/info/status`]: 'auction',
-    });
-  };
 
   const pauseAuction = async () => {
     const remaining = Math.max(1000, (auction?.timerEnd || Date.now()) - Date.now());
@@ -358,6 +388,13 @@ export default function AuctionPage() {
     if (amt <= (a.currentBid || 0)) { setBidError('현재 입찰가보다 높아야 합니다.'); return; }
     const myCap = captains[captainId];
     if (!myCap || amt > myCap.budget) { setBidError('예산이 부족합니다.'); return; }
+    // Duplicate line restriction
+    const cp = players[a.currentPlayerId];
+    if (cp?.tierType && cp?.position) {
+      const playerLine = `${cp.tierType} ${cp.position}`;
+      const hasLine = Object.values(players).some(p => p.soldTo === captainId && `${p.tierType} ${p.position}` === playerLine);
+      if (hasLine) { setBidError('이미 해당 라인의 선수를 보유하고 있습니다.'); return; }
+    }
     const newTimerEnd = Math.max(a.timerEnd || Date.now(), Date.now()) + 5000;
     await update(ref(db), {
       [`rooms/${code}/auction/currentBid`]: amt,
@@ -383,12 +420,17 @@ export default function AuctionPage() {
   const playerOrder = useMemo(() => toArr(auction?.playerOrder), [auction?.playerOrder]);
   const currentIdx = auction?.currentIndex || 0;
   const currentPlayer = auction?.currentPlayerId ? players[auction.currentPlayerId] : null;
+  // Duplicate line restriction for this captain on current player
+  const myLineDuplicate = useMemo(() => {
+    if (!captainId || !currentPlayer?.tierType || !currentPlayer?.position) return false;
+    const playerLine = `${currentPlayer.tierType} ${currentPlayer.position}`;
+    return Object.values(players).some(p => p.soldTo === captainId && `${p.tierType} ${p.position}` === playerLine);
+  }, [captainId, currentPlayer, players]);
   const queuePlayers = useMemo(() => playerOrder.slice(currentIdx + 1).map(pid => players[pid]).filter(Boolean), [playerOrder, currentIdx, players]);
   const nextQueuePlayer = queuePlayers[0] || null;
   const historyList = useMemo(() => auction?.history ? Object.values(auction.history).sort((a, b) => b.timestamp - a.timestamp) : [], [auction?.history]);
   const processedCount = ['passed', 'sold', 'done'].includes(auction?.status) ? currentIdx + 1 : currentIdx;
   const passedPlayers = useMemo(() => playerOrder.slice(0, processedCount).map(pid => players[pid]).filter(p => p && !p.soldTo), [playerOrder, processedCount, players]);
-  const unsoldPlayers = useMemo(() => Object.values(players).filter(p => !p.soldTo), [players]);
   const curBid = auction?.currentBid || 0;
   const myBudget = myCaptain?.budget || 0;
   const offlineCaptains = useMemo(() => captainsList.filter(c => !c.online), [captainsList]);
@@ -563,6 +605,16 @@ export default function AuctionPage() {
           </span>
         </div>
       </header>
+
+      {/* Rules banner */}
+      <div className="px-6 py-1.5 border-b border-gray-800/60 bg-gray-900/30 flex-shrink-0">
+        <p className="text-gray-600 text-xs text-center">
+          경매 포인트: <span className="text-gray-500">{roomInfo?.budget || 1000}P</span>
+          &nbsp;|&nbsp; 최소 입찰가: <span className="text-gray-500">10P</span>
+          &nbsp;|&nbsp; 10 단위 입찰만 가능
+          &nbsp;|&nbsp; 같은 라인의 선수는 중복 선발 불가
+        </p>
+      </div>
 
       {/* Offline captain warning */}
       {role === 'admin' && offlineCaptains.length > 0 && (
@@ -773,17 +825,26 @@ export default function AuctionPage() {
               <p className="text-center text-gray-400 text-base">
                 내 포인트: <span className="text-green-400 font-black text-2xl">{myBudget}pt</span>
               </p>
-              {bidError && <p className="text-red-400 text-center text-base">{bidError}</p>}
-              <div className="grid grid-cols-4 gap-2">
-                {quickBids.map(q => (
-                  <button key={q.label}
-                    onClick={() => placeBid(q.val)}
-                    className="py-3 text-center font-bold bg-orange-900/60 hover:bg-orange-800 border border-orange-700 rounded-xl transition-all text-orange-300 active:scale-95">
-                    <div className="text-base">{q.label}</div>
-                    <div className="text-sm text-orange-400 mt-0.5">{q.val}pt</div>
-                  </button>
-                ))}
-              </div>
+              {myLineDuplicate ? (
+                <div className="text-center py-3 bg-red-950/40 border border-red-800 rounded-xl">
+                  <p className="text-red-400 font-bold text-sm">이미 해당 라인의 선수를 보유하고 있습니다</p>
+                  <p className="text-gray-500 text-xs mt-1">다른 팀장이 낙찰할 때까지 대기하세요</p>
+                </div>
+              ) : (
+                <>
+                  {bidError && <p className="text-red-400 text-center text-sm">{bidError}</p>}
+                  <div className="grid grid-cols-4 gap-2">
+                    {quickBids.map(q => (
+                      <button key={q.label}
+                        onClick={() => placeBid(q.val)}
+                        className="py-3 text-center font-bold bg-orange-900/60 hover:bg-orange-800 border border-orange-700 rounded-xl transition-all text-orange-300 active:scale-95">
+                        <div className="text-base">{q.label}</div>
+                        <div className="text-sm text-orange-400 mt-0.5">{q.val}pt</div>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -809,40 +870,17 @@ export default function AuctionPage() {
                 </div>
               )}
               {auction?.status === 'done' && (
-                <div className="space-y-2">
-                  {unsoldPlayers.length > 0 && !auction?.isReAuction && (
-                    <div className="bg-yellow-900/30 border border-yellow-700 rounded-xl p-4">
-                      <p className="text-yellow-300 text-base font-bold mb-2">유찰 선수 {unsoldPlayers.length}명</p>
-                      {unsoldPlayers.slice(0, 4).map(p => <p key={p.id} className="text-gray-300 text-sm">• {p.name}</p>)}
-                      {unsoldPlayers.length > 4 && <p className="text-gray-500 text-sm">외 {unsoldPlayers.length - 4}명...</p>}
-                      <button onClick={startReAuction} className="w-full mt-3 py-2 text-base font-bold bg-yellow-600 hover:bg-yellow-500 rounded-xl transition-all">
-                        🔄 유찰 선수 재경매
-                      </button>
-                    </div>
-                  )}
-                  <button onClick={async () => {
-                    await update(ref(db), { [`rooms/${code}/info/status`]: 'result' });
-                  }} className="w-full py-4 text-xl font-bold bg-purple-600 hover:bg-purple-500 rounded-xl transition-all">
-                    🏆 결과 보기
-                  </button>
-                </div>
+                <button onClick={async () => {
+                  await update(ref(db), { [`rooms/${code}/info/status`]: 'result' });
+                }} className="w-full py-4 text-xl font-bold bg-purple-600 hover:bg-purple-500 rounded-xl transition-all">
+                  🏆 결과 보기
+                </button>
               )}
             </div>
           )}
 
           {(!auction || auction?.status === 'idle') && role !== 'admin' && (
             <div className="text-center py-16 text-gray-600 text-lg">관리자가 경매를 시작할 때까지 대기하세요.</div>
-          )}
-
-          {auction?.status === 'done' && !auction?.isReAuction && role !== 'admin' && (
-            <div className="text-center py-16 space-y-3">
-              <p className="text-4xl">⏳</p>
-              <p className="text-white text-xl font-bold">1라운드 종료</p>
-              {unsoldPlayers.length > 0
-                ? <p className="text-yellow-400 text-base">유찰 선수 {unsoldPlayers.length}명 — 재경매 대기 중...</p>
-                : <p className="text-gray-400 text-base">관리자가 결과를 확정하는 중...</p>
-              }
-            </div>
           )}
         </main>
 
