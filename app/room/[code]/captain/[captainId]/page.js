@@ -3,9 +3,20 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ref, onValue, update, get } from 'firebase/database';
 import { db } from '@/lib/firebase';
-import { getHeroPortraitUrl, ALL_HEROES } from '@/lib/heroes';
+import { getHeroPortraitUrl, loadHeroPortraits, ALL_HEROES } from '@/lib/heroes';
 
+const ROLE_LABEL = { tank: '탱커', damage: '딜러', support: '서포터' };
 const toArr = (val) => !val ? [] : Array.isArray(val) ? val : Object.values(val);
+
+function CopyButton({ text }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); };
+  return (
+    <button onClick={copy} className={`px-3 py-1 text-sm rounded-lg transition-all flex-shrink-0 ${copied ? 'bg-green-700 text-green-200' : 'bg-gray-700 hover:bg-gray-600 text-gray-300'}`}>
+      {copied ? '복사됨!' : '복사'}
+    </button>
+  );
+}
 
 export default function CaptainPage() {
   const { code, captainId } = useParams();
@@ -21,11 +32,20 @@ export default function CaptainPage() {
   const [auction, setAuction] = useState(null);
   const [timeLeft, setTimeLeft] = useState(0);
   const [countdownLeft, setCountdownLeft] = useState(0);
+  const [maxDuration, setMaxDuration] = useState(10000);
   const [bidAmount, setBidAmount] = useState('');
   const [bidError, setBidError] = useState('');
+  const [showLinks, setShowLinks] = useState(false);
+  const [origin, setOrigin] = useState('');
 
   const auctionRef = useRef(null);
+  const lastTimerEndRef = useRef(null);
   useEffect(() => { auctionRef.current = auction; }, [auction]);
+  useEffect(() => { setOrigin(window.location.origin); }, []);
+
+  // 영웅 포트레이트 프리로드
+  const [, setPortraitsReady] = useState(false);
+  useEffect(() => { loadHeroPortraits().then(() => setPortraitsReady(true)); }, []);
 
   // Check auth on mount
   useEffect(() => {
@@ -36,12 +56,10 @@ export default function CaptainPage() {
     if (storedRoom === code && storedCaptain === captainId && storedRole === 'captain') {
       setAuthed(true);
     }
-    // Fetch room to check if password is needed
     get(ref(db, `rooms/${code}/info`)).then(snap => {
       const info = snap.val();
       setRoomInfo(info);
       if (!info?.password) {
-        // No password needed — auto-auth
         localStorage.setItem('ow_room', code);
         localStorage.setItem('ow_role', 'captain');
         localStorage.setItem('ow_captain_id', captainId);
@@ -70,6 +88,15 @@ export default function CaptainPage() {
     tick();
     const id = setInterval(tick, 100);
     return () => clearInterval(id);
+  }, [auction?.timerEnd, auction?.status]);
+
+  // Track max duration for progress bar
+  useEffect(() => {
+    if (!auction?.timerEnd || auction?.status !== 'bidding') return;
+    if (auction.timerEnd !== lastTimerEndRef.current) {
+      lastTimerEndRef.current = auction.timerEnd;
+      setMaxDuration(Math.max(1000, auction.timerEnd - Date.now()));
+    }
   }, [auction?.timerEnd, auction?.status]);
 
   // Pre-player countdown
@@ -110,6 +137,7 @@ export default function CaptainPage() {
     setBidAmount('');
   };
 
+  // ── Loading / auth gates ──
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#0f0f1a' }}>
@@ -118,7 +146,6 @@ export default function CaptainPage() {
     );
   }
 
-  // Password gate
   if (!authed && roomInfo?.password) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4"
@@ -145,12 +172,15 @@ export default function CaptainPage() {
     );
   }
 
-  // Redirect if captain doesn't exist
+  // ── Derived state ──
   const myCaptain = captains[captainId];
+  const captainsList = Object.entries(captains).map(([id, c]) => ({ id, ...c }));
   const currentPlayer = auction?.currentPlayerId ? players[auction.currentPlayerId] : null;
   const playerOrder = toArr(auction?.playerOrder);
   const currentIdx = auction?.currentIndex || 0;
-  const nextQueuePlayer = playerOrder[currentIdx + 1] ? players[playerOrder[currentIdx + 1]] : null;
+  const queuePlayers = playerOrder.slice(currentIdx + 1).map(pid => players[pid]).filter(Boolean);
+  const nextQueuePlayer = queuePlayers[0] || null;
+  const historyList = auction?.history ? Object.values(auction.history).sort((a, b) => b.timestamp - a.timestamp) : [];
   const curBid = auction?.currentBid || 0;
   const myBudget = myCaptain?.budget || 0;
   const quickBids = [
@@ -159,228 +189,387 @@ export default function CaptainPage() {
     { label: '+50', val: curBid + 50 },
     { label: '최대', val: myBudget },
   ].filter(q => q.val > curBid && q.val <= myBudget);
-
+  const bidderCap = auction?.currentBidCaptainId ? captains[auction.currentBidCaptainId] : null;
   const displayTime = (timeLeft / 1000).toFixed(1);
   const displayCountdown = Math.ceil(countdownLeft / 1000);
-
-  const teamPlayers = Object.values(players).filter(p => p.soldTo === captainId);
+  const progressPct = maxDuration > 0 ? Math.max(0, (timeLeft / maxDuration) * 100) : 0;
 
   const statusLabel = { idle: '⏳ 대기 중', countdown: '⏱ 경매 준비', bidding: '🔨 경매 중', paused: '⏸ 일시정지', sold: '✅ 낙찰', passed: '⏭ 유찰', done: '🏆 완료' };
+  const statusColor = {
+    idle: 'bg-gray-800 text-gray-400',
+    countdown: 'bg-yellow-900/60 text-yellow-300 border border-yellow-700',
+    bidding: 'bg-green-900/60 text-green-300 border border-green-700',
+    paused: 'bg-orange-900/60 text-orange-300 border border-orange-700',
+    sold: 'bg-blue-900/60 text-blue-300 border border-blue-700',
+    passed: 'bg-gray-700/60 text-gray-400',
+    done: 'bg-purple-900/60 text-purple-300 border border-purple-700',
+  };
 
-  return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#0f0f1a' }}>
-      {/* Captain header */}
-      <header className="px-4 py-4 border-b border-gray-800">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-black text-white">{roomInfo?.name || '경매'}</h1>
-            <p className="text-sm text-gray-500">코드: <span className="text-orange-400 font-mono font-bold">{code}</span></p>
-          </div>
-          <div className="text-right">
-            <p className="text-lg font-black text-white">{myCaptain?.name || '팀장'}</p>
-            <p className="text-sm text-gray-400">예산 <span className="text-green-400 font-black text-xl">{myBudget}</span>P</p>
-          </div>
-        </div>
-      </header>
-
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 max-w-lg mx-auto w-full">
-        {/* Status */}
-        <div className={`px-4 py-2 rounded-full text-base font-bold text-center ${
-          auction?.status === 'bidding' ? 'bg-green-900/60 text-green-300 border border-green-700' :
-          auction?.status === 'countdown' ? 'bg-yellow-900/60 text-yellow-300 border border-yellow-700' :
-          auction?.status === 'paused' ? 'bg-orange-900/60 text-orange-300 border border-orange-700' :
-          auction?.status === 'sold' ? 'bg-blue-900/60 text-blue-300 border border-blue-700' :
-          'bg-gray-800 text-gray-400'
-        }`}>
-          {statusLabel[auction?.status] || '⏳ 대기 중'}
-        </div>
-
-        {/* Pre-player countdown */}
-        {auction?.status === 'countdown' && currentPlayer && (
-          <div className="bg-gray-900 border border-yellow-700 rounded-2xl p-5 text-center space-y-3">
-            <p className="text-yellow-400 font-bold">다음 선수 경매 준비</p>
-            {currentPlayer.photo
-              ? <img src={currentPlayer.photo} alt={currentPlayer.name} className="w-20 h-20 rounded-full object-cover mx-auto" />
-              : <div className="w-20 h-20 rounded-full bg-gray-700 flex items-center justify-center text-3xl mx-auto">👤</div>
+  // ── PlayerCard (identical to auction page) ──
+  const PlayerCard = ({ player }) => {
+    if (!player) return null;
+    const heroIdsList = toArr(player.heroIds).filter(Boolean);
+    return (
+      <div className="w-full bg-gray-900 rounded-2xl border border-gray-700 overflow-hidden">
+        <div className="flex gap-4 p-5">
+          <div className="w-28 h-36 rounded-xl overflow-hidden bg-gray-800 flex-shrink-0 flex items-center justify-center">
+            {player.photo
+              ? <img src={player.photo} alt={player.name} className="w-full h-full object-cover" />
+              : <span className="text-5xl">👤</span>
             }
-            <h3 className="text-2xl font-black text-white">{currentPlayer.name}</h3>
-            {currentPlayer.tierCurrent && <p className="text-purple-400 text-sm">{currentPlayer.tierCurrent}</p>}
-            <div key={displayCountdown} className="text-6xl font-black text-yellow-400 animate-count-down">{displayCountdown}</div>
-            <p className="text-gray-500 text-sm">초 후 경매 시작</p>
           </div>
-        )}
-
-        {/* Active auction */}
-        {['bidding', 'paused'].includes(auction?.status) && currentPlayer && (
-          <>
-            <div className="bg-gray-900 border border-orange-500 rounded-2xl overflow-hidden">
-              {currentPlayer.photo
-                ? <div className="relative h-44">
-                    <img src={currentPlayer.photo} alt={currentPlayer.name} className="w-full h-full object-cover" />
-                    <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, #111827 0%, transparent 60%)' }} />
-                    <h3 className="absolute bottom-3 left-4 text-2xl font-black text-white">{currentPlayer.name}</h3>
-                    {auction?.currentBid > 0 && (
-                      <span className="absolute top-3 right-3 px-2 py-1 bg-orange-500/90 text-white text-xs font-bold rounded-full">입찰 중</span>
-                    )}
-                  </div>
-                : <div className="p-5 text-center relative">
-                    <span className="text-4xl">👤</span>
-                    <h3 className="text-2xl font-black text-white mt-2">{currentPlayer.name}</h3>
-                    {auction?.currentBid > 0 && (
-                      <span className="absolute top-3 right-3 px-2 py-1 bg-orange-500/90 text-white text-xs font-bold rounded-full">입찰 중</span>
-                    )}
-                  </div>
-              }
-              <div className="p-4 space-y-2">
-                {/* Hero portraits */}
-                {toArr(currentPlayer.heroIds).filter(Boolean).length > 0 && (
-                  <div className="flex gap-2">
-                    {toArr(currentPlayer.heroIds).filter(Boolean).map((hid, i) => {
-                      const url = getHeroPortraitUrl(hid);
-                      const hero = ALL_HEROES.find(h => h.id === hid);
-                      return url ? (
-                        <div key={i} className="w-10 h-10 rounded-lg overflow-hidden bg-gray-700 flex-shrink-0">
-                          <img src={url} alt={hero?.name} className="w-full h-full object-cover" onError={e => { e.currentTarget.style.display = 'none'; }} />
-                        </div>
-                      ) : null;
-                    })}
-                  </div>
-                )}
-                {currentPlayer.tierCurrent && <p className="text-purple-400 text-sm">{currentPlayer.tierCurrent}</p>}
-                {currentPlayer.comment && <p className="text-gray-400 text-sm italic">"{currentPlayer.comment}"</p>}
-              </div>
-            </div>
-
-            {/* Timer */}
-            {auction?.status === 'bidding' && (
-              <div className="text-center">
-                <p className="text-gray-400 text-sm">입찰 종료까지</p>
-                <div className={`text-5xl font-black ${
-                  timeLeft <= 3000 ? 'text-red-500 animate-timer-blink' : timeLeft <= 6000 ? 'text-yellow-400' : 'text-white'
+          <div className="flex-1 min-w-0">
+            <div className="flex gap-1.5 flex-wrap mb-1.5">
+              {player.tierCurrent && (
+                <span className="px-2 py-0.5 bg-purple-900/60 text-purple-300 text-xs font-bold rounded-full border border-purple-700/60">{player.tierCurrent}</span>
+              )}
+              {player.heroRole && (
+                <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${
+                  player.heroRole === 'tank' ? 'bg-yellow-900/50 text-yellow-300' :
+                  player.heroRole === 'damage' ? 'bg-red-900/50 text-red-300' :
+                  'bg-green-900/50 text-green-300'
                 }`}>
-                  {displayTime}초
-                </div>
-                {nextQueuePlayer && (
-                  <div className="mt-2 flex items-center gap-2 bg-gray-800/60 rounded-xl px-3 py-2 justify-center">
-                    <span className="text-gray-500 text-xs font-bold">NEXT</span>
-                    {nextQueuePlayer.photo ? <img src={nextQueuePlayer.photo} alt={nextQueuePlayer.name} className="w-6 h-6 rounded-full object-cover" /> : <span>👤</span>}
-                    <span className="text-gray-300 text-sm font-bold">{nextQueuePlayer.name}</span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {auction?.status === 'paused' && (
-              <div className="text-center bg-orange-900/30 border border-orange-700 rounded-xl p-3">
-                <p className="text-orange-400 font-bold">⏸ 경매 일시정지됨</p>
-              </div>
-            )}
-
-            {/* Current bid */}
-            <div className="bg-gray-800 rounded-xl p-4 text-center">
-              <p className="text-gray-400 text-sm">현재 최고 입찰</p>
-              <p className="text-4xl font-black text-orange-400">{curBid > 0 ? `${curBid}P` : '—'}</p>
-              {auction?.currentBidCaptainId && (
-                <p className="text-gray-300 text-sm mt-1">
-                  {captains[auction.currentBidCaptainId]?.name} 팀장
-                  {auction.currentBidCaptainId === captainId && <span className="text-green-400 ml-1 font-bold">(나)</span>}
-                </p>
+                  {ROLE_LABEL[player.heroRole] || player.heroRole}
+                </span>
+              )}
+              {curBid > 0 && auction?.status === 'bidding' && (
+                <span className="px-2 py-0.5 bg-orange-500/80 text-white text-xs font-bold rounded-full animate-pulse">입찰 중</span>
               )}
             </div>
-
-            {/* Bid UI */}
-            {auction?.status === 'bidding' && (
-              <div className="space-y-2">
-                {bidError && <p className="text-red-400 text-center text-sm">{bidError}</p>}
-                <div className="grid grid-cols-4 gap-2">
-                  {quickBids.map(q => (
-                    <button key={q.label}
-                      onClick={() => { placeBid(q.val); setBidAmount(String(q.val)); }}
-                      className="py-3 text-center font-bold bg-orange-900/60 hover:bg-orange-800 border border-orange-700 rounded-xl transition-all text-orange-300 active:scale-95">
-                      <div className="text-base">{q.label}</div>
-                      <div className="text-xs text-orange-400 mt-0.5">{q.val}P</div>
-                    </button>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    value={bidAmount}
-                    onChange={e => setBidAmount(e.target.value)}
-                    placeholder={String(curBid + 1)}
-                    className="flex-1 px-4 py-4 text-2xl font-bold bg-gray-800 border border-gray-600 rounded-xl text-center focus:border-orange-400 focus:outline-none"
-                  />
-                  <button
-                    onClick={() => placeBid(Number(bidAmount))}
-                    disabled={!bidAmount || Number(bidAmount) <= curBid || Number(bidAmount) > myBudget}
-                    className="px-6 py-4 text-xl font-bold bg-orange-500 hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-all active:scale-95"
-                  >
-                    입찰
-                  </button>
-                </div>
-                <p className="text-center text-gray-500 text-sm">
-                  내 예산: <span className="text-green-400 font-bold">{myBudget}P</span>
-                </p>
-              </div>
-            )}
-          </>
-        )}
-
-        {/* Sold result */}
-        {auction?.status === 'sold' && (
-          <div className={`rounded-2xl p-5 text-center border ${
-            auction.currentBidCaptainId === captainId
-              ? 'bg-green-900/40 border-green-600'
-              : 'bg-blue-900/30 border-blue-700'
-          }`}>
-            {auction.currentBidCaptainId === captainId ? (
-              <>
-                <p className="text-green-400 text-2xl font-black">낙찰 성공!</p>
-                <p className="text-4xl font-black text-orange-400 mt-1">{auction.currentBid}P</p>
-                <p className="text-gray-400 text-sm mt-2">남은 예산: {myBudget - auction.currentBid}P → 다음 선수 대기 중</p>
-              </>
-            ) : (
-              <>
-                <p className="text-blue-300 text-xl font-bold">{captains[auction.currentBidCaptainId]?.name} 팀 낙찰</p>
-                <p className="text-3xl font-black text-orange-400 mt-1">{auction.currentBid}P</p>
-              </>
-            )}
-          </div>
-        )}
-
-        {auction?.status === 'passed' && (
-          <div className="bg-gray-800 border border-gray-600 rounded-2xl p-4 text-center">
-            <p className="text-gray-400 text-xl font-bold">유찰</p>
-            <p className="text-gray-500 text-sm mt-1">재경매 라운드에 포함됩니다</p>
-          </div>
-        )}
-
-        {auction?.status === 'done' && (
-          <div className="bg-purple-900/30 border border-purple-700 rounded-2xl p-5 text-center">
-            <p className="text-purple-300 text-2xl font-black">경매 완료!</p>
-            <p className="text-gray-400 mt-2">내 팀: {teamPlayers.length}명</p>
-          </div>
-        )}
-
-        {(!auction || auction?.status === 'idle') && (
-          <div className="text-center py-10 text-gray-600 text-xl">관리자가 경매를 시작할 때까지 대기하세요.</div>
-        )}
-
-        {/* My team roster */}
-        {teamPlayers.length > 0 && (
-          <div className="bg-gray-900/60 border border-gray-700 rounded-2xl p-4">
-            <h3 className="text-base font-bold text-gray-300 mb-3">내 팀 ({teamPlayers.length}명)</h3>
-            <div className="space-y-2">
-              {teamPlayers.map(p => (
-                <div key={p.id} className="flex items-center gap-3">
-                  {p.photo ? <img src={p.photo} alt={p.name} className="w-8 h-8 rounded-full object-cover flex-shrink-0" /> : <span className="text-xl">👤</span>}
-                  <span className="text-white font-bold flex-1">{p.name}</span>
-                  <span className="text-orange-400 text-sm font-bold">{p.soldPrice}P</span>
+            <h2 className="text-3xl font-black text-white leading-tight">{player.name}</h2>
+            <div className="grid grid-cols-3 gap-1.5 mt-2">
+              {[
+                { label: '현재티어', val: player.tierCurrent, color: 'text-purple-400' },
+                { label: '전시즌', val: player.tierPrevious, color: 'text-gray-300' },
+                { label: '역대최고', val: player.tierBest, color: 'text-yellow-400' },
+              ].map(({ label, val, color }) => (
+                <div key={label} className="bg-gray-800/80 rounded-lg px-2 py-1.5">
+                  <p className="text-[9px] text-gray-500 mb-0.5 uppercase tracking-wide">{label}</p>
+                  <p className={`text-xs font-bold ${color} leading-tight`}>{val || '—'}</p>
                 </div>
               ))}
             </div>
           </div>
+        </div>
+
+        {/* Hero portraits with role badge overlay */}
+        {heroIdsList.length > 0 && (
+          <div className="px-5 pb-4 flex gap-3">
+            {heroIdsList.map((hid, i) => {
+              const url = getHeroPortraitUrl(hid);
+              const hero = ALL_HEROES.find(h => h.id === hid);
+              const roleKey = hero?.role;
+              const roleName = ROLE_LABEL[roleKey] || '';
+              const roleColor = { tank: 'text-yellow-300', damage: 'text-red-300', support: 'text-green-300' }[roleKey] || 'text-gray-400';
+              return (
+                <div key={i} className="flex flex-col items-center gap-1">
+                  <div className="relative w-14 h-14 rounded-lg overflow-hidden bg-gray-700 border border-gray-600 flex items-center justify-center flex-shrink-0">
+                    {url ? (
+                      <img src={url} alt={hero?.name || hid} className="absolute inset-0 w-full h-full object-cover"
+                        onError={e => { e.currentTarget.style.display = 'none'; }} />
+                    ) : (
+                      <span className="text-gray-500 text-xl">?</span>
+                    )}
+                    {roleName && (
+                      <span className={`absolute bottom-0 left-0 right-0 text-center text-[8px] font-bold py-0.5 ${roleColor}`}
+                        style={{ background: 'rgba(0,0,0,0.7)' }}>
+                        {roleName}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-gray-400 text-[9px] text-center leading-tight w-14 truncate">{hero?.name || hid}</span>
+                </div>
+              );
+            })}
+          </div>
         )}
+
+        {player.style && (
+          <div className="px-5 pb-3">
+            <span className="px-3 py-1 bg-gray-800 text-gray-300 rounded-full text-xs border border-gray-600">⚔️ {player.style}</span>
+          </div>
+        )}
+
+        {player.comment && (
+          <div className="mx-5 mb-4 bg-gray-800 rounded-2xl p-3 border-l-4 border-orange-500">
+            <p className="text-gray-300 text-sm leading-relaxed">" {player.comment} "</p>
+          </div>
+        )}
+
+        <div className="px-5 pb-5 flex items-end justify-between">
+          <div>
+            <p className="text-gray-500 text-xs mb-0.5">현재 입찰</p>
+            <p className="text-4xl font-black text-orange-400 leading-none tabular-nums">
+              {curBid > 0 ? `${curBid} pt` : '—'}
+            </p>
+            {bidderCap && (
+              <p className="text-white text-sm font-bold mt-1">
+                👑 {bidderCap.name} 입찰 중
+                {auction?.currentBidCaptainId === captainId && <span className="text-green-400 ml-1">(나)</span>}
+              </p>
+            )}
+          </div>
+          {auction?.status === 'sold' && bidderCap && (
+            <div className="text-right">
+              <p className="text-blue-300 text-2xl font-black">낙찰!</p>
+              <p className="text-gray-400 text-sm">{bidderCap.name} 팀</p>
+            </div>
+          )}
+          {auction?.status === 'passed' && (
+            <div className="text-right">
+              <p className="text-gray-400 text-2xl font-black">유찰</p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col" style={{ background: '#0f0f1a' }}>
+      {/* Header */}
+      <header className="flex items-center justify-between px-6 py-3 border-b border-gray-800 flex-shrink-0 gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-black text-white truncate">{roomInfo?.name || '경매'}</h1>
+          <span className="text-sm text-gray-500">코드: <span className="font-mono text-orange-400 font-bold">{code}</span></span>
+        </div>
+        <div className="text-right flex-shrink-0">
+          <p className="text-lg font-black text-white">{myCaptain?.name || '팀장'}</p>
+          <p className="text-sm text-gray-400">예산 <span className="text-green-400 font-black text-xl">{myBudget}</span>P</p>
+        </div>
+      </header>
+
+      {/* 3-column layout */}
+      <div className="flex-1 grid overflow-hidden" style={{ gridTemplateColumns: '240px 1fr 240px' }}>
+
+        {/* LEFT: Team Rosters */}
+        <aside className="border-r border-gray-800 overflow-y-auto p-4 space-y-3">
+          <h2 className="text-base font-bold text-gray-300 sticky top-0 bg-[#0f0f1a] pb-2">팀 로스터</h2>
+          {captainsList.map(cap => {
+            const teamPlayers = Object.values(players).filter(p => p.soldTo === cap.id);
+            const isMe = cap.id === captainId;
+            const isLeader = cap.id === auction?.currentBidCaptainId;
+            return (
+              <div key={cap.id} className={`rounded-xl p-3 border transition-all ${
+                isLeader ? 'border-orange-500 bg-orange-950/30' :
+                isMe ? 'border-blue-700 bg-blue-950/20' :
+                'border-gray-700 bg-gray-900/40'
+              }`}>
+                <div className="flex items-center gap-2 mb-2">
+                  {cap.photo ? <img src={cap.photo} alt={cap.name} className="w-9 h-9 rounded-full object-cover flex-shrink-0" /> : <div className="w-9 h-9 rounded-full bg-gray-700 flex items-center justify-center text-base flex-shrink-0">👤</div>}
+                  <div className="min-w-0">
+                    <p className="font-bold text-white text-sm truncate">
+                      {cap.name}{isMe && <span className="text-blue-400 text-xs ml-1">(나)</span>}
+                    </p>
+                    <p className="text-xs text-gray-400">예산 <span className="text-green-400 font-bold">{cap.budget}</span><span className="text-gray-600">/{roomInfo?.budget}</span>P</p>
+                  </div>
+                </div>
+                {teamPlayers.length > 0
+                  ? <div className="space-y-1 border-t border-gray-700 pt-2">
+                      {teamPlayers.map(p => (
+                        <div key={p.id} className="flex items-center gap-2 text-xs">
+                          {p.photo ? <img src={p.photo} alt={p.name} className="w-5 h-5 rounded-full object-cover" /> : <span>👤</span>}
+                          <span className="text-gray-300 truncate flex-1">{p.name}</span>
+                          <span className="text-orange-400 font-bold">{p.soldPrice}P</span>
+                        </div>
+                      ))}
+                    </div>
+                  : <p className="text-xs text-gray-600 border-t border-gray-800 pt-2">팀원 없음</p>
+                }
+              </div>
+            );
+          })}
+
+          {/* Link sharing */}
+          <div className="border-t border-gray-800 pt-3">
+            <button
+              onClick={() => setShowLinks(v => !v)}
+              className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-gray-300 transition-all w-full"
+            >
+              <span>🔗</span>
+              <span>링크 공유</span>
+              <span className="ml-auto">{showLinks ? '▲' : '▼'}</span>
+            </button>
+            {showLinks && (
+              <div className="mt-3 space-y-2">
+                {captainsList.map(cap => (
+                  <div key={cap.id} className="flex items-center gap-2">
+                    <span className="text-white text-xs font-bold truncate flex-1 min-w-0">{cap.name}</span>
+                    <CopyButton text={`${origin}/room/${code}/captain/${cap.id}`} />
+                  </div>
+                ))}
+                <div className="flex items-center gap-2">
+                  <span className="text-blue-400 text-xs font-bold flex-shrink-0">관전자</span>
+                  <CopyButton text={`${origin}/room/${code}/spectator`} />
+                </div>
+              </div>
+            )}
+          </div>
+        </aside>
+
+        {/* CENTER: Main auction */}
+        <main className="overflow-y-auto p-5 flex flex-col gap-4">
+
+          {/* Status pill */}
+          <div className={`px-5 py-2 rounded-full text-base font-bold self-center ${statusColor[auction?.status] || 'bg-gray-800 text-gray-400'}`}>
+            {statusLabel[auction?.status] || '⏳ 대기 중'}
+          </div>
+
+          {/* Pre-player countdown */}
+          {auction?.status === 'countdown' && currentPlayer && (
+            <div className="flex flex-col items-center gap-3">
+              <p className="text-yellow-400 text-sm font-bold">다음 선수 경매 준비</p>
+              <PlayerCard player={currentPlayer} />
+              <div key={displayCountdown} className="text-7xl font-black text-yellow-400 animate-count-down">{displayCountdown}</div>
+              <p className="text-gray-500 text-sm">초 후 경매 시작</p>
+              <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-yellow-400 rounded-full transition-none"
+                  style={{ width: `${Math.max(0, Math.min(100, (countdownLeft / 10000) * 100))}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Active / resolved player */}
+          {['bidding', 'paused', 'sold', 'passed'].includes(auction?.status) && (
+            <PlayerCard player={currentPlayer} />
+          )}
+
+          {/* Timer + progress bar */}
+          {auction?.status === 'bidding' && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between bg-gray-800 rounded-xl px-5 py-3">
+                <div className="flex items-center gap-2">
+                  <span className="inline-block w-2.5 h-2.5 rounded-full bg-green-400 animate-pulse" />
+                  <span className="text-white font-bold text-sm">입찰 중</span>
+                </div>
+                <span className={`text-4xl font-black tabular-nums leading-none ${
+                  timeLeft <= 3000 ? 'text-red-500 animate-timer-blink' : timeLeft <= 6000 ? 'text-yellow-400' : 'text-white'
+                }`}>
+                  {displayTime}초
+                </span>
+              </div>
+              <div className="h-2.5 bg-gray-700 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-none ${
+                    progressPct > 60 ? 'bg-green-500' : progressPct > 30 ? 'bg-yellow-500' : 'bg-red-500'
+                  }`}
+                  style={{ width: `${progressPct}%` }}
+                />
+              </div>
+              {nextQueuePlayer && (
+                <div className="flex items-center gap-2 bg-gray-800/60 rounded-xl px-4 py-2">
+                  <span className="text-gray-500 text-xs font-bold flex-shrink-0">NEXT</span>
+                  {nextQueuePlayer.photo ? <img src={nextQueuePlayer.photo} alt={nextQueuePlayer.name} className="w-7 h-7 rounded-full object-cover flex-shrink-0" /> : <span className="flex-shrink-0">👤</span>}
+                  <span className="text-gray-300 text-sm font-bold flex-1 truncate">{nextQueuePlayer.name}</span>
+                  {nextQueuePlayer.tierCurrent && <span className="text-purple-400 text-xs flex-shrink-0">{nextQueuePlayer.tierCurrent}</span>}
+                </div>
+              )}
+            </div>
+          )}
+
+          {auction?.status === 'paused' && (
+            <div className="text-center bg-orange-900/20 border border-orange-800 rounded-xl p-3">
+              <p className="text-orange-400 font-bold">⏸ 일시정지됨</p>
+              <p className="text-gray-500 text-sm">남은 시간: {((auction.pausedTimeLeft || 0) / 1000).toFixed(1)}초</p>
+            </div>
+          )}
+
+          {/* Bid UI — captain only */}
+          {auction?.status === 'bidding' && (
+            <div className="space-y-3">
+              <p className="text-center text-gray-400 text-sm">
+                내 포인트: <span className="text-green-400 font-black text-lg">{myBudget}pt</span>
+              </p>
+              {bidError && <p className="text-red-400 text-center text-sm">{bidError}</p>}
+              <div className="grid grid-cols-4 gap-2">
+                {quickBids.map(q => (
+                  <button key={q.label}
+                    onClick={() => { placeBid(q.val); setBidAmount(String(q.val)); }}
+                    className="py-3 text-center font-bold bg-orange-900/60 hover:bg-orange-800 border border-orange-700 rounded-xl transition-all text-orange-300 active:scale-95">
+                    <div className="text-sm">{q.label}</div>
+                    <div className="text-xs text-orange-400 mt-0.5">{q.val}pt</div>
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  value={bidAmount}
+                  onChange={e => setBidAmount(e.target.value)}
+                  placeholder={String(curBid + 1)}
+                  className="flex-1 px-4 py-3 text-2xl font-bold bg-gray-800 border border-gray-600 rounded-xl text-center focus:border-orange-400 focus:outline-none"
+                />
+                <button
+                  onClick={() => placeBid(Number(bidAmount))}
+                  disabled={!bidAmount || Number(bidAmount) <= curBid || Number(bidAmount) > myBudget}
+                  className="px-6 py-3 text-xl font-bold bg-orange-500 hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-all"
+                >
+                  입찰
+                </button>
+              </div>
+            </div>
+          )}
+
+          {(!auction || auction?.status === 'idle') && (
+            <div className="text-center py-16 text-gray-600 text-lg">관리자가 경매를 시작할 때까지 대기하세요.</div>
+          )}
+
+          {auction?.status === 'done' && (
+            <div className="bg-purple-900/30 border border-purple-700 rounded-2xl p-5 text-center">
+              <p className="text-purple-300 text-2xl font-black">경매 완료!</p>
+              <p className="text-gray-400 mt-2">내 팀: {Object.values(players).filter(p => p.soldTo === captainId).length}명</p>
+            </div>
+          )}
+        </main>
+
+        {/* RIGHT: Queue + History */}
+        <aside className="border-l border-gray-800 overflow-y-auto p-4 space-y-6">
+          <div>
+            <h2 className="text-base font-bold text-gray-300 sticky top-0 bg-[#0f0f1a] pb-2">
+              대기 <span className="text-orange-400">{queuePlayers.length}</span>명
+            </h2>
+            {queuePlayers.length > 0
+              ? <div className="space-y-2">
+                  {queuePlayers.map((p, i) => (
+                    <div key={p.id} className={`flex items-center gap-2 p-2 rounded-lg ${i === 0 ? 'bg-blue-900/30 border border-blue-800' : 'bg-gray-900/60'}`}>
+                      {p.photo ? <img src={p.photo} alt={p.name} className="w-8 h-8 rounded-full object-cover flex-shrink-0" /> : <span className="text-xl flex-shrink-0">👤</span>}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-white truncate">{p.name}</p>
+                        <p className="text-xs text-gray-500">{p.tierCurrent || p.hero || ''}</p>
+                      </div>
+                      {i === 0 && <span className="text-xs text-blue-400 font-bold flex-shrink-0">NEXT</span>}
+                    </div>
+                  ))}
+                </div>
+              : <p className="text-gray-600 text-sm">대기 선수 없음</p>
+            }
+          </div>
+          <div>
+            <h2 className="text-base font-bold text-gray-300 sticky top-0 bg-[#0f0f1a] pb-2">낙찰 내역</h2>
+            {historyList.length > 0
+              ? <div className="space-y-2">
+                  {historyList.map((h, i) => {
+                    const p = players[h.playerId];
+                    const cap = captains[h.captainId];
+                    if (!p || !cap) return null;
+                    return (
+                      <div key={i} className="p-2 bg-gray-900/60 rounded-lg">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-white font-bold truncate">{p.name}</span>
+                          <span className="text-orange-400 font-bold ml-2">{h.price}P</span>
+                        </div>
+                        <p className="text-xs text-gray-500">→ {cap.name} 팀</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              : <p className="text-gray-600 text-sm">낙찰 내역 없음</p>
+            }
+          </div>
+        </aside>
+
       </div>
     </div>
   );
