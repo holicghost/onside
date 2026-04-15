@@ -169,7 +169,7 @@ export default function CreateRoom() {
     setPlayerForms(prev => {
       const next = [...prev];
       while (next.length < totalPlayers)
-        next.push({ name: '', photoFile: null, photoPreview: '', heroIds: ['', '', ''], tierCurrent: '', tierPrevious: '', tierBest: '', style: '', comment: '' });
+        next.push({ name: '', photoFile: null, photoPreview: '', heroIds: ['', '', ''], tierCurrent: '', tierPrevious: '', tierBest: '', tierType: '', position: '', style: '', comment: '' });
       return next.slice(0, totalPlayers);
     });
   }, [totalPlayers]);
@@ -208,6 +208,7 @@ export default function CreateRoom() {
           playerForms: playerForms.map(p => ({
             name: p.name, photo: '', heroIds: p.heroIds,
             tierCurrent: p.tierCurrent, tierPrevious: p.tierPrevious, tierBest: p.tierBest,
+            tierType: p.tierType, position: p.position,
             style: p.style, comment: p.comment,
           })),
           updatedAt: Date.now(),
@@ -302,6 +303,8 @@ export default function CreateRoom() {
       if (!playerForms[i].name.trim()) { setError(`선수 ${i + 1}의 닉네임을 입력해주세요.`); return; }
       if (!playerForms[i].heroIds[0]) { setError(`선수 ${i + 1}의 주 영웅을 선택해주세요.`); return; }
       if (!playerForms[i].tierCurrent) { setError(`선수 ${i + 1}의 이번 시즌 티어를 선택해주세요.`); return; }
+      if (!playerForms[i].tierType) { setError(`선수 ${i + 1}의 티어 구분을 선택해주세요.`); return; }
+      if (!playerForms[i].position) { setError(`선수 ${i + 1}의 포지션을 선택해주세요.`); return; }
     }
 
     setLoading(true);
@@ -331,6 +334,7 @@ export default function CreateRoom() {
           heroRole: primaryHero?.role || '',
           tierCurrent: p.tierCurrent, tierPrevious: p.tierPrevious, tierBest: p.tierBest,
           tier: p.tierCurrent,
+          tierType: p.tierType || '', position: p.position || '',
           style: p.style || '', comment: p.comment || '',
           soldTo: null, soldPrice: null,
         };
@@ -554,6 +558,45 @@ export default function CreateRoom() {
                           </select>
                         </div>
                       ))}
+                    </div>
+                  </div>
+
+                  {/* 티어 구분 + 포지션 */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-sm text-gray-400 mb-2 block font-semibold">티어 구분 <span className="text-red-400">*</span></label>
+                      <div className="flex gap-2">
+                        {[
+                          { val: '고티어', active: 'bg-rose-600 border-rose-500 text-white' },
+                          { val: '저티어', active: 'bg-sky-600 border-sky-500 text-white' },
+                        ].map(({ val, active }) => (
+                          <button key={val} type="button"
+                            onClick={() => updatePlayer(i, 'tierType', val)}
+                            className={`flex-1 py-2 text-sm font-bold rounded-lg border transition-all ${
+                              p.tierType === val ? active : 'bg-gray-800 border-gray-600 text-gray-400 hover:border-gray-500'
+                            }`}>
+                            {val}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-400 mb-2 block font-semibold">포지션 <span className="text-red-400">*</span></label>
+                      <div className="flex gap-2">
+                        {[
+                          { val: '탱커', active: 'bg-yellow-600 border-yellow-500 text-white' },
+                          { val: '딜러', active: 'bg-red-600 border-red-500 text-white' },
+                          { val: '힐러', active: 'bg-green-600 border-green-500 text-white' },
+                        ].map(({ val, active }) => (
+                          <button key={val} type="button"
+                            onClick={() => updatePlayer(i, 'position', val)}
+                            className={`flex-1 py-2 text-sm font-bold rounded-lg border transition-all ${
+                              p.position === val ? active : 'bg-gray-800 border-gray-600 text-gray-400 hover:border-gray-500'
+                            }`}>
+                            {val}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
 

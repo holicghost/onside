@@ -296,6 +296,20 @@ export default function AuctionPage() {
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex gap-1.5 flex-wrap mb-1.5">
+              {player.tierType && (
+                <span className={`px-2 py-0.5 text-xs font-bold rounded-full border ${
+                  player.tierType === '고티어'
+                    ? 'bg-rose-900/60 text-rose-300 border-rose-700/60'
+                    : 'bg-sky-900/60 text-sky-300 border-sky-700/60'
+                }`}>{player.tierType}</span>
+              )}
+              {player.position && (
+                <span className={`px-2 py-0.5 text-xs font-bold rounded-full border ${
+                  player.position === '탱커' ? 'bg-yellow-900/60 text-yellow-300 border-yellow-700/60' :
+                  player.position === '딜러' ? 'bg-red-900/60 text-red-300 border-red-700/60' :
+                  'bg-green-900/60 text-green-300 border-green-700/60'
+                }`}>{player.position}</span>
+              )}
               {player.tierCurrent && (
                 <span className="px-2 py-0.5 bg-purple-900/60 text-purple-300 text-xs font-bold rounded-full border border-purple-700/60">{player.tierCurrent}</span>
               )}

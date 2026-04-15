@@ -100,6 +100,8 @@ export default function AdminRoomPage() {
   const [pTierCurrent, setPTierCurrent] = useState('');
   const [pTierPrevious, setPTierPrevious] = useState('');
   const [pTierBest, setPTierBest] = useState('');
+  const [pTierType, setPTierType] = useState('');
+  const [pPosition, setPPosition] = useState('');
   const [pStyle, setPStyle] = useState('');
   const [pComment, setPComment] = useState('');
 
@@ -200,6 +202,8 @@ export default function AdminRoomPage() {
     setPTierCurrent(p.tierCurrent || p.tier || '');
     setPTierPrevious(p.tierPrevious || '');
     setPTierBest(p.tierBest || '');
+    setPTierType(p.tierType || '');
+    setPPosition(p.position || '');
     setPStyle(p.style || '');
     setPComment(p.comment || '');
     setEditingCaptain(null);
@@ -216,6 +220,8 @@ export default function AdminRoomPage() {
     setPTierCurrent('');
     setPTierPrevious('');
     setPTierBest('');
+    setPTierType('');
+    setPPosition('');
     setPStyle('');
     setPComment('');
     setEditingPlayer(null);
@@ -239,6 +245,7 @@ export default function AdminRoomPage() {
         heroRole: primaryHero?.role || '',
         tierCurrent: pTierCurrent, tierPrevious: pTierPrevious, tierBest: pTierBest,
         tier: pTierCurrent,
+        tierType: pTierType, position: pPosition,
         style: pStyle, comment: pComment,
         soldTo: null, soldPrice: null,
       },
@@ -266,6 +273,7 @@ export default function AdminRoomPage() {
       heroRole: primaryHero?.role || players[pid]?.heroRole || '',
       tierCurrent: pTierCurrent, tierPrevious: pTierPrevious, tierBest: pTierBest,
       tier: pTierCurrent,
+      tierType: pTierType, position: pPosition,
       style: pStyle, comment: pComment,
     });
     setEditingPlayer(null);
@@ -568,6 +576,30 @@ export default function AdminRoomPage() {
                               </select>
                             </div>
                           ))}
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-xs text-gray-400 mb-2 block font-semibold">티어 구분</label>
+                            <div className="flex gap-2">
+                              {[{ val: '고티어', active: 'bg-rose-600 border-rose-500 text-white' }, { val: '저티어', active: 'bg-sky-600 border-sky-500 text-white' }].map(({ val, active }) => (
+                                <button key={val} type="button" onClick={() => setPTierType(val)}
+                                  className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${pTierType === val ? active : 'bg-gray-800 border-gray-600 text-gray-400 hover:border-gray-500'}`}>
+                                  {val}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-400 mb-2 block font-semibold">포지션</label>
+                            <div className="flex gap-1.5">
+                              {[{ val: '탱커', active: 'bg-yellow-600 border-yellow-500 text-white' }, { val: '딜러', active: 'bg-red-600 border-red-500 text-white' }, { val: '힐러', active: 'bg-green-600 border-green-500 text-white' }].map(({ val, active }) => (
+                                <button key={val} type="button" onClick={() => setPPosition(val)}
+                                  className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${pPosition === val ? active : 'bg-gray-800 border-gray-600 text-gray-400 hover:border-gray-500'}`}>
+                                  {val}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
