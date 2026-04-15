@@ -7,6 +7,7 @@ import { getHeroPortraitUrl, loadHeroPortraits, ALL_HEROES } from '@/lib/heroes'
 
 const ROLE_LABEL = { tank: '탱커', damage: '딜러', support: '서포터' };
 const toArr = (val) => !val ? [] : Array.isArray(val) ? val : Object.values(val);
+const QUEUE_GROUPS = ['고티어 딜러', '저티어 딜러', '고티어 탱커', '저티어 탱커', '고티어 힐러', '저티어 힐러'];
 const TIER_POS_STYLES = {
   '고티어 딜러': 'bg-red-600/80 text-white border-red-500/60',
   '저티어 딜러': 'bg-rose-800/70 text-rose-200 border-rose-700/60',
@@ -63,7 +64,6 @@ export default function CaptainPage() {
   const [auction, setAuction] = useState(null);
   const [timeLeft, setTimeLeft] = useState(0);
   const [countdownLeft, setCountdownLeft] = useState(0);
-  const [maxDuration, setMaxDuration] = useState(10000);
   const [bidError, setBidError] = useState('');
   const [showLinks, setShowLinks] = useState(false);
   const [origin, setOrigin] = useState('');
@@ -72,6 +72,8 @@ export default function CaptainPage() {
 
   const auctionRef = useRef(null);
   const lastTimerEndRef = useRef(null);
+  const barRef = useRef(null);
+  const maxDurationRef = useRef(10000);
   const chatScrollRef = useRef(null);
   useEffect(() => { auctionRef.current = auction; }, [auction]);
   useEffect(() => { setOrigin(window.location.origin); }, []);
@@ -145,13 +147,26 @@ export default function CaptainPage() {
     return () => clearInterval(id);
   }, [auction?.timerEnd, auction?.status]);
 
-  // Track max duration for progress bar
+  // Smooth CSS bar animation — one imperative write per new timerEnd
   useEffect(() => {
-    if (!auction?.timerEnd || auction?.status !== 'bidding') return;
-    if (auction.timerEnd !== lastTimerEndRef.current) {
-      lastTimerEndRef.current = auction.timerEnd;
-      setMaxDuration(Math.max(1000, auction.timerEnd - Date.now()));
+    const bar = barRef.current;
+    if (!bar) return;
+    if (auction?.status !== 'bidding' || !auction?.timerEnd) {
+      bar.style.transition = 'none';
+      bar.style.width = '0%';
+      return;
     }
+    if (auction.timerEnd === lastTimerEndRef.current) return;
+    lastTimerEndRef.current = auction.timerEnd;
+    const remaining = Math.max(0, auction.timerEnd - Date.now());
+    maxDurationRef.current = Math.max(1000, remaining);
+    const pct = Math.min(100, (remaining / maxDurationRef.current) * 100);
+    bar.style.transition = 'none';
+    bar.style.width = `${pct}%`;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      bar.style.transition = `width ${remaining}ms linear`;
+      bar.style.width = '0%';
+    }));
   }, [auction?.timerEnd, auction?.status]);
 
   // Pre-player countdown
@@ -330,8 +345,7 @@ export default function CaptainPage() {
   const unsoldPlayers = useMemo(() => Object.values(players).filter(p => !p.soldTo), [players]);
   const curBid = auction?.currentBid || 0;
   const myBudget = myCaptain?.budget || 0;
-  const QUEUE_GROUPS = ['고티어 딜러', '저티어 딜러', '고티어 탱커', '저티어 탱커', '고티어 힐러', '저티어 힐러'];
-  const restQueue = queuePlayers.slice(1);
+  const restQueue = useMemo(() => queuePlayers.slice(1), [queuePlayers]);
   const groupedQueue = useMemo(() => QUEUE_GROUPS
     .map(key => ({ key, players: restQueue.filter(p => `${p.tierType} ${p.position}` === key) }))
     .filter(g => g.players.length > 0), [restQueue]);
@@ -345,7 +359,6 @@ export default function CaptainPage() {
   const bidderCap = auction?.currentBidCaptainId ? captains[auction.currentBidCaptainId] : null;
   const displayTime = (timeLeft / 1000).toFixed(1);
   const displayCountdown = Math.ceil(countdownLeft / 1000);
-  const progressPct = maxDuration > 0 ? Math.max(0, (timeLeft / maxDuration) * 100) : 0;
 
   const statusLabel = { idle: '⏳ 대기 중', countdown: '⏱ 경매 준비', bidding: '🔨 경매 중', paused: '⏸ 일시정지', sold: '✅ 낙찰', passed: '⏭ 유찰', done: '🏆 완료' };
   const statusColor = {
@@ -661,24 +674,11 @@ export default function CaptainPage() {
               </div>
               <div className="h-2.5 bg-gray-700 rounded-full overflow-hidden">
                 <div
-                  className={`h-full rounded-full transition-none ${
-                    progressPct > 60 ? 'bg-green-500' : progressPct > 30 ? 'bg-yellow-500' : 'bg-red-500'
-                  }`}
-                  style={{ width: `${progressPct}%` }}
+                  ref={barRef}
+                  className="h-full rounded-full"
+                  style={{ backgroundColor: '#22c55e', width: '100%' }}
                 />
               </div>
-              {nextQueuePlayer && (
-                <div key={nextQueuePlayer.id} className="flex items-center gap-2 bg-gray-800/60 rounded-xl px-4 py-2 animate-slide-up">
-                  <span className="text-gray-500 text-xs font-bold flex-shrink-0">NEXT</span>
-                  {nextQueuePlayer.photo ? <img src={nextQueuePlayer.photo} alt={nextQueuePlayer.name} className="w-7 h-7 rounded-full object-cover flex-shrink-0" /> : <span className="flex-shrink-0">👤</span>}
-                  <span className="text-gray-300 text-sm font-bold flex-1 truncate">{nextQueuePlayer.name}</span>
-                  {(nextQueuePlayer.tierType && nextQueuePlayer.position) && (
-                    <span className={`px-1.5 py-0.5 text-[10px] font-bold rounded-full border flex-shrink-0 ${TIER_POS_STYLES[`${nextQueuePlayer.tierType} ${nextQueuePlayer.position}`] || 'bg-gray-700 text-gray-300 border-gray-600'}`}>
-                      {nextQueuePlayer.tierType} {nextQueuePlayer.position}
-                    </span>
-                  )}
-                </div>
-              )}
             </div>
           )}
 
@@ -811,9 +811,9 @@ export default function CaptainPage() {
             )}
           </div>
 
-          {/* History */}
+          {/* 낙찰 내역 */}
           <div>
-            <h2 className="text-base font-bold text-gray-300 sticky top-0 bg-[#0f0f1a] pb-2">낙찰 내역</h2>
+            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest pb-2">낙찰 내역</h2>
             {historyList.length > 0
               ? <div className="space-y-2">
                   {historyList.map((h, i) => {
@@ -821,19 +821,38 @@ export default function CaptainPage() {
                     const cap = captains[h.captainId];
                     if (!p || !cap) return null;
                     return (
-                      <div key={i} className="p-2 bg-gray-900/60 rounded-lg">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-white font-bold truncate">{p.name}</span>
-                          <span className="text-orange-400 font-bold ml-2">{h.price}P</span>
+                      <div key={i} className="space-y-0.5">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-white font-bold text-sm truncate">{p.name}</span>
+                          <span className="text-orange-400 font-bold text-sm flex-shrink-0">{h.price}P</span>
                         </div>
-                        <p className="text-xs text-gray-500">→ {cap.name} 팀</p>
+                        <span className="text-green-400 text-xs">{cap.name} 팀</span>
                       </div>
                     );
                   })}
                 </div>
-              : <p className="text-gray-600 text-sm">낙찰 내역 없음</p>
+              : <p className="text-gray-700 text-sm">없음</p>
             }
           </div>
+
+          {/* 유찰 내역 */}
+          {passedPlayers.length > 0 && (
+            <div>
+              <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest pb-2">유찰 내역</h2>
+              <div className="space-y-1.5">
+                {passedPlayers.map(p => (
+                  <div key={p.id} className="flex items-center gap-2">
+                    <span className="text-gray-400 text-sm font-bold truncate min-w-0">{p.name}</span>
+                    {(p.tierType || p.position) && (
+                      <span className="px-1.5 py-0.5 bg-gray-800 text-gray-500 text-xs font-bold rounded flex-shrink-0">
+                        {[p.tierType, p.position].filter(Boolean).join(' ')}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </aside>
 
       </div>

@@ -8,6 +8,7 @@ import { getHeroPortraitUrl, loadHeroPortraits, ALL_HEROES } from '@/lib/heroes'
 const ROLE_BG = { tank: 'bg-yellow-900/50 text-yellow-300', damage: 'bg-red-900/50 text-red-300', support: 'bg-green-900/50 text-green-300' };
 const ROLE_LABEL = { tank: '탱커', damage: '딜러', support: '서포터' };
 const toArr = (val) => !val ? [] : Array.isArray(val) ? val : Object.values(val);
+const QUEUE_GROUPS = ['고티어 딜러', '저티어 딜러', '고티어 탱커', '저티어 탱커', '고티어 힐러', '저티어 힐러'];
 const TIER_POS_STYLES = {
   '고티어 딜러': 'bg-red-600/80 text-white border-red-500/60',
   '저티어 딜러': 'bg-rose-800/70 text-rose-200 border-rose-700/60',
@@ -391,8 +392,7 @@ export default function AuctionPage() {
   const curBid = auction?.currentBid || 0;
   const myBudget = myCaptain?.budget || 0;
   const offlineCaptains = useMemo(() => captainsList.filter(c => !c.online), [captainsList]);
-  const QUEUE_GROUPS = ['고티어 딜러', '저티어 딜러', '고티어 탱커', '저티어 탱커', '고티어 힐러', '저티어 힐러'];
-  const restQueue = queuePlayers.slice(1);
+  const restQueue = useMemo(() => queuePlayers.slice(1), [queuePlayers]);
   const groupedQueue = useMemo(() => QUEUE_GROUPS
     .map(key => ({ key, players: restQueue.filter(p => `${p.tierType} ${p.position}` === key) }))
     .filter(g => g.players.length > 0), [restQueue]);
