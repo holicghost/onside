@@ -477,9 +477,12 @@ export default function CaptainPage() {
     <div className="min-h-screen flex flex-col" style={{ background: '#0f0f1a' }}>
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-3 border-b border-gray-800 flex-shrink-0 gap-3">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-black text-white truncate">{roomInfo?.name || '경매'}</h1>
-          <span className="text-sm text-gray-500">코드: <BlurCode text={code} className="font-mono text-orange-400 font-bold" /></span>
+        <div className="flex items-center gap-4 min-w-0">
+          <button onClick={() => router.push('/')} className="text-gray-500 hover:text-gray-300 text-sm transition-colors flex-shrink-0">← 홈</button>
+          <div className="min-w-0">
+            <h1 className="text-2xl font-black text-white truncate">{roomInfo?.name || '경매'}</h1>
+            <span className="text-sm text-gray-500">코드: <BlurCode text={code} className="font-mono text-orange-400 font-bold" /></span>
+          </div>
         </div>
         <div className="text-right flex-shrink-0">
           <p className="text-lg font-black text-white">{myCaptain?.name || '팀장'}</p>

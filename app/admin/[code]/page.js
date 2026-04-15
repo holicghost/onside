@@ -360,6 +360,7 @@ export default function AdminRoomPage() {
 
         {/* 헤더 */}
         <div className="flex items-center gap-4">
+          <button onClick={() => router.push('/')} className="text-gray-500 hover:text-gray-300 text-sm transition-colors">← 홈</button>
           <button onClick={() => router.push('/admin')} className="text-gray-500 hover:text-gray-300 text-lg transition-all">← 목록</button>
           <div className="flex-1">
             <h1 className="text-3xl font-black text-white">{roomInfo?.name || '로딩 중...'}</h1>
@@ -666,13 +667,12 @@ export default function AdminRoomPage() {
                           : <span className="text-xs bg-gray-700 text-gray-400 px-2 py-0.5 rounded-full">미낙찰</span>
                         }
                       </div>
-                      <div className="flex items-center gap-2 mt-1 flex-wrap text-xs text-gray-400">
-                        {(p.heroIds || [p.heroId]).filter(Boolean).map((hid, i) => {
-                          const h = ALL_HEROES.find(x => x.id === hid);
-                          return h ? <span key={i} className={`font-bold ${ROLE_TEXT[h.role] || ''}`}>{h.name}</span> : null;
-                        })}
-                        {p.tierCurrent && <span className="text-purple-400">{p.tierCurrent}</span>}
-                        {p.style && <span>{p.style}</span>}
+                      <div className="flex items-center gap-2 mt-1">
+                        {(p.tierType || p.position) && (
+                          <span className="text-xs px-2 py-0.5 bg-gray-700 text-gray-300 rounded-full font-bold">
+                            {[p.tierType, p.position].filter(Boolean).join(' ')}
+                          </span>
+                        )}
                       </div>
                     </div>
                     <button onClick={() => startEditPlayer(p.id)} className="px-4 py-2 text-sm bg-gray-700 hover:bg-gray-600 rounded-xl transition-all flex-shrink-0">수정</button>
