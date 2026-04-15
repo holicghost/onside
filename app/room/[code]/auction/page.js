@@ -448,28 +448,36 @@ export default function AuctionPage() {
         )}
 
         {/* Current bid + bidder */}
-        <div className="px-5 pb-5 flex items-end justify-between">
-          <div>
-            <p className="text-gray-500 text-xs mb-0.5">현재 입찰</p>
-            <p className="text-4xl font-black text-orange-400 leading-none tabular-nums">
-              {curBid > 0 ? `${curBid} pt` : '—'}
-            </p>
-            {bidderCap && (
-              <p className="text-white text-sm font-bold mt-1">👑 {bidderCap.name} 입찰 중</p>
-            )}
-          </div>
-          {auction?.status === 'sold' && bidderCap && (
-            <div className="text-right">
-              <p className="text-blue-300 text-2xl font-black">낙찰!</p>
-              <p className="text-gray-400 text-sm">{bidderCap.name} 팀</p>
-            </div>
-          )}
-          {auction?.status === 'passed' && (
-            <div className="text-right">
-              <p className="text-gray-400 text-2xl font-black">유찰</p>
-            </div>
+        <div className="px-5 pb-5">
+          <p className="text-gray-500 text-xs mb-0.5">현재 입찰</p>
+          <p key={curBid} className={`text-4xl font-black text-orange-400 leading-none tabular-nums${curBid > 0 ? ' animate-bid-pop' : ''}`}>
+            {curBid > 0 ? `${curBid} pt` : '—'}
+          </p>
+          {bidderCap && (
+            <p className="text-white text-sm font-bold mt-1">👑 {bidderCap.name} 입찰 중</p>
           )}
         </div>
+
+        {/* Result overlay */}
+        {auction?.status === 'sold' && (
+          <div
+            key={`sold-${auction.currentPlayerId}`}
+            className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none animate-result-in"
+            style={{ background: 'rgba(37,99,235,0.82)', borderRadius: 'inherit' }}
+          >
+            <p className="text-white text-6xl font-black drop-shadow-lg">낙찰!</p>
+            {bidderCap && <p className="text-blue-100 text-xl font-bold mt-2">{bidderCap.name} 팀</p>}
+          </div>
+        )}
+        {auction?.status === 'passed' && (
+          <div
+            key={`passed-${auction.currentPlayerId}`}
+            className="absolute inset-0 flex items-center justify-center pointer-events-none animate-result-in"
+            style={{ background: 'rgba(75,85,99,0.82)', borderRadius: 'inherit' }}
+          >
+            <p className="text-white text-6xl font-black drop-shadow-lg">유찰</p>
+          </div>
+        )}
       </div>
     );
   };
@@ -578,7 +586,9 @@ export default function AuctionPage() {
           {auction?.status === 'countdown' && currentPlayer && (
             <div className="flex flex-col items-center gap-3">
               <p className="text-yellow-400 text-sm font-bold">다음 선수 경매 준비</p>
-              <PlayerCard player={currentPlayer} />
+              <div key={`cd-${auction?.currentPlayerId}`} className="animate-player-enter w-full">
+                <PlayerCard player={currentPlayer} />
+              </div>
               <div key={displayCountdown} className="text-7xl font-black text-yellow-400 animate-count-down">{displayCountdown}</div>
               <p className="text-gray-500 text-sm">초 후 경매 시작</p>
               {/* Countdown progress bar */}
@@ -593,7 +603,9 @@ export default function AuctionPage() {
 
           {/* Active / resolved player */}
           {['bidding', 'paused', 'sold', 'passed'].includes(auction?.status) && (
-            <PlayerCard player={currentPlayer} />
+            <div key={auction?.currentPlayerId} className="animate-player-enter w-full">
+              <PlayerCard player={currentPlayer} />
+            </div>
           )}
 
           {/* Timer + progress bar */}
@@ -613,15 +625,18 @@ export default function AuctionPage() {
               {/* Shrinking progress bar */}
               <div className="h-2.5 bg-gray-700 rounded-full overflow-hidden">
                 <div
-                  className={`h-full rounded-full transition-none ${
-                    progressPct > 60 ? 'bg-green-500' : progressPct > 30 ? 'bg-yellow-500' : 'bg-red-500'
-                  }`}
-                  style={{ width: `${progressPct}%` }}
+                  ref={barRef}
+                  className="h-full rounded-full"
+                  style={{
+                    backgroundColor: progressPct > 60 ? '#22c55e' : progressPct > 30 ? '#eab308' : '#ef4444',
+                    transition: 'background-color 0.4s',
+                    width: '100%',
+                  }}
                 />
               </div>
               {/* NEXT preview */}
               {nextQueuePlayer && (
-                <div className="flex items-center gap-2 bg-gray-800/60 rounded-xl px-4 py-2">
+                <div key={nextQueuePlayer.id} className="flex items-center gap-2 bg-gray-800/60 rounded-xl px-4 py-2 animate-slide-up">
                   <span className="text-gray-500 text-xs font-bold flex-shrink-0">NEXT</span>
                   {nextQueuePlayer.photo ? <img src={nextQueuePlayer.photo} alt={nextQueuePlayer.name} className="w-7 h-7 rounded-full object-cover flex-shrink-0" /> : <span className="flex-shrink-0">👤</span>}
                   <span className="text-gray-300 text-sm font-bold flex-1 truncate">{nextQueuePlayer.name}</span>
@@ -650,7 +665,7 @@ export default function AuctionPage() {
 
           {/* Captain bid UI */}
           {role === 'captain' && auction?.status === 'bidding' && captainId && (
-            <div className="space-y-3">
+            <div className="space-y-3 animate-modal-in">
               <p className="text-center text-gray-400 text-sm">
                 내 포인트: <span className="text-green-400 font-black text-lg">{myBudget}pt</span>
               </p>
@@ -693,16 +708,16 @@ export default function AuctionPage() {
                 </button>
               )}
               {auction?.status === 'bidding' && (
-                <div className="grid grid-cols-3 gap-2">
-                  <button onClick={pauseAuction} className="py-3 text-sm font-bold bg-orange-700 hover:bg-orange-600 rounded-xl transition-all">⏸ 일시정지</button>
-                  <button onClick={finalizeSale} className="py-3 text-sm font-bold bg-blue-700 hover:bg-blue-600 rounded-xl transition-all">🔨 강제낙찰</button>
-                  <button onClick={passCurrent} className="py-3 text-sm font-bold bg-gray-600 hover:bg-gray-500 rounded-xl transition-all">⏭ 강제유찰</button>
+                <div className="grid grid-cols-3 gap-2 animate-modal-in">
+                  <button onClick={pauseAuction} className="py-3 text-sm font-bold bg-orange-700 hover:bg-orange-600 rounded-xl transition-all duration-200">⏸ 일시정지</button>
+                  <button onClick={finalizeSale} className="py-3 text-sm font-bold bg-blue-700 hover:bg-blue-600 rounded-xl transition-all duration-200">🔨 강제낙찰</button>
+                  <button onClick={passCurrent} className="py-3 text-sm font-bold bg-gray-600 hover:bg-gray-500 rounded-xl transition-all duration-200">⏭ 강제유찰</button>
                 </div>
               )}
               {auction?.status === 'paused' && (
-                <div className="grid grid-cols-2 gap-2">
-                  <button onClick={resumeAuction} className="py-3 text-lg font-bold bg-green-600 hover:bg-green-500 rounded-xl transition-all">▶ 재진행</button>
-                  <button onClick={passCurrent} className="py-3 text-lg font-bold bg-gray-600 hover:bg-gray-500 rounded-xl transition-all">⏭ 강제유찰</button>
+                <div className="grid grid-cols-2 gap-2 animate-modal-in">
+                  <button onClick={resumeAuction} className="py-3 text-lg font-bold bg-green-600 hover:bg-green-500 rounded-xl transition-all duration-200">▶ 재진행</button>
+                  <button onClick={passCurrent} className="py-3 text-lg font-bold bg-gray-600 hover:bg-gray-500 rounded-xl transition-all duration-200">⏭ 강제유찰</button>
                 </div>
               )}
               {auction?.status === 'done' && (
