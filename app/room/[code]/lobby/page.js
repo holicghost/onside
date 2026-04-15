@@ -4,6 +4,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { ref, onValue, update } from 'firebase/database';
 import { db } from '@/lib/firebase';
 
+const toArr = (val) => !val ? [] : Array.isArray(val) ? val : Object.values(val);
+
 export default function LobbyPage() {
   const { code } = useParams();
   const router = useRouter();
@@ -16,6 +18,9 @@ export default function LobbyPage() {
   const [countdown, setCountdown] = useState(5);
   const [copied, setCopied] = useState(false);
   const shuffleTimerRef = useRef(null);
+  const phaseRef = useRef('waiting');
+
+  useEffect(() => { phaseRef.current = phase; }, [phase]);
 
   useEffect(() => {
     const r = localStorage.getItem('ow_role') || 'spectator';
@@ -34,14 +39,18 @@ export default function LobbyPage() {
     });
     const lobbyUnsub = onValue(ref(db, `rooms/${code}/lobby`), snap => {
       const lobby = snap.val();
-      if (lobby?.captainOrder && phase === 'waiting') {
+      if (lobby?.captainOrder && phaseRef.current === 'waiting') {
         // Another admin already started the draw — sync
-        setRevealedOrder(lobby.captainOrder);
-        setPhase('revealing');
+        const order = toArr(lobby.captainOrder);
+        if (order.length > 0) {
+          setRevealedOrder(order);
+          setPhase('revealing');
+          setTimeout(() => setPhase('countdown'), 2500);
+        }
       }
     });
     return () => { infoUnsub(); capUnsub(); lobbyUnsub(); };
-  }, [code]);
+  }, [code, router]);
 
   // Countdown when phase is 'countdown'
   useEffect(() => {
@@ -61,7 +70,7 @@ export default function LobbyPage() {
   }, [phase, code]);
 
   const startDraw = async () => {
-    if (phase !== 'waiting') return;
+    if (phaseRef.current !== 'waiting') return;
     const captainIds = Object.keys(captains);
     const shuffled = [...captainIds].sort(() => Math.random() - 0.5);
 
