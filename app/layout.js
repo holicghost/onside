@@ -16,6 +16,7 @@ export default function RootLayout({ children }) {
         />
       </head>
       <body
+        suppressHydrationWarning={true}
         className="min-h-full flex flex-col"
         style={{ fontFamily: "'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif", backgroundColor: '#0f0f1a', color: '#f0f0f0' }}
       >
