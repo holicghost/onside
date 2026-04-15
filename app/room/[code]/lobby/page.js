@@ -13,199 +13,283 @@ export default function LobbyPage() {
   const [role, setRole] = useState('spectator');
   const [roomInfo, setRoomInfo] = useState(null);
   const [captains, setCaptains] = useState({});
-  const [phase, setPhase] = useState('waiting'); // waiting | shuffling | revealing | countdown
-  const [revealedOrder, setRevealedOrder] = useState([]);
-  const [countdown, setCountdown] = useState(5);
-  const [copied, setCopied] = useState(false);
-  const shuffleTimerRef = useRef(null);
-  const phaseRef = useRef('waiting');
+  const [lobbyData, setLobbyData] = useState(null);
 
-  useEffect(() => { phaseRef.current = phase; }, [phase]);
+  // phase: 'waiting' | 'shuffling' | 'revealing' | 'done'
+  const [phase, setPhase] = useState('waiting');
+  const [revealedCount, setRevealedCount] = useState(0);
+  const [countdown, setCountdown] = useState(5);
+
+  const roleRef = useRef('spectator');
+  useEffect(() => { roleRef.current = role; }, [role]);
 
   useEffect(() => {
-    const r = localStorage.getItem('ow_role') || 'spectator';
-    setRole(r);
+    setRole(localStorage.getItem('ow_role') || 'spectator');
   }, []);
 
+  // Firebase listeners
   useEffect(() => {
     if (!code) return;
-    const infoUnsub = onValue(ref(db, `rooms/${code}/info`), snap => {
-      const info = snap.val();
-      setRoomInfo(info);
-      if (info?.status === 'auction') router.push(`/room/${code}/auction`);
-    });
-    const capUnsub = onValue(ref(db, `rooms/${code}/captains`), snap => {
-      setCaptains(snap.val() || {});
-    });
-    const lobbyUnsub = onValue(ref(db, `rooms/${code}/lobby`), snap => {
-      const lobby = snap.val();
-      if (lobby?.captainOrder && phaseRef.current === 'waiting') {
-        // Another admin already started the draw — sync
-        const order = toArr(lobby.captainOrder);
-        if (order.length > 0) {
-          setRevealedOrder(order);
-          setPhase('revealing');
-          setTimeout(() => setPhase('countdown'), 2500);
-        }
-      }
-    });
-    return () => { infoUnsub(); capUnsub(); lobbyUnsub(); };
+    const unsubs = [
+      onValue(ref(db, `rooms/${code}/info`), snap => {
+        const info = snap.val();
+        setRoomInfo(info);
+        if (info?.status === 'auction') router.replace(`/room/${code}/auction`);
+        if (info?.status === 'result')  router.replace(`/room/${code}/result`);
+      }),
+      onValue(ref(db, `rooms/${code}/captains`), snap => setCaptains(snap.val() || {})),
+      onValue(ref(db, `rooms/${code}/lobby`),    snap => setLobbyData(snap.val())),
+    ];
+    return () => unsubs.forEach(u => u());
   }, [code, router]);
 
-  // Countdown when phase is 'countdown'
+  // Animation timeline — driven purely by Firebase timestamps so all clients stay in sync
   useEffect(() => {
-    if (phase !== 'countdown') return;
-    const interval = setInterval(() => {
-      setCountdown(c => {
-        if (c <= 1) {
-          clearInterval(interval);
-          update(ref(db), { [`rooms/${code}/info/status`]: 'auction' })
-            .then(() => router.push(`/room/${code}/auction`));
-          return 0;
+    const order     = toArr(lobbyData?.captainOrder);
+    const startedAt = lobbyData?.shuffleStartedAt;
+    if (!startedAt || !order.length) return;
+
+    const SHUFFLE_MS = 3000;   // shuffle animation duration
+    const REVEAL_MS  = 650;    // delay between each card reveal
+
+    const tick = () => {
+      const elapsed = Date.now() - startedAt;
+      if (elapsed < 0) return; // clock skew guard
+
+      if (elapsed < SHUFFLE_MS) {
+        setPhase('shuffling');
+        setRevealedCount(0);
+        return;
+      }
+
+      const count = Math.min(
+        order.length,
+        Math.floor((elapsed - SHUFFLE_MS) / REVEAL_MS) + 1,
+      );
+      setRevealedCount(count);
+      setPhase(count < order.length ? 'revealing' : 'done');
+    };
+
+    tick();
+    const id = setInterval(tick, 100);
+    return () => clearInterval(id);
+  }, [lobbyData]);
+
+  // 5-second countdown once all captains are revealed
+  useEffect(() => {
+    if (phase !== 'done') return;
+    let n = 5;
+    setCountdown(5);
+
+    const id = setInterval(() => {
+      n -= 1;
+      setCountdown(n);
+      if (n <= 0) {
+        clearInterval(id);
+        // Only admin triggers the Firebase status change; all clients redirect on that event
+        if (roleRef.current === 'admin') {
+          update(ref(db), { [`rooms/${code}/info/status`]: 'auction' });
         }
-        return c - 1;
-      });
+        router.replace(`/room/${code}/auction`);
+      }
     }, 1000);
-    return () => clearInterval(interval);
-  }, [phase, code]);
+    return () => clearInterval(id);
+  }, [phase]);
 
-  const startDraw = async () => {
-    if (phaseRef.current !== 'waiting') return;
-    const captainIds = Object.keys(captains);
-    const shuffled = [...captainIds].sort(() => Math.random() - 0.5);
-
-    setPhase('shuffling');
-
-    // Save order to Firebase so all clients see it
+  const handleStartDraw = async () => {
+    if (phase !== 'waiting') return;
+    const ids = Object.keys(captains);
+    if (!ids.length) return;
+    const shuffled = [...ids].sort(() => Math.random() - 0.5);
     await update(ref(db), {
-      [`rooms/${code}/lobby/captainOrder`]: shuffled,
+      [`rooms/${code}/captainOrder`]:          shuffled, // canonical location per spec
+      [`rooms/${code}/lobby/captainOrder`]:    shuffled, // used by animation timeline
+      [`rooms/${code}/lobby/shuffleStartedAt`]: Date.now(),
     });
-
-    // After 3s reveal order
-    shuffleTimerRef.current = setTimeout(async () => {
-      setRevealedOrder(shuffled);
-      setPhase('revealing');
-      // After 2.5s start countdown
-      setTimeout(() => setPhase('countdown'), 2500);
-    }, 3000);
   };
 
-  const captainsList = Object.entries(captains).map(([id, c]) => ({ id, ...c }));
-
-  const copyLink = () => {
-    navigator.clipboard.writeText(`${window.location.origin}/room/${code}/lobby`);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  const captainsList  = Object.entries(captains).map(([id, c]) => ({ id, ...c }));
+  const captainOrder  = toArr(lobbyData?.captainOrder);
+  const showCards     = phase === 'waiting' || phase === 'shuffling';
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12"
-      style={{ background: 'linear-gradient(135deg, #0f0f1a 0%, #1a1a3e 50%, #0f0f1a 100%)' }}>
+    <div
+      className="min-h-screen flex flex-col items-center justify-center px-4 py-12 relative overflow-hidden"
+      style={{ background: 'linear-gradient(135deg, #0f0f1a 0%, #1a1a3e 50%, #0f0f1a 100%)' }}
+    >
+      {/* Radial glow during shuffle */}
+      {phase === 'shuffling' && (
+        <div
+          className="absolute inset-0 pointer-events-none animate-pulse"
+          style={{ background: 'radial-gradient(ellipse at center, rgba(99,102,241,0.15) 0%, transparent 65%)' }}
+        />
+      )}
 
-      {/* Header */}
-      <div className="text-center mb-8">
+      {/* ── Header ── */}
+      <div className="text-center mb-10 relative z-10">
         <h1 className="text-4xl font-black text-white">{roomInfo?.name || '로비'}</h1>
-        <div className="flex items-center justify-center gap-3 mt-2">
-          <span className="text-gray-400 text-xl">방 코드:</span>
+        <div className="flex items-center justify-center gap-2 mt-2">
+          <span className="text-gray-400 text-lg">방 코드</span>
           <span className="text-3xl font-black font-mono text-orange-400 tracking-widest">{code}</span>
-          <button onClick={copyLink} className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded-lg text-base transition-all">
-            {copied ? '✅' : '🔗'} {copied ? '복사됨' : '링크 복사'}
-          </button>
         </div>
-        <div className="mt-2">
-          <span className={`px-3 py-1 rounded-full text-base font-bold ${
-            role === 'admin' ? 'bg-purple-900 text-purple-300' : 'bg-gray-800 text-gray-400'
-          }`}>
-            {role === 'admin' ? '관리자' : role === 'captain' ? '팀장' : '관전자'}
-          </span>
-        </div>
+        <span className={`inline-block mt-3 px-4 py-1 rounded-full text-sm font-bold ${
+          role === 'admin'   ? 'bg-purple-900 text-purple-300' :
+          role === 'captain' ? 'bg-orange-900 text-orange-300' :
+                               'bg-gray-800 text-gray-400'
+        }`}>
+          {role === 'admin' ? '관리자' : role === 'captain' ? '팀장' : '관전자'}
+        </span>
       </div>
 
-      {/* Captain Cards */}
-      {phase === 'waiting' || phase === 'shuffling' ? (
-        <div className={`flex flex-wrap gap-4 justify-center mb-10 max-w-2xl`}>
+      {/* ── Face-down cards (waiting & shuffling) ── */}
+      {showCards && (
+        <div className="flex flex-wrap gap-5 justify-center mb-8 relative z-10">
           {captainsList.map((cap, i) => (
             <div
               key={cap.id}
-              className="flex flex-col items-center bg-gray-900/80 border border-gray-700 rounded-2xl p-4 w-36"
-              style={phase === 'shuffling' ? {
-                animation: `float-card ${0.9 + i * 0.15}s ease-in-out infinite`,
-                animationDelay: `${i * 0.1}s`,
-              } : {}}
+              className={`relative w-28 h-40 rounded-2xl overflow-hidden flex-shrink-0 ${
+                phase === 'shuffling' ? 'animate-card-shuffle' : ''
+              }`}
+              style={{
+                background: 'linear-gradient(140deg, #1e1b4b 0%, #312e81 55%, #4c1d95 100%)',
+                border: '2px solid #6366f1',
+                boxShadow: phase === 'shuffling'
+                  ? '0 0 22px rgba(99,102,241,0.55)'
+                  : '0 4px 18px rgba(0,0,0,0.5)',
+                animationDuration: `${0.5 + i * 0.08}s`,
+                animationDelay:    `${i * 0.1}s`,
+              }}
             >
-              {cap.photo
-                ? <img src={cap.photo} alt={cap.name} className="w-16 h-16 rounded-full object-cover mb-2" />
-                : <div className="w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center text-3xl mb-2">👤</div>
-              }
-              <span className="text-white font-bold text-center text-base">{cap.name}</span>
+              {/* Crosshatch pattern on card back */}
+              <div
+                className="absolute inset-0 opacity-[0.07]"
+                style={{
+                  backgroundImage: 'repeating-linear-gradient(45deg, #fff 0, #fff 1px, transparent 0, transparent 50%)',
+                  backgroundSize: '10px 10px',
+                }}
+              />
+              {/* Center icon */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+                <div className="w-12 h-12 rounded-full border-2 border-indigo-500/40 flex items-center justify-center">
+                  <span className="text-2xl font-black text-indigo-300/60">?</span>
+                </div>
+                <span className="text-indigo-400/40 text-[10px] font-bold uppercase tracking-widest">ONSIDE</span>
+              </div>
             </div>
           ))}
         </div>
-      ) : null}
+      )}
 
-      {/* Shuffling Label */}
+      {/* ── Shuffling label ── */}
       {phase === 'shuffling' && (
-        <div className="text-center mb-8 animate-slide-up">
-          <p className="text-3xl font-black text-yellow-400">🎲 추첨 중...</p>
-          <p className="text-gray-400 mt-1">경매 순서를 랜덤 추첨합니다</p>
+        <div className="text-center mb-6 relative z-10">
+          <p className="text-4xl font-black text-yellow-400 animate-pulse">🎲 추첨 중...</p>
+          <p className="text-gray-400 mt-2 text-lg">경매 순서를 랜덤 추첨합니다</p>
         </div>
       )}
 
-      {/* Revealed Order */}
-      {(phase === 'revealing' || phase === 'countdown') && (
-        <div className="flex flex-col gap-3 mb-8 w-full max-w-sm">
-          <p className="text-2xl font-black text-center text-white mb-2">🏆 경매 순서</p>
-          {revealedOrder.map((captainId, i) => {
-            const cap = captains[captainId];
-            if (!cap) return null;
-            return (
-              <div
-                key={captainId}
-                className="flex items-center gap-4 bg-gray-900/80 border border-gray-700 rounded-2xl px-5 py-3 animate-reveal"
-                style={{ animationDelay: `${i * 0.15}s`, opacity: 0 }}
-              >
-                <span className="text-2xl font-black text-orange-400 w-8 text-center">{i + 1}</span>
-                {cap.photo
-                  ? <img src={cap.photo} alt={cap.name} className="w-10 h-10 rounded-full object-cover" />
-                  : <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-xl">👤</div>
-                }
-                <span className="text-white text-xl font-bold">{cap.name}</span>
-              </div>
-            );
-          })}
+      {/* ── Revealed ordered list ── */}
+      {(phase === 'revealing' || phase === 'done') && (
+        <div className="w-full max-w-md relative z-10 mb-6">
+          {phase === 'done' ? (
+            <p className="text-center text-2xl font-black text-white mb-5">
+              🎉 경매 순서가 확정되었습니다!
+            </p>
+          ) : (
+            <p className="text-center text-xl font-bold text-white mb-4">🏆 경매 순서 공개!</p>
+          )}
+
+          <div className="space-y-3">
+            {captainOrder.slice(0, revealedCount).map((captainId, i) => {
+              const cap = captains[captainId];
+              if (!cap) return null;
+              return (
+                <div
+                  key={captainId}
+                  className="flex items-center gap-4 rounded-2xl px-5 py-4 animate-reveal-pop"
+                  style={{
+                    background: i === 0
+                      ? 'linear-gradient(135deg, rgba(124,45,18,0.85) 0%, rgba(154,52,18,0.85) 100%)'
+                      : 'rgba(17, 24, 39, 0.85)',
+                    border: `2px solid ${i === 0 ? '#ea580c' : '#374151'}`,
+                    boxShadow: i === 0 ? '0 0 22px rgba(234,88,12,0.28)' : 'none',
+                  }}
+                >
+                  {/* Rank badge */}
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-lg flex-shrink-0 ${
+                    i === 0 ? 'bg-orange-500 text-white' :
+                    i === 1 ? 'bg-yellow-500/80 text-yellow-100' :
+                    i === 2 ? 'bg-amber-700/80 text-amber-200' :
+                              'bg-gray-700 text-gray-300'
+                  }`}>
+                    {i + 1}
+                  </div>
+
+                  {/* Captain photo */}
+                  {cap.photo
+                    ? <img src={cap.photo} alt={cap.name} className="w-12 h-12 rounded-full object-cover flex-shrink-0" />
+                    : <div className="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center text-2xl flex-shrink-0">👤</div>
+                  }
+
+                  {/* Name */}
+                  <span className="text-white text-xl font-bold flex-1">{cap.name}</span>
+
+                  {/* 선공 badge for 1st place */}
+                  {i === 0 && (
+                    <span className="flex-shrink-0 px-2.5 py-1 bg-orange-500/20 border border-orange-500/60 text-orange-400 text-xs font-bold rounded-full">
+                      선공
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
-      {/* Countdown */}
-      {phase === 'countdown' && (
-        <div className="text-center mb-6">
-          <p className="text-gray-400 text-xl mb-2">경매 시작까지</p>
+      {/* ── Countdown ── */}
+      {phase === 'done' && (
+        <div className="text-center relative z-10">
+          <p className="text-gray-400 text-xl">{countdown}초 뒤 경매가 시작됩니다</p>
           <div
             key={countdown}
-            className="text-8xl font-black text-orange-400 animate-count-down"
+            className="text-9xl font-black text-orange-400 leading-none mt-2 animate-count-down"
           >
             {countdown}
           </div>
         </div>
       )}
 
-      {/* Admin: Start Draw Button */}
-      {role === 'admin' && phase === 'waiting' && captainsList.length >= 2 && (
-        <button
-          onClick={startDraw}
-          className="mt-4 px-10 py-5 text-2xl font-bold bg-orange-500 hover:bg-orange-400 text-white rounded-2xl transition-all transform hover:scale-105"
-          style={{ boxShadow: '0 8px 32px rgba(249,115,22,0.4)' }}
-        >
-          🎲 팀장 순서 추첨 시작
-        </button>
-      )}
-
-      {role !== 'admin' && phase === 'waiting' && (
-        <p className="text-gray-500 text-xl mt-4">관리자가 추첨을 시작할 때까지 대기하세요.</p>
-      )}
-
-      {captainsList.length < 2 && phase === 'waiting' && (
-        <p className="text-yellow-500 text-xl mt-4">팀장이 2명 이상이어야 추첨할 수 있습니다.</p>
+      {/* ── Waiting controls ── */}
+      {phase === 'waiting' && (
+        <div className="text-center relative z-10 mt-2">
+          {role === 'admin' ? (
+            <>
+              <button
+                onClick={handleStartDraw}
+                disabled={captainsList.length === 0}
+                className="px-12 py-5 text-2xl font-bold bg-orange-500 hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-2xl transition-all hover:scale-105 active:scale-95"
+                style={{
+                  boxShadow: captainsList.length > 0 ? '0 8px 36px rgba(249,115,22,0.45)' : 'none',
+                }}
+              >
+                🎲 순서 추첨 시작
+              </button>
+              {captainsList.length === 0 && (
+                <p className="text-yellow-500 text-sm mt-3">등록된 팀장이 없습니다.</p>
+              )}
+            </>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-gray-400 text-xl">
+                {captainsList.length > 0
+                  ? `팀장 ${captainsList.length}명 대기 중`
+                  : '팀장 등록 대기 중...'}
+              </p>
+              <p className="text-gray-600 text-base">관리자가 추첨을 시작할 때까지 대기하세요.</p>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

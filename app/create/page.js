@@ -26,55 +26,66 @@ function PhotoInput({ value, onChange, size = 'md' }) {
   );
 }
 
+// Each slot is its own component so imgError state resets properly when the hero changes.
+function HeroSlot({ hi, hid, heroIds, onChange }) {
+  const [imgError, setImgError] = useState(false);
+  // Reset error state whenever the selected hero changes
+  useEffect(() => { setImgError(false); }, [hid]);
+
+  const portraitUrl = hid ? getHeroPortraitUrl(hid) : null;
+  const hero = ALL_HEROES.find(h => h.id === hid);
+
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div className="relative w-14 h-14 rounded-lg overflow-hidden bg-gray-700 flex items-center justify-center flex-shrink-0">
+        {(!portraitUrl || imgError) && <span className="text-gray-600 text-xl">?</span>}
+        {portraitUrl && !imgError && (
+          <img
+            src={portraitUrl}
+            alt={hero?.name}
+            className="absolute inset-0 w-full h-full object-cover"
+            onError={() => setImgError(true)}
+          />
+        )}
+        {hero && !imgError && (
+          <span
+            className={`absolute bottom-0 left-0 right-0 text-center text-[9px] font-bold py-0.5 ${ROLE_TEXT[hero.role] || 'text-gray-400'}`}
+            style={{ background: 'rgba(0,0,0,0.7)' }}
+          >
+            {hero.roleName}
+          </span>
+        )}
+      </div>
+      <select
+        value={hid}
+        onChange={e => {
+          const next = [...heroIds];
+          next[hi] = e.target.value;
+          onChange(next);
+        }}
+        className="w-full px-1 py-1 text-xs bg-gray-800 border border-gray-600 rounded-lg focus:outline-none focus:border-blue-400"
+      >
+        <option value="">{hi + 1}픽</option>
+        <optgroup label="탱커">
+          {ALL_HEROES.filter(h => h.role === 'tank').map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
+        </optgroup>
+        <optgroup label="딜러">
+          {ALL_HEROES.filter(h => h.role === 'damage').map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
+        </optgroup>
+        <optgroup label="서포터">
+          {ALL_HEROES.filter(h => h.role === 'support').map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
+        </optgroup>
+      </select>
+    </div>
+  );
+}
+
 function HeroPicker({ heroIds, onChange }) {
   return (
     <div className="grid grid-cols-3 gap-2">
-      {[0, 1, 2].map(hi => {
-        const hid = heroIds[hi] || '';
-        const portraitUrl = hid ? getHeroPortraitUrl(hid) : null;
-        const hero = ALL_HEROES.find(h => h.id === hid);
-        return (
-          <div key={hi} className="flex flex-col items-center gap-1">
-            <div className="relative w-14 h-14 rounded-lg overflow-hidden bg-gray-700 flex items-center justify-center flex-shrink-0">
-              <span className="text-gray-600 text-xl">?</span>
-              {portraitUrl && (
-                <img
-                  src={portraitUrl}
-                  alt={hero?.name}
-                  className="absolute inset-0 w-full h-full object-cover"
-                  onError={e => e.currentTarget.remove()}
-                />
-              )}
-              {hero && (
-                <span className={`absolute bottom-0 left-0 right-0 text-center text-[9px] font-bold py-0.5 ${ROLE_TEXT[hero.role] || 'text-gray-400'}`}
-                  style={{ background: 'rgba(0,0,0,0.7)' }}>
-                  {hero.roleName}
-                </span>
-              )}
-            </div>
-            <select
-              value={hid}
-              onChange={e => {
-                const next = [...heroIds];
-                next[hi] = e.target.value;
-                onChange(next);
-              }}
-              className="w-full px-1 py-1 text-xs bg-gray-800 border border-gray-600 rounded-lg focus:outline-none focus:border-blue-400"
-            >
-              <option value="">{hi + 1}픽</option>
-              <optgroup label="탱커">
-                {ALL_HEROES.filter(h => h.role === 'tank').map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
-              </optgroup>
-              <optgroup label="딜러">
-                {ALL_HEROES.filter(h => h.role === 'damage').map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
-              </optgroup>
-              <optgroup label="서포터">
-                {ALL_HEROES.filter(h => h.role === 'support').map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
-              </optgroup>
-            </select>
-          </div>
-        );
-      })}
+      {[0, 1, 2].map(hi => (
+        <HeroSlot key={hi} hi={hi} hid={heroIds[hi] || ''} heroIds={heroIds} onChange={onChange} />
+      ))}
     </div>
   );
 }

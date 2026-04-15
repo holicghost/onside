@@ -54,3 +54,19 @@ body {
 .animate-timer-blink { animation: timer-blink 0.5s infinite; }
 .animate-float-card  { animation: float-card  1.2s ease-in-out infinite; }
 .animate-count-down  { animation: count-down  1s ease-in-out forwards; }
+
+@keyframes card-shuffle {
+  0%   { transform: translateY(0px)   rotate(0deg)  scale(1);    }
+  18%  { transform: translateY(-22px) rotate(-8deg) scale(1.06); }
+  38%  { transform: translateY(-7px)  rotate(6deg)  scale(0.96); }
+  58%  { transform: translateY(-28px) rotate(-4deg) scale(1.08); }
+  78%  { transform: translateY(-11px) rotate(9deg)  scale(1.03); }
+  100% { transform: translateY(-4px)  rotate(-2deg) scale(1.01); }
+}
+@keyframes reveal-pop {
+  0%   { transform: scale(0.5) translateY(18px); opacity: 0; }
+  65%  { transform: scale(1.07) translateY(-3px); opacity: 1; }
+  100% { transform: scale(1) translateY(0px);    opacity: 1; }
+}
+.animate-card-shuffle { animation: card-shuffle 0.65s ease-in-out infinite alternate; }
+.animate-reveal-pop   { animation: reveal-pop   0.42s cubic-bezier(0.175, 0.885, 0.32, 1.275) both; }
