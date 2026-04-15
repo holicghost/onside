@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ref, onValue, update, get } from 'firebase/database';
+import { ref, onValue, update, get, set, onDisconnect, query, orderByKey, limitToLast } from 'firebase/database';
 import { db } from '@/lib/firebase';
 import { getHeroPortraitUrl, loadHeroPortraits, ALL_HEROES } from '@/lib/heroes';
 
@@ -68,9 +68,12 @@ export default function CaptainPage() {
   const [bidError, setBidError] = useState('');
   const [showLinks, setShowLinks] = useState(false);
   const [origin, setOrigin] = useState('');
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
 
   const auctionRef = useRef(null);
   const lastTimerEndRef = useRef(null);
+  const chatScrollRef = useRef(null);
   useEffect(() => { auctionRef.current = auction; }, [auction]);
   useEffect(() => { setOrigin(window.location.origin); }, []);
 
@@ -118,6 +121,11 @@ export default function CaptainPage() {
       onValue(ref(db, `rooms/${code}/captains`), s => setCaptains(s.val() || {})),
       onValue(ref(db, `rooms/${code}/players`), s => setPlayers(s.val() || {})),
       onValue(ref(db, `rooms/${code}/auction`), s => setAuction(s.val())),
+      onValue(query(ref(db, `rooms/${code}/chat`), orderByKey(), limitToLast(50)), snap => {
+        const val = snap.val();
+        if (!val) { setChatMessages([]); return; }
+        setChatMessages(Object.entries(val).map(([k, v]) => ({ id: k, ...v })));
+      }),
     ];
     return () => unsubs.forEach(u => u());
   }, [authStep, code]);
@@ -149,6 +157,22 @@ export default function CaptainPage() {
     return () => clearInterval(id);
   }, [auction?.countdownEnd, auction?.status]);
 
+  // Captain online presence
+  useEffect(() => {
+    if (authStep !== 'authed' || !code || !captainId) return;
+    const presenceRef = ref(db, `rooms/${code}/captains/${captainId}/online`);
+    set(presenceRef, true);
+    onDisconnect(presenceRef).set(false);
+    return () => { set(presenceRef, false); };
+  }, [authStep, code, captainId]);
+
+  // Chat auto-scroll
+  useEffect(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
+  }, [chatMessages]);
+
   const handlePasswordJoin = () => {
     if (roomInfo?.password && passwordInput !== roomInfo.password) {
       setPasswordError('비밀번호가 틀렸습니다.');
@@ -177,6 +201,14 @@ export default function CaptainPage() {
       [`rooms/${code}/auction/timerEnd`]: newTimerEnd,
     });
     setBidAmount('');
+  };
+
+  const sendChat = async () => {
+    const msg = chatInput.trim();
+    if (!msg || !code) return;
+    const senderName = captains[captainId]?.name || '팀장';
+    await set(ref(db, `rooms/${code}/chat/${Date.now()}`), { senderName, message: msg, timestamp: Date.now() });
+    setChatInput('');
   };
 
   // ── Auth gates ──
@@ -287,6 +319,14 @@ export default function CaptainPage() {
   const historyList = auction?.history ? Object.values(auction.history).sort((a, b) => b.timestamp - a.timestamp) : [];
   const curBid = auction?.currentBid || 0;
   const myBudget = myCaptain?.budget || 0;
+  const QUEUE_GROUPS = [
+    '고티어 딜러', '저티어 딜러', '고티어 탱커', '저티어 탱커', '고티어 힐러', '저티어 힐러',
+  ];
+  const restQueue = queuePlayers.slice(1);
+  const groupedQueue = QUEUE_GROUPS
+    .map(key => ({ key, players: restQueue.filter(p => `${p.tierType} ${p.position}` === key) }))
+    .filter(g => g.players.length > 0);
+  const ungroupedQueue = restQueue.filter(p => !QUEUE_GROUPS.includes(`${p.tierType} ${p.position}`));
   const quickBids = [
     { label: '+10',  val: curBid + 10 },
     { label: '+20',  val: curBid + 20 },
@@ -467,6 +507,7 @@ export default function CaptainPage() {
                   {cap.photo ? <img src={cap.photo} alt={cap.name} className="w-9 h-9 rounded-full object-cover flex-shrink-0" /> : <div className="w-9 h-9 rounded-full bg-gray-700 flex items-center justify-center text-base flex-shrink-0">👤</div>}
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${cap.online ? 'bg-green-400 animate-pulse' : 'bg-gray-600'}`} />
                       <p className="font-bold text-white text-sm truncate">
                         {cap.name}{isMe && <span className="text-blue-400 text-xs ml-1">(나)</span>}
                       </p>
@@ -496,6 +537,39 @@ export default function CaptainPage() {
               </div>
             );
           })}
+
+          {/* Chat box */}
+          <div className="border-t border-gray-800 pt-3 space-y-2">
+            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">채팅</h3>
+            <div ref={chatScrollRef} className="h-36 overflow-y-auto space-y-1 bg-gray-900/40 rounded-xl p-2">
+              {chatMessages.length === 0
+                ? <p className="text-gray-700 text-xs text-center py-4">채팅 없음</p>
+                : chatMessages.map(msg => (
+                    <div key={msg.id} className="text-xs">
+                      <span className="font-bold text-orange-400">{msg.senderName}: </span>
+                      <span className="text-gray-300 break-all">{msg.message}</span>
+                    </div>
+                  ))
+              }
+            </div>
+            <div className="flex gap-1">
+              <input
+                type="text"
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') sendChat(); }}
+                placeholder="메시지 입력..."
+                className="flex-1 px-2 py-1.5 text-xs bg-gray-800 border border-gray-700 rounded-lg focus:border-orange-400 focus:outline-none text-white"
+              />
+              <button
+                onClick={sendChat}
+                disabled={!chatInput.trim()}
+                className="px-3 py-1.5 text-xs font-bold bg-orange-600 hover:bg-orange-500 disabled:opacity-40 rounded-lg transition-all"
+              >
+                전송
+              </button>
+            </div>
+          </div>
 
           {/* Link sharing */}
           <div className="border-t border-gray-800 pt-3">
@@ -645,34 +719,86 @@ export default function CaptainPage() {
           )}
         </main>
 
-        {/* RIGHT: Queue + History */}
-        <aside className="border-l border-gray-800 overflow-y-auto p-4 space-y-6">
+        {/* RIGHT: NEXT Preview + Grouped Queue + History */}
+        <aside className="border-l border-gray-800 overflow-y-auto p-4 space-y-4">
+
+          {/* NEXT preview card */}
+          {nextQueuePlayer && (
+            <div>
+              <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">다음 선수</h2>
+              <div key={nextQueuePlayer.id} className="rounded-xl overflow-hidden border border-blue-700 bg-blue-900/20 animate-slide-up">
+                <div className="flex gap-3 p-3">
+                  <div className="w-16 h-20 rounded-lg overflow-hidden bg-gray-800 flex-shrink-0">
+                    {nextQueuePlayer.photo
+                      ? <img src={nextQueuePlayer.photo} alt={nextQueuePlayer.name} className="w-full h-full object-cover object-top" />
+                      : <div className="w-full h-full flex items-center justify-center text-2xl">👤</div>
+                    }
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white font-black text-base leading-tight">{nextQueuePlayer.name}</p>
+                    {(nextQueuePlayer.tierType && nextQueuePlayer.position) && (
+                      <span className={`inline-block mt-1 px-2 py-0.5 text-xs font-bold rounded-full border ${TIER_POS_STYLES[`${nextQueuePlayer.tierType} ${nextQueuePlayer.position}`] || 'bg-gray-700 text-gray-300 border-gray-600'}`}>
+                        {nextQueuePlayer.tierType} {nextQueuePlayer.position}
+                      </span>
+                    )}
+                    {nextQueuePlayer.tierCurrent && (
+                      <p className="text-gray-400 text-xs mt-1">{nextQueuePlayer.tierCurrent}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Grouped waiting queue */}
           <div>
             <h2 className="text-base font-bold text-gray-300 sticky top-0 bg-[#0f0f1a] pb-2">
               대기 <span className="text-orange-400">{queuePlayers.length}</span>명
             </h2>
-            {queuePlayers.length > 0
-              ? <div className="space-y-2">
-                  {queuePlayers.map((p, i) => (
-                    <div key={p.id} className={`flex items-center gap-2 p-2 rounded-lg ${i === 0 ? 'bg-blue-900/30 border border-blue-800' : 'bg-gray-900/60'}`}>
-                      {p.photo ? <img src={p.photo} alt={p.name} className="w-8 h-8 rounded-full object-cover flex-shrink-0" /> : <span className="text-xl flex-shrink-0">👤</span>}
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-bold text-white truncate">{p.name}</p>
-                        {(p.tierType && p.position) ? (
-                          <span className={`inline-block px-1.5 py-0.5 text-[10px] font-bold rounded-full border mt-0.5 ${TIER_POS_STYLES[`${p.tierType} ${p.position}`] || 'bg-gray-700 text-gray-300 border-gray-600'}`}>
-                            {p.tierType} {p.position}
-                          </span>
-                        ) : (
-                          <p className="text-xs text-gray-500">{p.tierCurrent || ''}</p>
-                        )}
-                      </div>
-                      {i === 0 && <span className="text-xs text-blue-400 font-bold flex-shrink-0">NEXT</span>}
+            {restQueue.length > 0 ? (
+              <div className="space-y-3">
+                {groupedQueue.map(g => (
+                  <div key={g.key}>
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <span className={`px-2 py-0.5 text-[10px] font-black rounded-full border ${TIER_POS_STYLES[g.key] || 'bg-gray-700 text-gray-300 border-gray-600'}`}>
+                        {g.key}
+                      </span>
+                      <span className="text-gray-600 text-[10px]">{g.players.length}명</span>
                     </div>
-                  ))}
-                </div>
-              : <p className="text-gray-600 text-sm">대기 선수 없음</p>
-            }
+                    <div className="space-y-1 pl-1">
+                      {g.players.map(p => (
+                        <div key={p.id} className="flex items-center gap-2 p-1.5 rounded-lg bg-gray-900/60">
+                          {p.photo ? <img src={p.photo} alt={p.name} className="w-6 h-6 rounded-full object-cover flex-shrink-0" /> : <span className="text-sm flex-shrink-0">👤</span>}
+                          <p className="text-xs font-bold text-white truncate flex-1">{p.name}</p>
+                          {p.tierCurrent && <p className="text-[10px] text-gray-500 flex-shrink-0">{p.tierCurrent}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                {ungroupedQueue.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <span className="px-2 py-0.5 text-[10px] font-black rounded-full border bg-gray-700 text-gray-300 border-gray-600">기타</span>
+                      <span className="text-gray-600 text-[10px]">{ungroupedQueue.length}명</span>
+                    </div>
+                    <div className="space-y-1 pl-1">
+                      {ungroupedQueue.map(p => (
+                        <div key={p.id} className="flex items-center gap-2 p-1.5 rounded-lg bg-gray-900/60">
+                          {p.photo ? <img src={p.photo} alt={p.name} className="w-6 h-6 rounded-full object-cover flex-shrink-0" /> : <span className="text-sm flex-shrink-0">👤</span>}
+                          <p className="text-xs font-bold text-white truncate">{p.name}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-gray-600 text-sm">대기 선수 없음</p>
+            )}
           </div>
+
+          {/* History */}
           <div>
             <h2 className="text-base font-bold text-gray-300 sticky top-0 bg-[#0f0f1a] pb-2">낙찰 내역</h2>
             {historyList.length > 0
