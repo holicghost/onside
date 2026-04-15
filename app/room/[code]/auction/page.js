@@ -443,7 +443,16 @@ export default function AuctionPage() {
                 <div className="flex items-center gap-2 mb-2">
                   {cap.photo ? <img src={cap.photo} alt={cap.name} className="w-9 h-9 rounded-full object-cover flex-shrink-0" /> : <div className="w-9 h-9 rounded-full bg-gray-700 flex items-center justify-center text-base flex-shrink-0">👤</div>}
                   <div className="min-w-0">
-                    <p className="font-bold text-white text-sm truncate">{cap.name}</p>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="font-bold text-white text-sm truncate">{cap.name}</p>
+                      {cap.position && (
+                        <span className={`px-1.5 py-0.5 text-[10px] font-bold rounded-full flex-shrink-0 ${
+                          cap.position === '탱커' ? 'bg-yellow-900/60 text-yellow-300' :
+                          cap.position === '딜러' ? 'bg-red-900/60 text-red-300' :
+                          'bg-green-900/60 text-green-300'
+                        }`}>{cap.position}</span>
+                      )}
+                    </div>
                     <p className="text-xs text-gray-400">예산 <span className="text-green-400 font-bold">{cap.budget}</span><span className="text-gray-600">/{roomInfo?.budget}</span>P</p>
                   </div>
                 </div>

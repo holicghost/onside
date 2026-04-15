@@ -91,6 +91,7 @@ export default function AdminRoomPage() {
   const [capName, setCapName] = useState('');
   const [capPhotoFile, setCapPhotoFile] = useState(null);
   const [capPhotoPreview, setCapPhotoPreview] = useState('');
+  const [capPosition, setCapPosition] = useState('');
 
   // 팀원 편집 폼
   const [pName, setPName] = useState('');
@@ -147,6 +148,7 @@ export default function AdminRoomPage() {
     setCapName(cap.name || '');
     setCapPhotoPreview(cap.photo || '');
     setCapPhotoFile(null);
+    setCapPosition(cap.position || '');
     setEditingPlayer(null);
     setEditingRoom(false);
     setAddingCaptain(false);
@@ -157,6 +159,7 @@ export default function AdminRoomPage() {
     setCapName('');
     setCapPhotoFile(null);
     setCapPhotoPreview('');
+    setCapPosition('');
     setEditingCaptain(null);
     setEditingPlayer(null);
     setAddingPlayer(false);
@@ -169,7 +172,7 @@ export default function AdminRoomPage() {
     if (capPhotoFile) photoUrl = await uploadImage(capPhotoFile);
     const newId = `captain_${Date.now()}`;
     await update(ref(db), {
-      [`rooms/${code}/captains/${newId}`]: { id: newId, name: capName.trim(), photo: photoUrl, budget: roomInfo?.budget || 100 },
+      [`rooms/${code}/captains/${newId}`]: { id: newId, name: capName.trim(), photo: photoUrl, budget: roomInfo?.budget || 100, position: capPosition },
       [`rooms/${code}/info/captainCount`]: captainsList.length + 1,
     });
     setAddingCaptain(false);
@@ -186,7 +189,7 @@ export default function AdminRoomPage() {
     setSaving('captain');
     let photoUrl = captains[cid]?.photo || '';
     if (capPhotoFile) photoUrl = await uploadImage(capPhotoFile);
-    await update(ref(db, `rooms/${code}/captains/${cid}`), { name: capName, photo: photoUrl });
+    await update(ref(db, `rooms/${code}/captains/${cid}`), { name: capName, photo: photoUrl, position: capPosition });
     setEditingCaptain(null);
     setSaving('');
   };
@@ -482,11 +485,24 @@ export default function AdminRoomPage() {
               <div key={cap.id} className="bg-gray-800/50 rounded-xl p-4">
                 {editingCaptain === cap.id ? (
                   <div className="space-y-3">
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-start gap-4">
                       <PhotoInput value={capPhotoPreview} onChange={handleCapPhoto} />
-                      <div className="flex-1">
-                        <label className="text-sm text-gray-400 mb-1 block">닉네임</label>
-                        <input className={inputCls} value={capName} onChange={e => setCapName(e.target.value)} placeholder="닉네임" />
+                      <div className="flex-1 space-y-3">
+                        <div>
+                          <label className="text-sm text-gray-400 mb-1 block">닉네임</label>
+                          <input className={inputCls} value={capName} onChange={e => setCapName(e.target.value)} placeholder="닉네임" />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-400 mb-2 block font-semibold">포지션</label>
+                          <div className="flex gap-2">
+                            {[{ val: '탱커', active: 'bg-yellow-600 border-yellow-500 text-white' }, { val: '딜러', active: 'bg-red-600 border-red-500 text-white' }, { val: '힐러', active: 'bg-green-600 border-green-500 text-white' }].map(({ val, active }) => (
+                              <button key={val} type="button" onClick={() => setCapPosition(val)}
+                                className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${capPosition === val ? active : 'bg-gray-800 border-gray-600 text-gray-400 hover:border-gray-500'}`}>
+                                {val}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -504,7 +520,16 @@ export default function AdminRoomPage() {
                       : <div className="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center text-xl flex-shrink-0">👤</div>
                     }
                     <div className="flex-1">
-                      <p className="text-white font-bold text-lg">{cap.name}</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-white font-bold text-lg">{cap.name}</p>
+                        {cap.position && (
+                          <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${
+                            cap.position === '탱커' ? 'bg-yellow-900/60 text-yellow-300' :
+                            cap.position === '딜러' ? 'bg-red-900/60 text-red-300' :
+                            'bg-green-900/60 text-green-300'
+                          }`}>{cap.position}</span>
+                        )}
+                      </div>
                       <p className="text-gray-400 text-sm">예산: <span className="text-green-400">{cap.budget}P</span></p>
                     </div>
                     <button onClick={() => startEditCaptain(cap.id)} className="px-4 py-2 text-sm bg-gray-700 hover:bg-gray-600 rounded-xl transition-all">수정</button>
@@ -517,11 +542,24 @@ export default function AdminRoomPage() {
             {addingCaptain ? (
               <div className="bg-gray-800/50 border border-orange-500/40 rounded-xl p-4 space-y-3">
                 <p className="text-orange-400 text-sm font-bold">새 팀장 추가</p>
-                <div className="flex items-center gap-4">
+                <div className="flex items-start gap-4">
                   <PhotoInput value={capPhotoPreview} onChange={handleCapPhoto} />
-                  <div className="flex-1">
-                    <label className="text-sm text-gray-400 mb-1 block">닉네임</label>
-                    <input className={inputCls} value={capName} onChange={e => setCapName(e.target.value)} placeholder="닉네임" autoFocus />
+                  <div className="flex-1 space-y-3">
+                    <div>
+                      <label className="text-sm text-gray-400 mb-1 block">닉네임</label>
+                      <input className={inputCls} value={capName} onChange={e => setCapName(e.target.value)} placeholder="닉네임" autoFocus />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-400 mb-2 block font-semibold">포지션</label>
+                      <div className="flex gap-2">
+                        {[{ val: '탱커', active: 'bg-yellow-600 border-yellow-500 text-white' }, { val: '딜러', active: 'bg-red-600 border-red-500 text-white' }, { val: '힐러', active: 'bg-green-600 border-green-500 text-white' }].map(({ val, active }) => (
+                          <button key={val} type="button" onClick={() => setCapPosition(val)}
+                            className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${capPosition === val ? active : 'bg-gray-800 border-gray-600 text-gray-400 hover:border-gray-500'}`}>
+                            {val}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
                 <div className="flex gap-2">

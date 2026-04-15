@@ -22,10 +22,11 @@ export default function CaptainPage() {
   const { code, captainId } = useParams();
   const router = useRouter();
 
-  const [authed, setAuthed] = useState(false);
+  // authStep: 'loading' | 'verify' | 'denied' | 'password' | 'authed'
+  const [authStep, setAuthStep] = useState('loading');
+  const [captainInfo, setCaptainInfo] = useState(null);
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState('');
-  const [loading, setLoading] = useState(true);
   const [roomInfo, setRoomInfo] = useState(null);
   const [captains, setCaptains] = useState({});
   const [players, setPlayers] = useState({});
@@ -50,28 +51,38 @@ export default function CaptainPage() {
   // Check auth on mount
   useEffect(() => {
     if (!code || !captainId) return;
-    const storedRoom = localStorage.getItem('ow_room');
-    const storedCaptain = localStorage.getItem('ow_captain_id');
-    const storedRole = localStorage.getItem('ow_role');
-    if (storedRoom === code && storedCaptain === captainId && storedRole === 'captain') {
-      setAuthed(true);
+    // Already authed via localStorage — skip all screens
+    if (localStorage.getItem('ow_room') === code &&
+        localStorage.getItem('ow_captain_id') === captainId &&
+        localStorage.getItem('ow_role') === 'captain') {
+      setAuthStep('authed');
+      return;
     }
-    get(ref(db, `rooms/${code}/info`)).then(snap => {
-      const info = snap.val();
-      setRoomInfo(info);
-      if (!info?.password) {
-        localStorage.setItem('ow_room', code);
-        localStorage.setItem('ow_role', 'captain');
-        localStorage.setItem('ow_captain_id', captainId);
-        setAuthed(true);
-      }
-      setLoading(false);
-    }).catch(() => setLoading(false));
+    // Fetch room info + this captain's info for the verification screen
+    Promise.all([
+      get(ref(db, `rooms/${code}/info`)),
+      get(ref(db, `rooms/${code}/captains/${captainId}`)),
+    ]).then(([infoSnap, capSnap]) => {
+      setRoomInfo(infoSnap.val());
+      setCaptainInfo(capSnap.val());
+      setAuthStep('verify');
+    }).catch(() => setAuthStep('verify'));
   }, [code, captainId]);
+
+  const handleConfirmIdentity = () => {
+    if (roomInfo?.password) {
+      setAuthStep('password');
+    } else {
+      localStorage.setItem('ow_room', code);
+      localStorage.setItem('ow_role', 'captain');
+      localStorage.setItem('ow_captain_id', captainId);
+      setAuthStep('authed');
+    }
+  };
 
   // Firebase listeners once authed
   useEffect(() => {
-    if (!authed || !code) return;
+    if (authStep !== 'authed' || !code) return;
     const unsubs = [
       onValue(ref(db, `rooms/${code}/info`), s => setRoomInfo(s.val())),
       onValue(ref(db, `rooms/${code}/captains`), s => setCaptains(s.val() || {})),
@@ -79,7 +90,7 @@ export default function CaptainPage() {
       onValue(ref(db, `rooms/${code}/auction`), s => setAuction(s.val())),
     ];
     return () => unsubs.forEach(u => u());
-  }, [authed, code]);
+  }, [authStep, code]);
 
   // Bidding timer
   useEffect(() => {
@@ -116,7 +127,7 @@ export default function CaptainPage() {
     localStorage.setItem('ow_room', code);
     localStorage.setItem('ow_role', 'captain');
     localStorage.setItem('ow_captain_id', captainId);
-    setAuthed(true);
+    setAuthStep('authed');
     setPasswordError('');
   };
 
@@ -137,8 +148,8 @@ export default function CaptainPage() {
     setBidAmount('');
   };
 
-  // ── Loading / auth gates ──
-  if (loading) {
+  // ── Auth gates ──
+  if (authStep === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#0f0f1a' }}>
         <div className="text-white text-2xl">로딩 중...</div>
@@ -146,27 +157,89 @@ export default function CaptainPage() {
     );
   }
 
-  if (!authed && roomInfo?.password) {
+  if (authStep === 'verify') {
     return (
       <div className="min-h-screen flex items-center justify-center px-4"
         style={{ background: 'linear-gradient(135deg, #0f0f1a 0%, #1a1a3e 50%, #0f0f1a 100%)' }}>
-        <div className="w-full max-w-sm bg-gray-900/80 border border-gray-700 rounded-2xl p-6 space-y-4">
-          <div className="text-center">
-            <h2 className="text-2xl font-black text-white">{roomInfo?.name || '경매 방'}</h2>
-            <p className="text-gray-400 mt-1">팀장으로 입장합니다</p>
+        <div className="w-full max-w-sm space-y-4">
+          {/* Broadcasting warning */}
+          <div className="bg-red-900/40 border border-red-600 rounded-xl px-4 py-3">
+            <p className="text-red-400 text-sm font-bold leading-snug">
+              ⚠️ 방송 중이라면 이 화면의 링크와 비밀번호가 노출되지 않도록 주의하세요!
+            </p>
           </div>
-          <input
-            type="password"
-            className="w-full px-4 py-3 text-xl bg-gray-800 border border-gray-600 rounded-xl focus:border-orange-400 focus:outline-none"
-            placeholder="방 비밀번호"
-            value={passwordInput}
-            onChange={e => setPasswordInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handlePasswordJoin()}
-          />
-          {passwordError && <p className="text-red-400 text-center text-sm">{passwordError}</p>}
-          <button onClick={handlePasswordJoin} className="w-full py-3 text-xl font-bold bg-orange-500 hover:bg-orange-400 rounded-xl transition-all">
-            입장
-          </button>
+
+          <div className="bg-gray-900/90 border border-gray-700 rounded-2xl p-6 space-y-5">
+            <div className="text-center">
+              <p className="text-gray-400 text-sm mb-1">{roomInfo?.name || '경매 방'}</p>
+              <h2 className="text-3xl font-black text-white">{captainInfo?.name || '팀장'}</h2>
+              <p className="text-gray-400 mt-3 text-lg">본인이 맞으신가요?</p>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={handleConfirmIdentity}
+                className="flex-1 py-4 text-xl font-bold bg-orange-500 hover:bg-orange-400 rounded-xl transition-all">
+                확인
+              </button>
+              <button onClick={() => setAuthStep('denied')}
+                className="flex-1 py-4 text-xl font-bold bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-xl transition-all">
+                아니오
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (authStep === 'denied') {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4"
+        style={{ background: 'linear-gradient(135deg, #0f0f1a 0%, #1a1a3e 50%, #0f0f1a 100%)' }}>
+        <div className="w-full max-w-sm bg-gray-900/90 border border-gray-700 rounded-2xl p-8 text-center space-y-4">
+          <div className="text-5xl">🚫</div>
+          <p className="text-white text-xl font-bold">올바른 링크로 접속해주세요</p>
+          <p className="text-gray-500 text-sm">팀장 전용 링크는 관리자에게 문의하세요.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (authStep === 'password') {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4"
+        style={{ background: 'linear-gradient(135deg, #0f0f1a 0%, #1a1a3e 50%, #0f0f1a 100%)' }}>
+        <div className="w-full max-w-sm space-y-4">
+          <div className="bg-red-900/40 border border-red-600 rounded-xl px-4 py-3">
+            <p className="text-red-400 text-sm font-bold leading-snug">
+              ⚠️ 방송 중이라면 이 화면의 링크와 비밀번호가 노출되지 않도록 주의하세요!
+            </p>
+          </div>
+          <div className="bg-gray-900/90 border border-gray-700 rounded-2xl p-6 space-y-4">
+            <div className="text-center">
+              <h2 className="text-2xl font-black text-white">{roomInfo?.name || '경매 방'}</h2>
+              <p className="text-gray-400 mt-1">방 비밀번호를 입력하세요</p>
+            </div>
+            <input
+              type="password"
+              className="w-full px-4 py-3 text-xl bg-gray-800 border border-gray-600 rounded-xl focus:border-orange-400 focus:outline-none"
+              placeholder="비밀번호"
+              value={passwordInput}
+              onChange={e => setPasswordInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handlePasswordJoin()}
+              autoFocus
+            />
+            {passwordError && <p className="text-red-400 text-center text-sm">{passwordError}</p>}
+            <div className="flex gap-3">
+              <button onClick={handlePasswordJoin}
+                className="flex-1 py-3 text-xl font-bold bg-orange-500 hover:bg-orange-400 rounded-xl transition-all">
+                입장
+              </button>
+              <button onClick={() => setAuthStep('verify')}
+                className="py-3 px-4 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-xl transition-all">
+                뒤로
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -372,9 +445,18 @@ export default function CaptainPage() {
                 <div className="flex items-center gap-2 mb-2">
                   {cap.photo ? <img src={cap.photo} alt={cap.name} className="w-9 h-9 rounded-full object-cover flex-shrink-0" /> : <div className="w-9 h-9 rounded-full bg-gray-700 flex items-center justify-center text-base flex-shrink-0">👤</div>}
                   <div className="min-w-0">
-                    <p className="font-bold text-white text-sm truncate">
-                      {cap.name}{isMe && <span className="text-blue-400 text-xs ml-1">(나)</span>}
-                    </p>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="font-bold text-white text-sm truncate">
+                        {cap.name}{isMe && <span className="text-blue-400 text-xs ml-1">(나)</span>}
+                      </p>
+                      {cap.position && (
+                        <span className={`px-1.5 py-0.5 text-[10px] font-bold rounded-full flex-shrink-0 ${
+                          cap.position === '탱커' ? 'bg-yellow-900/60 text-yellow-300' :
+                          cap.position === '딜러' ? 'bg-red-900/60 text-red-300' :
+                          'bg-green-900/60 text-green-300'
+                        }`}>{cap.position}</span>
+                      )}
+                    </div>
                     <p className="text-xs text-gray-400">예산 <span className="text-green-400 font-bold">{cap.budget}</span><span className="text-gray-600">/{roomInfo?.budget}</span>P</p>
                   </div>
                 </div>

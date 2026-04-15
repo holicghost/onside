@@ -159,7 +159,7 @@ export default function CreateRoom() {
   useEffect(() => {
     setCaptainForms(prev => {
       const next = [...prev];
-      while (next.length < captainCount) next.push({ name: '', photoFile: null, photoPreview: '' });
+      while (next.length < captainCount) next.push({ name: '', photoFile: null, photoPreview: '', position: '' });
       return next.slice(0, captainCount);
     });
   }, [captainCount]);
@@ -298,6 +298,7 @@ export default function CreateRoom() {
     if (!tournamentName.trim()) { setError('대회명을 입력해주세요.'); return; }
     for (let i = 0; i < captainForms.length; i++) {
       if (!captainForms[i].name.trim()) { setError(`팀장 ${i + 1}의 닉네임을 입력해주세요.`); return; }
+      if (!captainForms[i].position) { setError(`팀장 ${i + 1}의 포지션을 선택해주세요.`); return; }
     }
     for (let i = 0; i < playerForms.length; i++) {
       if (!playerForms[i].name.trim()) { setError(`선수 ${i + 1}의 닉네임을 입력해주세요.`); return; }
@@ -316,7 +317,7 @@ export default function CreateRoom() {
         let photoUrl = '';
         if (c.photoFile) { setUploadStatus(`팀장 사진 업로드 (${i + 1}/${captainForms.length})`); photoUrl = await uploadImage(c.photoFile); }
         const cid = `captain_${i}`;
-        captainData[cid] = { id: cid, name: c.name, photo: photoUrl, budget };
+        captainData[cid] = { id: cid, name: c.name, photo: photoUrl, budget, position: c.position || '' };
       }
 
       const playerData = {};
@@ -496,16 +497,34 @@ export default function CreateRoom() {
         <section className="bg-gray-900/70 border border-gray-700 rounded-2xl p-6 space-y-3">
           <h2 className="text-2xl font-bold text-orange-400">팀장 정보</h2>
           {captainForms.map((cap, i) => (
-            <div key={i} className="flex items-center gap-4 bg-gray-800/50 rounded-xl p-4">
+            <div key={i} className="flex items-start gap-4 bg-gray-800/50 rounded-xl p-4">
               <PhotoInput value={cap.photoPreview} onChange={e => handleCaptainPhoto(i, e)} />
-              <div className="flex-1">
-                <p className="text-gray-400 text-sm font-bold mb-2">팀장 {i + 1}</p>
+              <div className="flex-1 space-y-3">
+                <p className="text-gray-400 text-sm font-bold">팀장 {i + 1}</p>
                 <input
                   className="w-full px-4 py-3 text-xl bg-gray-800 border border-gray-600 rounded-xl focus:border-orange-400 focus:outline-none"
                   placeholder="닉네임"
                   value={cap.name}
                   onChange={e => updateCaptain(i, 'name', e.target.value)}
                 />
+                <div>
+                  <label className="text-sm text-gray-400 mb-2 block font-semibold">포지션 <span className="text-red-400">*</span></label>
+                  <div className="flex gap-2">
+                    {[
+                      { val: '탱커', active: 'bg-yellow-600 border-yellow-500 text-white' },
+                      { val: '딜러', active: 'bg-red-600 border-red-500 text-white' },
+                      { val: '힐러', active: 'bg-green-600 border-green-500 text-white' },
+                    ].map(({ val, active }) => (
+                      <button key={val} type="button"
+                        onClick={() => updateCaptain(i, 'position', val)}
+                        className={`flex-1 py-2 text-sm font-bold rounded-lg border transition-all ${
+                          cap.position === val ? active : 'bg-gray-800 border-gray-600 text-gray-400 hover:border-gray-500'
+                        }`}>
+                        {val}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           ))}

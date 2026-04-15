@@ -231,8 +231,17 @@ export default function LobbyPage() {
                     : <div className="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center text-2xl flex-shrink-0">👤</div>
                   }
 
-                  {/* Name */}
-                  <span className="text-white text-xl font-bold flex-1">{cap.name}</span>
+                  {/* Name + position badge */}
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <span className="text-white text-xl font-bold truncate">{cap.name}</span>
+                    {cap.position && (
+                      <span className={`px-2 py-0.5 text-xs font-bold rounded-full flex-shrink-0 ${
+                        cap.position === '탱커' ? 'bg-yellow-900/60 text-yellow-300' :
+                        cap.position === '딜러' ? 'bg-red-900/60 text-red-300' :
+                        'bg-green-900/60 text-green-300'
+                      }`}>{cap.position}</span>
+                    )}
+                  </div>
 
                   {/* 선공 badge for 1st place */}
                   {i === 0 && (
