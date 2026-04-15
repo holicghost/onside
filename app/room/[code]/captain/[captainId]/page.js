@@ -379,16 +379,28 @@ export default function CaptainPage() {
             <h2 className="text-3xl font-black text-white leading-tight">{player.name}</h2>
             <div className="grid grid-cols-3 gap-1.5 mt-2">
               {[
-                { label: '현재티어', val: player.tierCurrent, color: 'text-purple-400' },
-                { label: '전시즌', val: player.tierPrevious, color: 'text-gray-300' },
-                { label: '역대최고', val: player.tierBest, color: 'text-yellow-400' },
+                { label: '현재 티어', val: player.tierCurrent, color: 'text-purple-400' },
+                { label: '이전 시즌 티어', val: player.tierPrevious, color: 'text-gray-300' },
+                { label: '역대 최고 티어', val: player.tierBest, color: 'text-yellow-400' },
               ].map(({ label, val, color }) => (
                 <div key={label} className="bg-gray-800/80 rounded-lg px-2 py-1.5">
-                  <p className="text-[9px] text-gray-500 mb-0.5 uppercase tracking-wide">{label}</p>
+                  <p className="text-[9px] text-gray-500 mb-0.5 leading-tight">{label}</p>
                   <p className={`text-xs font-bold ${color} leading-tight`}>{val || '—'}</p>
                 </div>
               ))}
             </div>
+            {player.style && (
+              <div className="mt-2.5">
+                <p className="text-[9px] text-gray-500 mb-0.5">플레이 스타일</p>
+                <p className="text-xs text-gray-300 leading-snug">{player.style}</p>
+              </div>
+            )}
+            {player.comment && (
+              <div className="mt-2.5">
+                <p className="text-[9px] text-gray-500 mb-0.5">한마디</p>
+                <p className="text-xs text-gray-300 leading-snug">{player.comment}</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -421,18 +433,6 @@ export default function CaptainPage() {
                 </div>
               );
             })}
-          </div>
-        )}
-
-        {player.style && (
-          <div className="px-5 pb-3">
-            <span className="px-3 py-1 bg-gray-800 text-gray-300 rounded-full text-xs border border-gray-600">⚔️ {player.style}</span>
-          </div>
-        )}
-
-        {player.comment && (
-          <div className="mx-5 mb-4 bg-gray-800 rounded-2xl p-3 border-l-4 border-orange-500">
-            <p className="text-gray-300 text-sm leading-relaxed">" {player.comment} "</p>
           </div>
         )}
 
