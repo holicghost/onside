@@ -103,7 +103,10 @@ export default function Home() {
 
       {mode === 'join' && !roomInfo && (
         <div className="w-full max-w-sm bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-4">
-          <h3 className="text-2xl font-bold text-white">방 참가</h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-2xl font-bold text-white">방 참가</h3>
+            <button onClick={() => router.push('/')} className="text-sm text-gray-500 hover:text-gray-300 transition-colors">← 홈으로</button>
+          </div>
           <input
             className="w-full px-4 py-3 text-xl bg-gray-800 border border-gray-700 rounded-lg focus:border-blue-500 focus:outline-none uppercase tracking-widest text-white placeholder-gray-600"
             placeholder="방 코드 (6자리)"

@@ -46,10 +46,8 @@ export default function AdminPage() {
             onKeyDown={e => e.key === 'Enter' && handleLogin()}
           />
           {error && <p className="text-red-400 text-lg text-center">{error}</p>}
-          <div className="flex gap-3">
-            <button onClick={handleLogin} className="flex-1 py-3 text-xl font-bold bg-purple-600 hover:bg-purple-500 rounded-xl transition-all">로그인</button>
-            <button onClick={() => router.push('/')} className="py-3 px-5 text-xl bg-gray-700 hover:bg-gray-600 rounded-xl transition-all">홈</button>
-          </div>
+          <button onClick={handleLogin} className="w-full py-3 text-xl font-bold bg-purple-600 hover:bg-purple-500 rounded-xl transition-all">로그인</button>
+          <button onClick={() => router.push('/')} className="w-full py-2 text-sm text-gray-500 hover:text-gray-300 transition-colors">← 홈으로</button>
         </div>
       </div>
     );
