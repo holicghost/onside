@@ -500,7 +500,7 @@ export default function CreateRoom() {
             <div key={i} className="flex items-start gap-4 bg-gray-800/50 rounded-xl p-4">
               <PhotoInput value={cap.photoPreview} onChange={e => handleCaptainPhoto(i, e)} />
               <div className="flex-1 space-y-3">
-                <p className="text-gray-400 text-sm font-bold">팀장 {i + 1}</p>
+                <p className="text-gray-400 text-base font-bold">팀장 {i + 1}</p>
                 <input
                   className="w-full px-4 py-3 text-xl bg-gray-800 border border-gray-600 rounded-xl focus:border-orange-400 focus:outline-none"
                   placeholder="닉네임"
@@ -536,7 +536,7 @@ export default function CreateRoom() {
           {totalPlayers === 0 && <p className="text-gray-600 text-center py-4">팀 수 × (팀당 인원 - 1)이 0입니다.</p>}
           {playerForms.map((p, i) => (
             <div key={i} className="bg-gray-800/50 rounded-xl p-4 space-y-4">
-              <p className="text-gray-400 text-sm font-bold">선수 {i + 1}</p>
+              <p className="text-gray-400 text-base font-bold">선수 {i + 1}</p>
               <div className="flex items-start gap-4">
                 <PhotoInput value={p.photoPreview} onChange={e => handlePlayerPhoto(i, e)} />
                 <div className="flex-1 space-y-3">
@@ -566,7 +566,7 @@ export default function CreateRoom() {
                         { field: 'tierBest', label: '최고 티어' },
                       ].map(({ field, label }) => (
                         <div key={field}>
-                          <p className="text-xs text-gray-500 mb-1">{label}</p>
+                          <p className="text-sm text-gray-500 mb-1">{label}</p>
                           <select
                             value={p[field]}
                             onChange={e => updatePlayer(i, field, e.target.value)}
@@ -622,18 +622,18 @@ export default function CreateRoom() {
                   {/* 성향 + 포부 */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-sm text-gray-400 mb-1 block">플레이 성향</label>
+                      <label className="text-base text-gray-400 mb-1 block">플레이 성향</label>
                       <input
-                        className="w-full px-3 py-2 text-base bg-gray-800 border border-gray-600 rounded-xl focus:border-blue-400 focus:outline-none"
+                        className="w-full px-3 py-2 text-lg bg-gray-800 border border-gray-600 rounded-xl focus:border-blue-400 focus:outline-none"
                         placeholder="예: 공격적 플레이"
                         value={p.style}
                         onChange={e => updatePlayer(i, 'style', e.target.value)}
                       />
                     </div>
                     <div>
-                      <label className="text-sm text-gray-400 mb-1 block">대회 포부 한마디</label>
+                      <label className="text-base text-gray-400 mb-1 block">대회 포부 한마디</label>
                       <input
-                        className="w-full px-3 py-2 text-base bg-gray-800 border border-gray-600 rounded-xl focus:border-blue-400 focus:outline-none"
+                        className="w-full px-3 py-2 text-lg bg-gray-800 border border-gray-600 rounded-xl focus:border-blue-400 focus:outline-none"
                         placeholder="이번 대회에서 꼭 우승하겠습니다!"
                         value={p.comment}
                         onChange={e => updatePlayer(i, 'comment', e.target.value)}
