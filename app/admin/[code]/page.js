@@ -617,6 +617,57 @@ export default function AdminRoomPage() {
                 )}
               </div>
             ))}
+
+            {/* 선수 추가 폼 */}
+            {addingPlayer ? (
+              <div className="bg-gray-800/50 border border-blue-500/40 rounded-xl p-4 space-y-4">
+                <p className="text-blue-400 text-sm font-bold">새 선수 추가</p>
+                <div className="flex items-start gap-4">
+                  <PhotoInput value={pPhotoPreview} onChange={handlePPhoto} />
+                  <div className="flex-1 space-y-3">
+                    <input className={inputCls} value={pName} onChange={e => setPName(e.target.value)} placeholder="닉네임" autoFocus />
+                    <div>
+                      <label className="text-xs text-gray-400 mb-1 block">주요 영웅 (3개)</label>
+                      <HeroPicker heroIds={pHeroIds} onChange={setPHeroIds} />
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[['이번 시즌', pTierCurrent, setPTierCurrent], ['저번 시즌', pTierPrevious, setPTierPrevious], ['최고 티어', pTierBest, setPTierBest]].map(([label, val, setter]) => (
+                        <div key={label}>
+                          <label className="text-xs text-gray-500 mb-1 block">{label}</label>
+                          <select value={val} onChange={e => setter(e.target.value)}
+                            className="w-full px-2 py-2 text-sm bg-gray-800 border border-gray-600 rounded-lg focus:outline-none">
+                            <option value="">선택</option>
+                            {TIERS_DETAILED.map(t => <option key={t} value={t}>{t}</option>)}
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs text-gray-400 mb-1 block">플레이 성향</label>
+                        <input className={inputCls} value={pStyle} onChange={e => setPStyle(e.target.value)} placeholder="예: 공격적 플레이" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-400 mb-1 block">대회 포부 한마디</label>
+                        <input className={inputCls} value={pComment} onChange={e => setPComment(e.target.value)} placeholder="이번 대회에서..." />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={saveNewPlayer} disabled={saving === 'newplayer' || !pName.trim()}
+                    className="px-4 py-2 text-sm font-bold bg-blue-500 hover:bg-blue-400 disabled:opacity-50 rounded-xl transition-all">
+                    {saving === 'newplayer' ? '저장 중...' : '추가'}
+                  </button>
+                  <button onClick={() => setAddingPlayer(false)} className="px-4 py-2 text-sm bg-gray-700 hover:bg-gray-600 rounded-xl transition-all">취소</button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={startAddPlayer}
+                className="w-full py-3 text-sm font-bold text-blue-400 border border-dashed border-blue-500/40 hover:border-blue-400 hover:bg-blue-500/5 rounded-xl transition-all">
+                + 선수 추가
+              </button>
+            )}
           </div>
         </section>
 
