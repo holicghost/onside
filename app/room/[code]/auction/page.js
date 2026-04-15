@@ -152,6 +152,35 @@ export default function AuctionPage() {
     }));
   }, [auction?.timerEnd, auction?.status]);
 
+  const startBidding = useCallback(async () => {
+    const a = auctionRef.current;
+    if (!a || a.status !== 'countdown') return;
+    await update(ref(db), {
+      [`rooms/${code}/auction/status`]: 'bidding',
+      [`rooms/${code}/auction/timerEnd`]: Date.now() + 10000,
+      [`rooms/${code}/auction/countdownEnd`]: null,
+    });
+  }, [code]);
+
+  const finalizeSale = useCallback(async () => {
+    const a = auctionRef.current;
+    const caps = captainsRef.current;
+    if (!a || a.status !== 'bidding') return;
+    const updates = {};
+    if (a.currentBidCaptainId && a.currentBid > 0) {
+      const cap = caps[a.currentBidCaptainId];
+      updates[`rooms/${code}/auction/status`] = 'sold';
+      updates[`rooms/${code}/players/${a.currentPlayerId}/soldTo`] = a.currentBidCaptainId;
+      updates[`rooms/${code}/players/${a.currentPlayerId}/soldPrice`] = a.currentBid;
+      updates[`rooms/${code}/captains/${a.currentBidCaptainId}/budget`] = Math.max(0, (cap?.budget || 0) - a.currentBid);
+      updates[`rooms/${code}/auction/history/${Date.now()}`] = { playerId: a.currentPlayerId, captainId: a.currentBidCaptainId, price: a.currentBid, timestamp: Date.now() };
+    } else {
+      updates[`rooms/${code}/auction/status`] = 'passed';
+    }
+    updates[`rooms/${code}/auction/timerEnd`] = null;
+    await update(ref(db), updates);
+  }, [code]);
+
   // Pre-player countdown
   useEffect(() => {
     if (!auction?.countdownEnd || auction?.status !== 'countdown') { setCountdownLeft(0); return; }
@@ -184,37 +213,15 @@ export default function AuctionPage() {
     return () => clearTimeout(timer);
   }, [auction?.status]);
 
-  const startBidding = useCallback(async () => {
-    const a = auctionRef.current;
-    if (!a || a.status !== 'countdown') return;
-    await update(ref(db), {
-      [`rooms/${code}/auction/status`]: 'bidding',
-      [`rooms/${code}/auction/timerEnd`]: Date.now() + 10000,
-      [`rooms/${code}/auction/countdownEnd`]: null,
-    });
-  }, [code]);
-
-  const finalizeSale = useCallback(async () => {
-    const a = auctionRef.current;
-    const caps = captainsRef.current;
-    if (!a || a.status !== 'bidding') return;
-    const updates = {};
-    if (a.currentBidCaptainId && a.currentBid > 0) {
-      const cap = caps[a.currentBidCaptainId];
-      updates[`rooms/${code}/auction/status`] = 'sold';
-      updates[`rooms/${code}/players/${a.currentPlayerId}/soldTo`] = a.currentBidCaptainId;
-      updates[`rooms/${code}/players/${a.currentPlayerId}/soldPrice`] = a.currentBid;
-      updates[`rooms/${code}/captains/${a.currentBidCaptainId}/budget`] = Math.max(0, (cap?.budget || 0) - a.currentBid);
-      updates[`rooms/${code}/auction/history/${Date.now()}`] = { playerId: a.currentPlayerId, captainId: a.currentBidCaptainId, price: a.currentBid, timestamp: Date.now() };
-    } else {
-      updates[`rooms/${code}/auction/status`] = 'passed';
-    }
-    updates[`rooms/${code}/auction/timerEnd`] = null;
-    await update(ref(db), updates);
-  }, [code]);
-
   const buildPlayerOrder = (playerMap) => {
-    const shuffle = arr => [...arr].sort(() => Math.random() - 0.5);
+    const shuffle = arr => {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    };
     const GROUPS = [
       { tierType: '고티어', position: '딜러' },
       { tierType: '저티어', position: '딜러' },
@@ -654,7 +661,7 @@ export default function AuctionPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-purple-400 text-xs font-bold flex-shrink-0">관리자</span>
-                  <CopyButton text={`${origin}/room/${code}/admin`} />
+                  <CopyButton text={`${origin}/admin/${code}`} />
                 </div>
               </div>
             )}

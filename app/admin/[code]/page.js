@@ -173,7 +173,7 @@ export default function AdminRoomPage() {
     const newId = `captain_${Date.now()}`;
     await update(ref(db), {
       [`rooms/${code}/captains/${newId}`]: { id: newId, name: capName.trim(), photo: photoUrl, budget: roomInfo?.budget || 100, position: capPosition },
-      [`rooms/${code}/info/captainCount`]: captainsList.length + 1,
+      [`rooms/${code}/info/captainCount`]: Object.keys(captains).length + 1,
     });
     setAddingCaptain(false);
     setSaving('');
@@ -393,7 +393,7 @@ export default function AdminRoomPage() {
               <div className="flex items-center gap-3">
                 <span className="text-purple-400 text-sm font-bold w-20 flex-shrink-0">관리자</span>
                 <span className="text-gray-500 text-xs flex-1 truncate font-mono min-w-0">{origin}/room/{code}/admin</span>
-                <CopyButton text={`${origin}/room/${code}/admin`} />
+                <CopyButton text={`${origin}/admin/${code}`} />
               </div>
             </div>
           )}
