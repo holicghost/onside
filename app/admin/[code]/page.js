@@ -511,6 +511,32 @@ export default function AdminRoomPage() {
                 )}
               </div>
             ))}
+
+            {/* 팀장 추가 폼 */}
+            {addingCaptain ? (
+              <div className="bg-gray-800/50 border border-orange-500/40 rounded-xl p-4 space-y-3">
+                <p className="text-orange-400 text-sm font-bold">새 팀장 추가</p>
+                <div className="flex items-center gap-4">
+                  <PhotoInput value={capPhotoPreview} onChange={handleCapPhoto} />
+                  <div className="flex-1">
+                    <label className="text-sm text-gray-400 mb-1 block">닉네임</label>
+                    <input className={inputCls} value={capName} onChange={e => setCapName(e.target.value)} placeholder="닉네임" autoFocus />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={saveNewCaptain} disabled={saving === 'newcaptain' || !capName.trim()}
+                    className="px-4 py-2 text-sm font-bold bg-orange-500 hover:bg-orange-400 disabled:opacity-50 rounded-xl transition-all">
+                    {saving === 'newcaptain' ? '저장 중...' : '추가'}
+                  </button>
+                  <button onClick={() => setAddingCaptain(false)} className="px-4 py-2 text-sm bg-gray-700 hover:bg-gray-600 rounded-xl transition-all">취소</button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={startAddCaptain}
+                className="w-full py-3 text-sm font-bold text-orange-400 border border-dashed border-orange-500/40 hover:border-orange-400 hover:bg-orange-500/5 rounded-xl transition-all">
+                + 팀장 추가
+              </button>
+            )}
           </div>
         </section>
 
