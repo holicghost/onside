@@ -233,13 +233,13 @@ export default function AuctionPage() {
   useEffect(() => { goToNextPlayerRef.current = goToNextPlayer; }, [goToNextPlayer]);
 
   const startReAuction = async () => {
-    const unsoldIds = Object.entries(players).filter(([, p]) => !p.soldTo).map(([id]) => id);
-    if (!unsoldIds.length) return;
-    const shuffled = [...unsoldIds].sort(() => Math.random() - 0.5);
+    const unsoldMap = Object.fromEntries(Object.entries(players).filter(([, p]) => !p.soldTo));
+    const ordered = buildPlayerOrder(unsoldMap);
+    if (!ordered.length) return;
     await update(ref(db), {
-      [`rooms/${code}/auction/playerOrder`]: shuffled,
+      [`rooms/${code}/auction/playerOrder`]: ordered,
       [`rooms/${code}/auction/currentIndex`]: 0,
-      [`rooms/${code}/auction/currentPlayerId`]: shuffled[0],
+      [`rooms/${code}/auction/currentPlayerId`]: ordered[0],
       [`rooms/${code}/auction/status`]: 'countdown',
       [`rooms/${code}/auction/currentBid`]: 0,
       [`rooms/${code}/auction/currentBidCaptainId`]: null,
@@ -276,9 +276,10 @@ export default function AuctionPage() {
   const placeBid = async (amount) => {
     setBidError('');
     const a = auction;
-    const amt = Number(amount);
     if (!a || a.status !== 'bidding') return;
-    if (!amt || amt <= (a.currentBid || 0)) { setBidError('현재 입찰가보다 높아야 합니다.'); return; }
+    const amt = Math.floor(Number(amount) / 10) * 10;
+    if (amt < 10) { setBidError('최소 입찰가는 10포인트입니다.'); return; }
+    if (amt <= (a.currentBid || 0)) { setBidError('현재 입찰가보다 높아야 합니다.'); return; }
     const myCap = captains[captainId];
     if (!myCap || amt > myCap.budget) { setBidError('예산이 부족합니다.'); return; }
     const newTimerEnd = Math.max(a.timerEnd || Date.now(), Date.now()) + 5000;
@@ -302,10 +303,11 @@ export default function AuctionPage() {
   const curBid = auction?.currentBid || 0;
   const myBudget = myCaptain?.budget || 0;
   const quickBids = [
-    { label: '+10', val: curBid + 10 },
-    { label: '+20', val: curBid + 20 },
-    { label: '+50', val: curBid + 50 },
-    { label: '최대', val: myBudget },
+    { label: '+10',  val: curBid + 10 },
+    { label: '+20',  val: curBid + 20 },
+    { label: '+50',  val: curBid + 50 },
+    { label: '+100', val: curBid + 100 },
+    { label: '최대', val: Math.floor(myBudget / 10) * 10 },
   ].filter(q => q.val > curBid && q.val <= myBudget);
 
   const displayTime = (timeLeft / 1000).toFixed(1);
@@ -354,14 +356,6 @@ export default function AuctionPage() {
                   player.position === '딜러' ? 'bg-red-900/60 text-red-300 border-red-700/60' :
                   'bg-green-900/60 text-green-300 border-green-700/60'
                 }`}>{player.position}</span>
-              )}
-              {player.tierCurrent && (
-                <span className="px-2 py-0.5 bg-purple-900/60 text-purple-300 text-xs font-bold rounded-full border border-purple-700/60">{player.tierCurrent}</span>
-              )}
-              {player.heroRole && (
-                <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${ROLE_BG[player.heroRole] || 'bg-gray-700 text-gray-300'}`}>
-                  {ROLE_LABEL[player.heroRole] || player.heroRole}
-                </span>
               )}
               {curBid > 0 && auction?.status === 'bidding' && (
                 <span className="px-2 py-0.5 bg-orange-500/80 text-white text-xs font-bold rounded-full animate-pulse">입찰 중</span>
@@ -652,12 +646,12 @@ export default function AuctionPage() {
                   type="number"
                   value={bidAmount}
                   onChange={e => setBidAmount(e.target.value)}
-                  placeholder={String(curBid + 1)}
+                  placeholder={String(curBid + 10)}
                   className="flex-1 px-4 py-3 text-2xl font-bold bg-gray-800 border border-gray-600 rounded-xl text-center focus:border-orange-400 focus:outline-none"
                 />
                 <button
                   onClick={() => placeBid(Number(bidAmount))}
-                  disabled={!bidAmount || Number(bidAmount) <= curBid || Number(bidAmount) > myBudget}
+                  disabled={!bidAmount || Math.floor(Number(bidAmount)/10)*10 < 10 || Math.floor(Number(bidAmount)/10)*10 <= curBid || Math.floor(Number(bidAmount)/10)*10 > myBudget}
                   className="px-6 py-3 text-xl font-bold bg-orange-500 hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-all"
                 >
                   입찰
