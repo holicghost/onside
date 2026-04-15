@@ -95,7 +95,7 @@ function DraftModal({ drafts, onApply, onDelete, onClose }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.8)' }}>
       <div className="w-full max-w-lg bg-gray-900 border border-gray-700 rounded-2xl p-6 space-y-4 max-h-[80vh] overflow-y-auto">
         <div className="flex items-center justify-between">
-          <h3 className="text-2xl font-bold text-white">임시저장 목록</h3>
+          <h3 className="text-3xl font-bold text-white">임시저장 목록</h3>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-300 text-2xl">✕</button>
         </div>
         {drafts.length === 0
@@ -372,30 +372,30 @@ export default function CreateRoom() {
         <div className="w-full max-w-sm bg-gray-900/90 border border-gray-700 rounded-2xl p-8 space-y-5 animate-slide-up">
           <div className="text-center">
             <div className="text-5xl mb-3">🏟️</div>
-            <h2 className="text-3xl font-black text-white">방 만들기</h2>
-            <p className="text-gray-400 mt-1">계속하려면 역할을 선택하세요</p>
+            <h2 className="text-4xl font-black text-white">방 만들기</h2>
+            <p className="text-gray-400 mt-1 text-lg">계속하려면 역할을 선택하세요</p>
           </div>
 
           {!permAdminInput ? (
             <div className="space-y-3">
               <button
                 onClick={() => { setPermAdminInput(true); setPermError(''); }}
-                className="w-full py-4 text-xl font-bold bg-orange-500 hover:bg-orange-400 rounded-xl transition-all"
+                className="w-full py-5 text-2xl font-bold bg-orange-500 hover:bg-orange-400 rounded-xl transition-all"
                 style={{ boxShadow: '0 6px 24px rgba(249,115,22,0.3)' }}
               >
                 관리자로 계속
               </button>
               <button
                 onClick={() => setPermMode('guest')}
-                className="w-full py-4 text-xl font-bold bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-xl transition-all"
+                className="w-full py-5 text-2xl font-bold bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-xl transition-all"
               >
                 비회원으로 계속
               </button>
-              <p className="text-center text-gray-600 text-sm">비회원은 입력은 가능하지만 저장이 불가합니다</p>
+              <p className="text-center text-gray-600 text-base">비회원은 입력은 가능하지만 저장이 불가합니다</p>
             </div>
           ) : (
             <div className="space-y-3">
-              <p className="text-gray-300 font-semibold">관리자 비밀번호</p>
+              <p className="text-gray-300 text-lg font-semibold">관리자 비밀번호</p>
               <input
                 type="password"
                 className="w-full px-4 py-3 text-xl bg-gray-800 border border-gray-600 rounded-xl focus:border-orange-400 focus:outline-none"
@@ -405,15 +405,15 @@ export default function CreateRoom() {
                 onKeyDown={e => e.key === 'Enter' && handleAdminAuth()}
                 autoFocus
               />
-              {permError && <p className="text-red-400 text-sm text-center">{permError}</p>}
+              {permError && <p className="text-red-400 text-base text-center">{permError}</p>}
               <div className="flex gap-3">
-                <button onClick={handleAdminAuth} className="flex-1 py-3 text-lg font-bold bg-orange-500 hover:bg-orange-400 rounded-xl transition-all">확인</button>
-                <button onClick={() => { setPermAdminInput(false); setPermPassword(''); setPermError(''); }} className="py-3 px-4 bg-gray-700 hover:bg-gray-600 rounded-xl transition-all">취소</button>
+                <button onClick={handleAdminAuth} className="flex-1 py-4 text-xl font-bold bg-orange-500 hover:bg-orange-400 rounded-xl transition-all">확인</button>
+                <button onClick={() => { setPermAdminInput(false); setPermPassword(''); setPermError(''); }} className="py-4 px-5 text-xl bg-gray-700 hover:bg-gray-600 rounded-xl transition-all">취소</button>
               </div>
             </div>
           )}
 
-          <button onClick={() => router.push('/')} className="w-full py-2 text-gray-600 hover:text-gray-400 text-base transition-all">← 홈으로</button>
+          <button onClick={() => router.push('/')} className="w-full py-2 text-gray-600 hover:text-gray-400 text-lg transition-all">← 홈으로</button>
         </div>
       </div>
     );
@@ -427,8 +427,8 @@ export default function CreateRoom() {
       <div className="max-w-3xl mx-auto space-y-6">
         {/* 헤더 */}
         <div className="flex items-center justify-between">
-          <button onClick={() => router.push('/')} className="text-gray-500 hover:text-gray-300 text-lg transition-all">← 홈</button>
-          <h1 className="text-3xl font-black text-white">방 만들기</h1>
+          <button onClick={() => router.push('/')} className="text-gray-500 hover:text-gray-300 text-xl transition-all">← 홈</button>
+          <h1 className="text-4xl font-black text-white">방 만들기</h1>
           <div className="flex items-center gap-2">
             {isAdmin && (
               <>

@@ -70,39 +70,42 @@ export default function Home() {
 
       {/* Header */}
       <div className="text-center mb-10">
-        <div className="text-3xl mb-3">⚡</div>
-        <h1 className="text-2xl font-black text-white tracking-tight">오버워치 내전 경매</h1>
-        <p className="text-gray-500 text-sm mt-1">팀원을 경매로 선발하세요</p>
+        <div className="text-5xl mb-4">⚡</div>
+        <h1 className="font-black text-white tracking-tight" style={{ fontSize: '48px' }}>오버워치 내전 경매</h1>
+        <p className="text-gray-500 mt-2" style={{ fontSize: '20px' }}>팀원을 경매로 선발하세요</p>
       </div>
 
       {error && (
-        <div className="mb-4 px-4 py-2.5 bg-red-950/60 border border-red-800 rounded-xl text-red-400 text-sm max-w-xs w-full text-center">
+        <div className="mb-4 px-4 py-3 bg-red-950/60 border border-red-800 rounded-xl text-red-400 text-lg max-w-sm w-full text-center">
           {error}
         </div>
       )}
 
       {mode === 'home' && (
-        <div className="flex flex-col gap-3 w-full max-w-xs">
+        <div className="flex flex-col gap-3 w-full max-w-sm">
           <button onClick={() => router.push('/create')}
-            className="w-full py-3 text-base font-bold bg-orange-500 hover:bg-orange-400 text-white rounded-xl transition-colors">
+            className="w-full py-5 font-bold bg-orange-500 hover:bg-orange-400 text-white rounded-xl transition-colors"
+            style={{ fontSize: '22px' }}>
             방 만들기
           </button>
           <button onClick={() => setMode('join')}
-            className="w-full py-3 text-base font-bold bg-gray-800 hover:bg-gray-700 text-white rounded-xl transition-colors border border-gray-700">
+            className="w-full py-5 font-bold bg-gray-800 hover:bg-gray-700 text-white rounded-xl transition-colors border border-gray-700"
+            style={{ fontSize: '22px' }}>
             방 참가
           </button>
           <button onClick={() => setMode('admin')}
-            className="w-full py-3 text-base font-medium bg-transparent hover:bg-gray-800/60 text-gray-500 hover:text-gray-400 rounded-xl transition-colors">
+            className="w-full py-4 font-medium bg-transparent hover:bg-gray-800/60 text-gray-500 hover:text-gray-400 rounded-xl transition-colors"
+            style={{ fontSize: '22px' }}>
             관리자 로그인
           </button>
         </div>
       )}
 
       {mode === 'join' && !roomInfo && (
-        <div className="w-full max-w-xs bg-gray-900 border border-gray-800 rounded-2xl p-5 space-y-3">
-          <h3 className="text-base font-bold text-white">방 참가</h3>
+        <div className="w-full max-w-sm bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-4">
+          <h3 className="text-2xl font-bold text-white">방 참가</h3>
           <input
-            className="w-full px-3 py-2.5 text-sm bg-gray-800 border border-gray-700 rounded-lg focus:border-blue-500 focus:outline-none uppercase tracking-widest text-white placeholder-gray-600"
+            className="w-full px-4 py-3 text-xl bg-gray-800 border border-gray-700 rounded-lg focus:border-blue-500 focus:outline-none uppercase tracking-widest text-white placeholder-gray-600"
             placeholder="방 코드 (6자리)"
             value={joinCode}
             onChange={e => setJoinCode(e.target.value.toUpperCase())}
@@ -110,37 +113,37 @@ export default function Home() {
           />
           <input
             type="password"
-            className="w-full px-3 py-2.5 text-sm bg-gray-800 border border-gray-700 rounded-lg focus:border-blue-500 focus:outline-none text-white placeholder-gray-600"
+            className="w-full px-4 py-3 text-xl bg-gray-800 border border-gray-700 rounded-lg focus:border-blue-500 focus:outline-none text-white placeholder-gray-600"
             placeholder="비밀번호 (없으면 비워두세요)"
             value={joinPassword}
             onChange={e => setJoinPassword(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleFetchRoom()}
           />
-          <div className="flex gap-2">
+          <div className="flex gap-3">
             <button onClick={handleFetchRoom} disabled={loading}
-              className="flex-1 py-2.5 text-sm font-bold bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-lg transition-colors">
+              className="flex-1 py-3 text-xl font-bold bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-lg transition-colors">
               {loading ? '확인 중...' : '확인'}
             </button>
-            <button onClick={reset} className="py-2.5 px-4 text-sm bg-gray-800 hover:bg-gray-700 text-gray-400 rounded-lg transition-colors">취소</button>
+            <button onClick={reset} className="py-3 px-5 text-xl bg-gray-800 hover:bg-gray-700 text-gray-400 rounded-lg transition-colors">취소</button>
           </div>
         </div>
       )}
 
       {mode === 'join' && roomInfo && (
-        <div className="w-full max-w-xs bg-gray-900 border border-gray-800 rounded-2xl p-5 space-y-4">
+        <div className="w-full max-w-sm bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-4">
           <div>
-            <h3 className="text-base font-bold text-white">{roomInfo.name}</h3>
-            <p className="text-gray-500 text-xs mt-0.5">
-              코드: <span className="text-gray-300 font-mono">{roomInfo.code}</span>
-              {!hasPassword && <span className="ml-2 text-green-600">비밀번호 없음</span>}
+            <h3 className="text-2xl font-bold text-white">{roomInfo.name}</h3>
+            <p className="text-gray-500 text-base mt-1">
+              코드: <span className="text-gray-300 font-mono font-bold">{roomInfo.code}</span>
+              {!hasPassword && <span className="ml-2 text-green-600 text-sm">비밀번호 없음</span>}
             </p>
           </div>
           <div>
-            <p className="text-xs text-gray-500 mb-2">역할 선택</p>
-            <div className="flex gap-2">
+            <p className="text-base text-gray-400 mb-2 font-semibold">역할 선택</p>
+            <div className="flex gap-3">
               {['captain', 'spectator'].map(r => (
                 <button key={r} onClick={() => setJoinRole(r)}
-                  className={`flex-1 py-2 text-sm font-bold rounded-lg transition-colors ${joinRole === r ? (r === 'captain' ? 'bg-orange-500 text-white' : 'bg-blue-600 text-white') : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
+                  className={`flex-1 py-3 text-lg font-bold rounded-lg transition-colors ${joinRole === r ? (r === 'captain' ? 'bg-orange-500 text-white' : 'bg-blue-600 text-white') : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
                   {r === 'captain' ? '팀장' : '관전자'}
                 </button>
               ))}
@@ -148,34 +151,34 @@ export default function Home() {
           </div>
           {joinRole === 'captain' && (
             <div>
-              <p className="text-xs text-gray-500 mb-2">팀장 선택</p>
+              <p className="text-base text-gray-400 mb-2 font-semibold">팀장 선택</p>
               <select value={selectedCaptain} onChange={e => setSelectedCaptain(e.target.value)}
-                className="w-full px-3 py-2.5 text-sm bg-gray-800 border border-gray-700 rounded-lg focus:outline-none text-white">
+                className="w-full px-4 py-3 text-xl bg-gray-800 border border-gray-700 rounded-lg focus:outline-none text-white">
                 <option value="">팀장을 선택하세요</option>
                 {captainList.map(cap => <option key={cap.id} value={cap.id}>{cap.name}</option>)}
               </select>
             </div>
           )}
-          <div className="flex gap-2">
-            <button onClick={handleJoin} className="flex-1 py-2.5 text-sm font-bold bg-orange-500 hover:bg-orange-400 rounded-lg transition-colors">입장</button>
-            <button onClick={reset} className="py-2.5 px-4 text-sm bg-gray-800 hover:bg-gray-700 text-gray-400 rounded-lg transition-colors">취소</button>
+          <div className="flex gap-3">
+            <button onClick={handleJoin} className="flex-1 py-3 text-xl font-bold bg-orange-500 hover:bg-orange-400 rounded-lg transition-colors">입장</button>
+            <button onClick={reset} className="py-3 px-5 text-xl bg-gray-800 hover:bg-gray-700 text-gray-400 rounded-lg transition-colors">취소</button>
           </div>
         </div>
       )}
 
       {mode === 'admin' && (
-        <div className="w-full max-w-xs bg-gray-900 border border-gray-800 rounded-2xl p-5 space-y-3">
-          <h3 className="text-base font-bold text-white">관리자 로그인</h3>
+        <div className="w-full max-w-sm bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-4">
+          <h3 className="text-2xl font-bold text-white">관리자 로그인</h3>
           <input type="password"
-            className="w-full px-3 py-2.5 text-sm bg-gray-800 border border-gray-700 rounded-lg focus:border-purple-500 focus:outline-none text-white placeholder-gray-600"
+            className="w-full px-4 py-3 text-xl bg-gray-800 border border-gray-700 rounded-lg focus:border-purple-500 focus:outline-none text-white placeholder-gray-600"
             placeholder="관리자 비밀번호"
             value={adminPass}
             onChange={e => setAdminPass(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleAdminLogin()}
           />
-          <div className="flex gap-2">
-            <button onClick={handleAdminLogin} className="flex-1 py-2.5 text-sm font-bold bg-purple-700 hover:bg-purple-600 rounded-lg transition-colors">로그인</button>
-            <button onClick={reset} className="py-2.5 px-4 text-sm bg-gray-800 hover:bg-gray-700 text-gray-400 rounded-lg transition-colors">취소</button>
+          <div className="flex gap-3">
+            <button onClick={handleAdminLogin} className="flex-1 py-3 text-xl font-bold bg-purple-700 hover:bg-purple-600 rounded-lg transition-colors">로그인</button>
+            <button onClick={reset} className="py-3 px-5 text-xl bg-gray-800 hover:bg-gray-700 text-gray-400 rounded-lg transition-colors">취소</button>
           </div>
         </div>
       )}
