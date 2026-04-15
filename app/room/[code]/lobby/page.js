@@ -6,6 +6,28 @@ import { db } from '@/lib/firebase';
 
 const toArr = (val) => !val ? [] : Array.isArray(val) ? val : Object.values(val);
 
+function BlurCode({ text, className = '' }) {
+  const [revealed, setRevealed] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const timerRef = useRef(null);
+  const handleClick = () => {
+    navigator.clipboard.writeText(text).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1000);
+    setRevealed(true);
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setRevealed(false), 3000);
+  };
+  return (
+    <span className={`relative inline-block cursor-pointer select-none ${className}`} onClick={handleClick}>
+      <span style={{ filter: revealed ? 'none' : 'blur(6px)', transition: 'filter 0.3s' }}>{text}</span>
+      {copied && (
+        <span className="absolute -top-6 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-green-700 text-green-100 text-xs font-bold rounded-full whitespace-nowrap pointer-events-none z-50">복사됨!</span>
+      )}
+    </span>
+  );
+}
+
 export default function LobbyPage() {
   const { code } = useParams();
   const router = useRouter();
@@ -130,7 +152,7 @@ export default function LobbyPage() {
         <h1 className="text-4xl font-black text-white">{roomInfo?.name || '로비'}</h1>
         <div className="flex items-center justify-center gap-2 mt-2">
           <span className="text-gray-400 text-lg">방 코드</span>
-          <span className="text-3xl font-black font-mono text-orange-400 tracking-widest">{code}</span>
+          <BlurCode text={code} className="text-3xl font-black font-mono text-orange-400 tracking-widest" />
         </div>
         <span className={`inline-block mt-3 px-4 py-1 rounded-full text-sm font-bold ${
           role === 'admin'   ? 'bg-purple-900 text-purple-300' :
@@ -139,6 +161,14 @@ export default function LobbyPage() {
         }`}>
           {role === 'admin' ? '관리자' : role === 'captain' ? '팀장' : '관전자'}
         </span>
+      </div>
+
+      {/* ── Broadcasting warning ── */}
+      <div className="w-full max-w-2xl relative z-10 mb-4">
+        <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-yellow-900/40 border border-yellow-700/60 text-yellow-400 text-sm font-bold">
+          <span>⚠️</span>
+          <span>방송 중이라면 화면의 방 코드와 링크가 노출되지 않도록 주의하세요!</span>
+        </div>
       </div>
 
       {/* ── Face-down cards (waiting & shuffling) ── */}
