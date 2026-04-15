@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { ref, set, get, remove } from 'firebase/database';
 import { db } from '@/lib/firebase';
-import { ALL_HEROES, TIERS_DETAILED, getHeroPortraitUrl } from '@/lib/heroes';
+import { ALL_HEROES, TIERS_DETAILED, getHeroPortraitUrl, loadHeroPortraits } from '@/lib/heroes';
 import { uploadImage } from '@/lib/cloudinary';
 
 function generateCode() {
@@ -173,6 +173,12 @@ export default function CreateRoom() {
       return next.slice(0, totalPlayers);
     });
   }, [totalPlayers]);
+
+  // 영웅 포트레이트 프리로드 (OverFast API)
+  const [, setPortraitsReady] = useState(false);
+  useEffect(() => {
+    loadHeroPortraits().then(() => setPortraitsReady(true));
+  }, []);
 
   // draftId 로컬스토리지 복원
   useEffect(() => {

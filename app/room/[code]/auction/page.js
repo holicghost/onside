@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ref, onValue, update } from 'firebase/database';
 import { db } from '@/lib/firebase';
-import { getHeroPortraitUrl, ALL_HEROES } from '@/lib/heroes';
+import { getHeroPortraitUrl, loadHeroPortraits, ALL_HEROES } from '@/lib/heroes';
 
 const ROLE_BG = { tank: 'bg-yellow-900/50 text-yellow-300', damage: 'bg-red-900/50 text-red-300', support: 'bg-green-900/50 text-green-300' };
 const ROLE_LABEL = { tank: '탱커', damage: '딜러', support: '서포터' };
@@ -47,6 +47,12 @@ export default function AuctionPage() {
   useEffect(() => { captainsRef.current = captains; }, [captains]);
   useEffect(() => { roleRef.current = role; }, [role]);
   useEffect(() => { setOrigin(window.location.origin); }, []);
+
+  // 영웅 포트레이트 프리로드 (OverFast API)
+  const [, setPortraitsReady] = useState(false);
+  useEffect(() => {
+    loadHeroPortraits().then(() => setPortraitsReady(true));
+  }, []);
 
   useEffect(() => {
     const r = localStorage.getItem('ow_role') || 'spectator';
@@ -324,17 +330,26 @@ export default function AuctionPage() {
             {heroIdsList.map((hid, i) => {
               const url = getHeroPortraitUrl(hid);
               const hero = ALL_HEROES.find(h => h.id === hid);
+              const roleKey = hero?.role;
+              const roleName = ROLE_LABEL[roleKey] || '';
+              const roleColor = { tank: 'text-yellow-300', damage: 'text-red-300', support: 'text-green-300' }[roleKey] || 'text-gray-400';
               return (
                 <div key={i} className="flex flex-col items-center gap-1">
-                  <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-700 border border-gray-600 flex items-center justify-center flex-shrink-0">
+                  <div className="relative w-14 h-14 rounded-lg overflow-hidden bg-gray-700 border border-gray-600 flex items-center justify-center flex-shrink-0">
                     {url ? (
-                      <img src={url} alt={hero?.name || hid} className="w-full h-full object-cover"
+                      <img src={url} alt={hero?.name || hid} className="absolute inset-0 w-full h-full object-cover"
                         onError={e => { e.currentTarget.style.display = 'none'; }} />
                     ) : (
                       <span className="text-gray-500 text-xl">?</span>
                     )}
+                    {roleName && (
+                      <span className={`absolute bottom-0 left-0 right-0 text-center text-[8px] font-bold py-0.5 ${roleColor}`}
+                        style={{ background: 'rgba(0,0,0,0.7)' }}>
+                        {roleName}
+                      </span>
+                    )}
                   </div>
-                  <span className="text-gray-400 text-[9px] text-center leading-tight w-12 truncate">{hero?.name || hid}</span>
+                  <span className="text-gray-400 text-[9px] text-center leading-tight w-14 truncate">{hero?.name || hid}</span>
                 </div>
               );
             })}
