@@ -447,9 +447,9 @@ export default function CreateRoom() {
 
         {/* 기본 설정 */}
         <section className="bg-gray-900/70 border border-gray-700 rounded-2xl p-6 space-y-4">
-          <h2 className="text-2xl font-bold text-orange-400">기본 설정</h2>
+          <h2 className="text-3xl font-bold text-orange-400">기본 설정</h2>
           <div>
-            <label className="block text-lg font-semibold mb-1 text-gray-300">대회명</label>
+            <label className="block text-xl font-semibold mb-1 text-gray-300">대회명</label>
             <input
               className="w-full px-4 py-3 text-xl bg-gray-800 border border-gray-600 rounded-xl focus:border-orange-400 focus:outline-none"
               placeholder="예: 오버워치 내전 시즌 1"
@@ -459,27 +459,27 @@ export default function CreateRoom() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-lg font-semibold mb-1 text-gray-300">팀 수</label>
+              <label className="block text-xl font-semibold mb-1 text-gray-300">팀 수</label>
               <select value={captainCount} onChange={e => setCaptainCount(Number(e.target.value))}
                 className="w-full px-4 py-3 text-xl bg-gray-800 border border-gray-600 rounded-xl focus:outline-none">
                 {[2,3,4,5,6,7,8].map(n => <option key={n} value={n}>{n}팀</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-lg font-semibold mb-1 text-gray-300">한 팀당 인원 (팀장 포함)</label>
+              <label className="block text-xl font-semibold mb-1 text-gray-300">한 팀당 인원 (팀장 포함)</label>
               <select value={teamSize} onChange={e => setTeamSize(Number(e.target.value))}
                 className="w-full px-4 py-3 text-xl bg-gray-800 border border-gray-600 rounded-xl focus:outline-none">
                 {[2,3,4,5,6,7].map(n => <option key={n} value={n}>{n}명</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-lg font-semibold mb-1 text-gray-300">팀당 예산 (포인트)</label>
+              <label className="block text-xl font-semibold mb-1 text-gray-300">팀당 예산 (포인트)</label>
               <input type="number" min={10} max={9999} value={budget}
                 onChange={e => { setBudget(Number(e.target.value)); triggerAutoSave(); }}
                 className="w-full px-4 py-3 text-xl bg-gray-800 border border-gray-600 rounded-xl focus:border-orange-400 focus:outline-none" />
             </div>
             <div>
-              <label className="block text-lg font-semibold mb-1 text-gray-300">방 비밀번호 <span className="text-gray-500 text-base font-normal">(선택)</span></label>
+              <label className="block text-xl font-semibold mb-1 text-gray-300">방 비밀번호 <span className="text-gray-500 text-base font-normal">(선택)</span></label>
               <input type="text" value={password}
                 onChange={e => { setPassword(e.target.value); triggerAutoSave(); }}
                 className="w-full px-4 py-3 text-xl bg-gray-800 border border-gray-600 rounded-xl focus:border-orange-400 focus:outline-none"
@@ -495,7 +495,7 @@ export default function CreateRoom() {
 
         {/* 팀장 정보 */}
         <section className="bg-gray-900/70 border border-gray-700 rounded-2xl p-6 space-y-3">
-          <h2 className="text-2xl font-bold text-orange-400">팀장 정보</h2>
+          <h2 className="text-3xl font-bold text-orange-400">팀장 정보</h2>
           {captainForms.map((cap, i) => (
             <div key={i} className="flex items-start gap-4 bg-gray-800/50 rounded-xl p-4">
               <PhotoInput value={cap.photoPreview} onChange={e => handleCaptainPhoto(i, e)} />
@@ -508,7 +508,7 @@ export default function CreateRoom() {
                   onChange={e => updateCaptain(i, 'name', e.target.value)}
                 />
                 <div>
-                  <label className="text-sm text-gray-400 mb-2 block font-semibold">포지션 <span className="text-red-400">*</span></label>
+                  <label className="text-base text-gray-400 mb-2 block font-semibold">포지션 <span className="text-red-400">*</span></label>
                   <div className="flex gap-2">
                     {[
                       { val: '탱커', active: 'bg-yellow-600 border-yellow-500 text-white' },
@@ -532,7 +532,7 @@ export default function CreateRoom() {
 
         {/* 선수 정보 */}
         <section className="bg-gray-900/70 border border-gray-700 rounded-2xl p-6 space-y-4">
-          <h2 className="text-2xl font-bold text-orange-400">선수 정보 <span className="text-orange-300 text-xl">({totalPlayers}명)</span></h2>
+          <h2 className="text-3xl font-bold text-orange-400">선수 정보 <span className="text-orange-300 text-2xl">({totalPlayers}명)</span></h2>
           {totalPlayers === 0 && <p className="text-gray-600 text-center py-4">팀 수 × (팀당 인원 - 1)이 0입니다.</p>}
           {playerForms.map((p, i) => (
             <div key={i} className="bg-gray-800/50 rounded-xl p-4 space-y-4">
@@ -549,7 +549,7 @@ export default function CreateRoom() {
 
                   {/* 영웅 선택 (3개) */}
                   <div>
-                    <label className="text-sm text-gray-400 mb-2 block font-semibold">주요 영웅 (최대 3개)</label>
+                    <label className="text-base text-gray-400 mb-2 block font-semibold">주요 영웅 (최대 3개)</label>
                     <HeroPicker
                       heroIds={p.heroIds}
                       onChange={heroIds => updatePlayer(i, 'heroIds', heroIds)}
@@ -558,7 +558,7 @@ export default function CreateRoom() {
 
                   {/* 티어 (3종) */}
                   <div>
-                    <label className="text-sm text-gray-400 mb-2 block font-semibold">티어</label>
+                    <label className="text-base text-gray-400 mb-2 block font-semibold">티어</label>
                     <div className="grid grid-cols-3 gap-2">
                       {[
                         { field: 'tierCurrent', label: '이번 시즌' },
@@ -583,7 +583,7 @@ export default function CreateRoom() {
                   {/* 티어 구분 + 포지션 */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-sm text-gray-400 mb-2 block font-semibold">티어 구분 <span className="text-red-400">*</span></label>
+                      <label className="text-base text-gray-400 mb-2 block font-semibold">티어 구분 <span className="text-red-400">*</span></label>
                       <div className="flex gap-2">
                         {[
                           { val: '고티어', active: 'bg-rose-600 border-rose-500 text-white' },
@@ -600,7 +600,7 @@ export default function CreateRoom() {
                       </div>
                     </div>
                     <div>
-                      <label className="text-sm text-gray-400 mb-2 block font-semibold">포지션 <span className="text-red-400">*</span></label>
+                      <label className="text-base text-gray-400 mb-2 block font-semibold">포지션 <span className="text-red-400">*</span></label>
                       <div className="flex gap-2">
                         {[
                           { val: '탱커', active: 'bg-yellow-600 border-yellow-500 text-white' },
