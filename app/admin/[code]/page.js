@@ -109,9 +109,13 @@ export default function AdminRoomPage() {
   // 방 설정 편집 폼
   const [roomName, setRoomName] = useState('');
   const [roomPassword, setRoomPassword] = useState('');
+  const [roomCaptainCount, setRoomCaptainCount] = useState(4);
+  const [roomTeamSize, setRoomTeamSize] = useState(6);
 
   const [saving, setSaving] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [chatClearConfirm, setChatClearConfirm] = useState(false);
+  const [chatClearDone, setChatClearDone] = useState(false);
   const [showLinks, setShowLinks] = useState(false);
   const [origin, setOrigin] = useState('');
 
@@ -132,7 +136,12 @@ export default function AdminRoomPage() {
       onValue(ref(db, `rooms/${code}/info`), s => {
         const info = s.val();
         setRoomInfo(info);
-        if (info && !editingRoom) { setRoomName(info.name || ''); setRoomPassword(info.password || ''); }
+        if (info && !editingRoom) {
+          setRoomName(info.name || '');
+          setRoomPassword(info.password || '');
+          setRoomCaptainCount(info.captainCount || 4);
+          setRoomTeamSize(info.teamSize || 6);
+        }
       }),
       onValue(ref(db, `rooms/${code}/captains`), s => setCaptains(s.val() || {})),
       onValue(ref(db, `rooms/${code}/players`), s => setPlayers(s.val() || {})),
@@ -286,9 +295,22 @@ export default function AdminRoomPage() {
   // ── 방 설정 저장 ──
   const saveRoomSettings = async () => {
     setSaving('room');
-    await update(ref(db, `rooms/${code}/info`), { name: roomName, password: roomPassword });
+    await update(ref(db, `rooms/${code}/info`), {
+      name: roomName,
+      password: roomPassword,
+      captainCount: Number(roomCaptainCount),
+      teamSize: Number(roomTeamSize),
+    });
     setEditingRoom(false);
     setSaving('');
+  };
+
+  // ── 채팅 초기화 ──
+  const clearChat = async () => {
+    await remove(ref(db, `rooms/${code}/chat`));
+    setChatClearConfirm(false);
+    setChatClearDone(true);
+    setTimeout(() => setChatClearDone(false), 3000);
   };
 
   // ── 경매 컨트롤 ──
@@ -415,22 +437,79 @@ export default function AdminRoomPage() {
             }
           </div>
           {editingRoom ? (
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm text-gray-400 mb-1 block">대회명</label>
-                <input className={inputCls} value={roomName} onChange={e => setRoomName(e.target.value)} placeholder="대회명" />
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm text-gray-400 mb-1 block">대회명</label>
+                  <input className={inputCls} value={roomName} onChange={e => setRoomName(e.target.value)} placeholder="대회명" />
+                </div>
+                <div>
+                  <label className="text-sm text-gray-400 mb-1 block">비밀번호 (선택)</label>
+                  <input className={inputCls} value={roomPassword} onChange={e => setRoomPassword(e.target.value)} placeholder="없으면 비워두세요" />
+                </div>
+                <div>
+                  <label className="text-sm text-gray-400 mb-1 block">팀 수</label>
+                  <input
+                    type="number" min="1" max="20"
+                    className={inputCls}
+                    value={roomCaptainCount}
+                    onChange={e => setRoomCaptainCount(Math.max(1, Math.min(20, Number(e.target.value))))}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-gray-400 mb-1 block">한 팀당 인원 수 <span className="text-gray-600">(팀장 포함)</span></label>
+                  <input
+                    type="number" min="1" max="20"
+                    className={inputCls}
+                    value={roomTeamSize}
+                    onChange={e => setRoomTeamSize(Math.max(1, Math.min(20, Number(e.target.value))))}
+                  />
+                </div>
               </div>
-              <div>
-                <label className="text-sm text-gray-400 mb-1 block">비밀번호 (선택)</label>
-                <input className={inputCls} value={roomPassword} onChange={e => setRoomPassword(e.target.value)} placeholder="없으면 비워두세요" />
+              <div className="flex items-center justify-between px-3 py-2 bg-gray-800/60 rounded-xl">
+                <span className="text-sm text-gray-400">
+                  총 뽑아야 할 팀원 수:
+                  <span className="text-orange-400 font-bold ml-2">
+                    {Math.max(0, (Number(roomTeamSize) - 1) * Number(roomCaptainCount))}명
+                  </span>
+                  <span className="text-gray-600 text-xs ml-1">(팀장 제외, {roomCaptainCount}팀 × {Math.max(0, roomTeamSize - 1)}명)</span>
+                </span>
               </div>
+              <p className="text-yellow-600 text-xs">⚠️ 변경 시 기존 팀 구성에 영향을 줄 수 있습니다</p>
             </div>
           ) : (
-            <div className="flex gap-6 text-sm text-gray-400">
+            <div className="space-y-3">
+            <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-gray-400">
               <span>대회명: <span className="text-white">{roomInfo?.name}</span></span>
               <span>예산: <span className="text-white">{roomInfo?.budget}P</span></span>
-              <span>팀 수: <span className="text-white">{roomInfo?.captainCount}</span></span>
-              <span>팀당 인원: <span className="text-white">{roomInfo?.teamSize || (roomInfo?.memberCount ? roomInfo.memberCount + 1 : '?')}</span></span>
+              <span>팀 수: <span className="text-white">{roomInfo?.captainCount ?? '—'}</span></span>
+              <span>팀당 인원: <span className="text-white">{roomInfo?.teamSize ?? '—'}</span></span>
+              {roomInfo?.captainCount && roomInfo?.teamSize && (
+                <span>총 팀원: <span className="text-orange-400 font-bold">{(roomInfo.teamSize - 1) * roomInfo.captainCount}명</span></span>
+              )}
+            </div>
+
+            {/* 채팅 초기화 */}
+            <div className="flex items-center gap-3">
+              {!chatClearConfirm && !chatClearDone && (
+                <button
+                  onClick={() => setChatClearConfirm(true)}
+                  className="px-4 py-2 text-sm bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-xl transition-all"
+                >
+                  🗑 채팅 초기화
+                </button>
+              )}
+              {chatClearConfirm && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-300">채팅 내역을 모두 삭제하시겠습니까?</span>
+                  <button onClick={clearChat} className="px-3 py-1.5 text-sm font-bold bg-red-600 hover:bg-red-500 rounded-lg transition-all">삭제</button>
+                  <button onClick={() => setChatClearConfirm(false)} className="px-3 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 rounded-lg transition-all">취소</button>
+                </div>
+              )}
+              {chatClearDone && (
+                <span className="text-sm text-green-400 font-bold">✓ 채팅이 초기화되었습니다</span>
+              )}
+            </div>
             </div>
           )}
         </section>
