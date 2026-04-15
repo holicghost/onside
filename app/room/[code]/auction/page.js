@@ -8,6 +8,14 @@ import { getHeroPortraitUrl, loadHeroPortraits, ALL_HEROES } from '@/lib/heroes'
 const ROLE_BG = { tank: 'bg-yellow-900/50 text-yellow-300', damage: 'bg-red-900/50 text-red-300', support: 'bg-green-900/50 text-green-300' };
 const ROLE_LABEL = { tank: '탱커', damage: '딜러', support: '서포터' };
 const toArr = (val) => !val ? [] : Array.isArray(val) ? val : Object.values(val);
+const TIER_POS_STYLES = {
+  '고티어 딜러': 'bg-red-600/80 text-white border-red-500/60',
+  '저티어 딜러': 'bg-rose-800/70 text-rose-200 border-rose-700/60',
+  '고티어 탱커': 'bg-yellow-500/80 text-yellow-950 border-yellow-400/60',
+  '저티어 탱커': 'bg-yellow-800/70 text-yellow-200 border-yellow-700/60',
+  '고티어 힐러': 'bg-green-600/80 text-white border-green-500/60',
+  '저티어 힐러': 'bg-green-900/70 text-green-200 border-green-700/60',
+};
 
 function CopyButton({ text }) {
   const [copied, setCopied] = useState(false);
@@ -359,27 +367,20 @@ export default function AuctionPage() {
       <div className="relative w-full bg-gray-900 rounded-2xl border border-gray-700 overflow-hidden">
         {/* Photo + info row */}
         <div className="flex gap-4 p-5">
-          <div className="w-28 h-36 rounded-xl overflow-hidden bg-gray-800 flex-shrink-0 flex items-center justify-center">
+          <div className="w-48 h-64 rounded-xl overflow-hidden bg-gray-800 flex-shrink-0 flex items-center justify-center">
             {player.photo
-              ? <img src={player.photo} alt={player.name} className="w-full h-full object-cover" />
-              : <span className="text-5xl">👤</span>
+              ? <img src={player.photo} alt={player.name} className="w-full h-full object-cover object-top" />
+              : <span className="text-6xl">👤</span>
             }
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex gap-1.5 flex-wrap mb-1.5">
-              {player.tierType && (
+              {(player.tierType || player.position) && (
                 <span className={`px-2 py-0.5 text-xs font-bold rounded-full border ${
-                  player.tierType === '고티어'
-                    ? 'bg-rose-900/60 text-rose-300 border-rose-700/60'
-                    : 'bg-sky-900/60 text-sky-300 border-sky-700/60'
-                }`}>{player.tierType}</span>
-              )}
-              {player.position && (
-                <span className={`px-2 py-0.5 text-xs font-bold rounded-full border ${
-                  player.position === '탱커' ? 'bg-yellow-900/60 text-yellow-300 border-yellow-700/60' :
-                  player.position === '딜러' ? 'bg-red-900/60 text-red-300 border-red-700/60' :
-                  'bg-green-900/60 text-green-300 border-green-700/60'
-                }`}>{player.position}</span>
+                  TIER_POS_STYLES[`${player.tierType} ${player.position}`] || 'bg-gray-700 text-gray-300 border-gray-600'
+                }`}>
+                  {[player.tierType, player.position].filter(Boolean).join(' ')}
+                </span>
               )}
               {curBid > 0 && auction?.status === 'bidding' && (
                 <span className="px-2 py-0.5 bg-orange-500/80 text-white text-xs font-bold rounded-full animate-pulse">입찰 중</span>
@@ -640,7 +641,11 @@ export default function AuctionPage() {
                   <span className="text-gray-500 text-xs font-bold flex-shrink-0">NEXT</span>
                   {nextQueuePlayer.photo ? <img src={nextQueuePlayer.photo} alt={nextQueuePlayer.name} className="w-7 h-7 rounded-full object-cover flex-shrink-0" /> : <span className="flex-shrink-0">👤</span>}
                   <span className="text-gray-300 text-sm font-bold flex-1 truncate">{nextQueuePlayer.name}</span>
-                  {nextQueuePlayer.tierCurrent && <span className="text-purple-400 text-xs flex-shrink-0">{nextQueuePlayer.tierCurrent}</span>}
+                  {(nextQueuePlayer.tierType && nextQueuePlayer.position) && (
+                    <span className={`px-1.5 py-0.5 text-[10px] font-bold rounded-full border flex-shrink-0 ${TIER_POS_STYLES[`${nextQueuePlayer.tierType} ${nextQueuePlayer.position}`] || 'bg-gray-700 text-gray-300 border-gray-600'}`}>
+                      {nextQueuePlayer.tierType} {nextQueuePlayer.position}
+                    </span>
+                  )}
                 </div>
               )}
             </div>
@@ -758,7 +763,13 @@ export default function AuctionPage() {
                       {p.photo ? <img src={p.photo} alt={p.name} className="w-8 h-8 rounded-full object-cover flex-shrink-0" /> : <span className="text-xl flex-shrink-0">👤</span>}
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-bold text-white truncate">{p.name}</p>
-                        <p className="text-xs text-gray-500">{p.tierCurrent || p.hero || ''}</p>
+                        {(p.tierType && p.position) ? (
+                          <span className={`inline-block px-1.5 py-0.5 text-[10px] font-bold rounded-full border mt-0.5 ${TIER_POS_STYLES[`${p.tierType} ${p.position}`] || 'bg-gray-700 text-gray-300 border-gray-600'}`}>
+                            {p.tierType} {p.position}
+                          </span>
+                        ) : (
+                          <p className="text-xs text-gray-500">{p.tierCurrent || ''}</p>
+                        )}
                       </div>
                       {i === 0 && <span className="text-xs text-blue-400 font-bold flex-shrink-0">NEXT</span>}
                     </div>
