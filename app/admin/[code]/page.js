@@ -290,21 +290,14 @@ export default function AdminRoomPage() {
 
   // ── 경매 컨트롤 ──
   const startAuction = async () => {
-    const playerIds = Object.keys(players);
-    const shuffled = [...playerIds].sort(() => Math.random() - 0.5);
+    // Reset auction state and go to lobby for captain order draw
     await update(ref(db), {
-      [`rooms/${code}/auction/playerOrder`]: shuffled,
-      [`rooms/${code}/auction/currentIndex`]: 0,
-      [`rooms/${code}/auction/currentPlayerId`]: shuffled[0],
-      [`rooms/${code}/auction/status`]: 'countdown',
-      [`rooms/${code}/auction/currentBid`]: 0,
-      [`rooms/${code}/auction/currentBidCaptainId`]: null,
-      [`rooms/${code}/auction/countdownEnd`]: Date.now() + 10000,
-      [`rooms/${code}/auction/timerEnd`]: null,
-      [`rooms/${code}/info/status`]: 'auction',
+      [`rooms/${code}/auction`]: { status: 'idle', currentPlayerId: null, currentBid: 0, currentBidCaptainId: null, timerEnd: null, countdownEnd: null, playerOrder: null, currentIndex: 0, history: null },
+      [`rooms/${code}/lobby`]: { captainOrder: null },
+      [`rooms/${code}/info/status`]: 'lobby',
     });
     localStorage.setItem('ow_room', code);
-    router.push(`/room/${code}/auction`);
+    router.push(`/room/${code}/lobby`);
   };
 
   const resetAuction = async () => {
@@ -673,6 +666,30 @@ export default function AdminRoomPage() {
                           </select>
                         </div>
                       ))}
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs text-gray-400 mb-2 block font-semibold">티어 구분</label>
+                        <div className="flex gap-2">
+                          {[{ val: '고티어', active: 'bg-rose-600 border-rose-500 text-white' }, { val: '저티어', active: 'bg-sky-600 border-sky-500 text-white' }].map(({ val, active }) => (
+                            <button key={val} type="button" onClick={() => setPTierType(val)}
+                              className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${pTierType === val ? active : 'bg-gray-800 border-gray-600 text-gray-400 hover:border-gray-500'}`}>
+                              {val}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-400 mb-2 block font-semibold">포지션</label>
+                        <div className="flex gap-1.5">
+                          {[{ val: '탱커', active: 'bg-yellow-600 border-yellow-500 text-white' }, { val: '딜러', active: 'bg-red-600 border-red-500 text-white' }, { val: '힐러', active: 'bg-green-600 border-green-500 text-white' }].map(({ val, active }) => (
+                            <button key={val} type="button" onClick={() => setPPosition(val)}
+                              className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${pPosition === val ? active : 'bg-gray-800 border-gray-600 text-gray-400 hover:border-gray-500'}`}>
+                              {val}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
