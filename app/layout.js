@@ -1,8 +1,20 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "도현 배 유인원 컵",
-  description: "RØDE와 함께하는 도현 배 유인원 컵 팀원 선발 경매 홈페이지",
+  title: "RØDE 유인원 컵 경매",
+  description: "By. ONSIDE COMPANY",
+  openGraph: {
+    title: "RØDE 유인원 컵 경매",
+    description: "By. ONSIDE COMPANY",
+    images: [
+      {
+        url: "https://media.discordapp.net/attachments/1421469155227598892/1494037277070852227/805dd936effdaf71.png?ex=69e12624&is=69dfd4a4&hm=a6ffa51914a5c25f2fc085857d5ab7791d65ff5ace3cf048ccb4f5e38c4598d1&=&format=webp&quality=lossless&width=865&height=544",
+        width: 865,
+        height: 544,
+      }
+    ],
+    type: "website",
+  },
 };
 
 export default function RootLayout({ children }) {
