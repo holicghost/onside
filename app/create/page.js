@@ -10,7 +10,7 @@ function generateCode() {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
-const ROLE_BG = { tank: 'bg-yellow-900/60 border-yellow-700', damage: 'bg-red-900/60 border-red-700', support: 'bg-green-900/60 border-green-700' };
+
 const ROLE_TEXT = { tank: 'text-yellow-300', damage: 'text-red-300', support: 'text-green-300' };
 
 function PhotoInput({ value, onChange, size = 'md' }) {
@@ -205,7 +205,7 @@ export default function CreateRoom() {
             style: p.style, comment: p.comment,
           })),
           updatedAt: Date.now(),
-          createdAt: draftId ? undefined : Date.now(),
+          createdAt: draftId ? null : Date.now(),
         });
         setAutoSaveStatus('saved');
         setTimeout(() => setAutoSaveStatus(''), 2000);
