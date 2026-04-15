@@ -122,7 +122,12 @@ export default function LobbyPage() {
     if (phase !== 'waiting') return;
     const ids = Object.keys(captains);
     if (!ids.length) return;
-    const shuffled = [...ids].sort(() => Math.random() - 0.5);
+    const arr = [...ids];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    const shuffled = arr;
     await update(ref(db), {
       [`rooms/${code}/captainOrder`]:          shuffled, // canonical location per spec
       [`rooms/${code}/lobby/captainOrder`]:    shuffled, // used by animation timeline
