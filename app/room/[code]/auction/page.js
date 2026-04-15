@@ -595,12 +595,17 @@ export default function AuctionPage() {
                   </div>
                 </div>
                 {teamPlayers.length > 0
-                  ? <div className="space-y-1 border-t border-gray-700 pt-2">
+                  ? <div className="space-y-1.5 border-t border-gray-700 pt-2">
                       {teamPlayers.map(p => (
                         <div key={p.id} className="flex items-center gap-2 text-sm">
-                          {p.photo ? <img src={p.photo} alt={p.name} className="w-5 h-5 rounded-full object-cover" /> : <span>👤</span>}
-                          <span className="text-gray-300 truncate flex-1">{p.name}</span>
-                          <span className="text-orange-400 font-bold">{p.soldPrice}P</span>
+                          {p.photo ? <img src={p.photo} alt={p.name} className="w-5 h-5 rounded-full object-cover flex-shrink-0" /> : <span className="flex-shrink-0">👤</span>}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-gray-300 truncate leading-tight">{p.name}</p>
+                            {(p.tierType || p.position) && (
+                              <span className="text-xs text-gray-600 font-bold">{[p.tierType, p.position].filter(Boolean).join(' ')}</span>
+                            )}
+                          </div>
+                          <span className="text-orange-400 font-bold flex-shrink-0">{p.soldPrice}P</span>
                         </div>
                       ))}
                     </div>
