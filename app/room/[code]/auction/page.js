@@ -526,9 +526,12 @@ export default function AuctionPage() {
     <div className="min-h-screen flex flex-col" style={{ background: '#0f0f1a' }}>
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-3 border-b border-gray-800 flex-shrink-0 gap-3">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-black text-white truncate">{roomInfo?.name || '경매'}</h1>
-          <span className="text-sm text-gray-500">코드: <BlurCode text={code} className="font-mono text-orange-400 font-bold" /></span>
+        <div className="flex items-center gap-4 min-w-0">
+          <button onClick={() => router.push('/')} className="text-gray-500 hover:text-gray-300 text-sm transition-colors flex-shrink-0">← 홈</button>
+          <div className="min-w-0">
+            <h1 className="text-2xl font-black text-white truncate">{roomInfo?.name || '경매'}</h1>
+            <span className="text-sm text-gray-500">코드: <BlurCode text={code} className="font-mono text-orange-400 font-bold" /></span>
+          </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <span className={`px-3 py-1 rounded-full text-sm font-bold ${
@@ -594,12 +597,12 @@ export default function AuctionPage() {
 
           {/* Chat box */}
           <div className="border-t border-gray-800 pt-3 space-y-2">
-            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">채팅</h3>
-            <div ref={chatScrollRef} className="h-36 overflow-y-auto space-y-1 bg-gray-900/40 rounded-xl p-2">
+            <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest">채팅</h3>
+            <div ref={chatScrollRef} className="h-40 overflow-y-auto space-y-1 bg-gray-900/40 rounded-xl p-2">
               {chatMessages.length === 0
-                ? <p className="text-gray-700 text-xs text-center py-4">채팅 없음</p>
+                ? <p className="text-gray-700 text-sm text-center py-4">채팅 없음</p>
                 : chatMessages.map(msg => (
-                    <div key={msg.id} className="text-xs">
+                    <div key={msg.id} style={{ fontSize: '15px' }}>
                       <span className="font-bold text-orange-400">{msg.senderName}: </span>
                       <span className="text-gray-300 break-all">{msg.message}</span>
                     </div>
@@ -613,12 +616,14 @@ export default function AuctionPage() {
                 onChange={e => setChatInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') sendChat(); }}
                 placeholder="메시지 입력..."
-                className="flex-1 px-2 py-1.5 text-xs bg-gray-800 border border-gray-700 rounded-lg focus:border-orange-400 focus:outline-none text-white"
+                className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:border-orange-400 focus:outline-none text-white"
+                style={{ fontSize: '13px' }}
               />
               <button
                 onClick={sendChat}
                 disabled={!chatInput.trim()}
-                className="px-3 py-1.5 text-xs font-bold bg-orange-600 hover:bg-orange-500 disabled:opacity-40 rounded-lg transition-all"
+                className="w-12 flex-shrink-0 py-2 font-bold bg-orange-600 hover:bg-orange-500 disabled:opacity-40 rounded-lg transition-all whitespace-nowrap"
+                style={{ fontSize: '13px' }}
               >
                 전송
               </button>
@@ -695,12 +700,12 @@ export default function AuctionPage() {
             <div className="space-y-2">
               <div className="flex items-center justify-between bg-gray-800 rounded-xl px-5 py-3">
                 <div className="flex items-center gap-2">
-                  <span className="inline-block w-2.5 h-2.5 rounded-full bg-green-400 animate-pulse" />
-                  <span className="text-white font-bold text-sm">입찰 중</span>
+                  <span className="inline-block w-3 h-3 rounded-full bg-green-400 animate-pulse" />
+                  <span className="text-white font-bold text-lg">입찰 중</span>
                 </div>
-                <span className={`text-4xl font-black tabular-nums leading-none ${
+                <span className={`font-black tabular-nums leading-none ${
                   timeLeft <= 3000 ? 'text-red-500 animate-timer-blink' : timeLeft <= 6000 ? 'text-yellow-400' : 'text-white'
-                }`}>
+                }`} style={{ fontSize: '52px' }}>
                   {displayTime}초
                 </span>
               </div>
@@ -718,12 +723,12 @@ export default function AuctionPage() {
               </div>
               {/* NEXT preview */}
               {nextQueuePlayer && (
-                <div key={nextQueuePlayer.id} className="flex items-center gap-2 bg-gray-800/60 rounded-xl px-4 py-2 animate-slide-up">
-                  <span className="text-gray-500 text-xs font-bold flex-shrink-0">NEXT</span>
-                  {nextQueuePlayer.photo ? <img src={nextQueuePlayer.photo} alt={nextQueuePlayer.name} className="w-7 h-7 rounded-full object-cover flex-shrink-0" /> : <span className="flex-shrink-0">👤</span>}
-                  <span className="text-gray-300 text-sm font-bold flex-1 truncate">{nextQueuePlayer.name}</span>
+                <div key={nextQueuePlayer.id} className="flex items-center gap-2 bg-gray-800/60 rounded-xl px-4 py-2.5 animate-slide-up">
+                  <span className="text-gray-500 text-sm font-bold flex-shrink-0">NEXT</span>
+                  {nextQueuePlayer.photo ? <img src={nextQueuePlayer.photo} alt={nextQueuePlayer.name} className="w-8 h-8 rounded-full object-cover flex-shrink-0" /> : <span className="flex-shrink-0">👤</span>}
+                  <span className="text-gray-300 text-base font-bold flex-1 truncate">{nextQueuePlayer.name}</span>
                   {(nextQueuePlayer.tierType && nextQueuePlayer.position) && (
-                    <span className={`px-1.5 py-0.5 text-[10px] font-bold rounded-full border flex-shrink-0 ${TIER_POS_STYLES[`${nextQueuePlayer.tierType} ${nextQueuePlayer.position}`] || 'bg-gray-700 text-gray-300 border-gray-600'}`}>
+                    <span className={`px-2 py-0.5 text-xs font-bold rounded-full border flex-shrink-0 ${TIER_POS_STYLES[`${nextQueuePlayer.tierType} ${nextQueuePlayer.position}`] || 'bg-gray-700 text-gray-300 border-gray-600'}`}>
                       {nextQueuePlayer.tierType} {nextQueuePlayer.position}
                     </span>
                   )}
@@ -752,17 +757,17 @@ export default function AuctionPage() {
           {/* Captain bid UI */}
           {role === 'captain' && auction?.status === 'bidding' && captainId && (
             <div className="space-y-3 animate-modal-in">
-              <p className="text-center text-gray-400 text-sm">
-                내 포인트: <span className="text-green-400 font-black text-lg">{myBudget}pt</span>
+              <p className="text-center text-gray-400 text-base">
+                내 포인트: <span className="text-green-400 font-black text-2xl">{myBudget}pt</span>
               </p>
-              {bidError && <p className="text-red-400 text-center text-sm">{bidError}</p>}
+              {bidError && <p className="text-red-400 text-center text-base">{bidError}</p>}
               <div className="grid grid-cols-4 gap-2">
                 {quickBids.map(q => (
                   <button key={q.label}
                     onClick={() => { placeBid(q.val); setBidAmount(String(q.val)); }}
                     className="py-3 text-center font-bold bg-orange-900/60 hover:bg-orange-800 border border-orange-700 rounded-xl transition-all text-orange-300 active:scale-95">
-                    <div className="text-sm">{q.label}</div>
-                    <div className="text-xs text-orange-400 mt-0.5">{q.val}pt</div>
+                    <div className="text-base">{q.label}</div>
+                    <div className="text-sm text-orange-400 mt-0.5">{q.val}pt</div>
                   </button>
                 ))}
               </div>
@@ -795,25 +800,25 @@ export default function AuctionPage() {
               )}
               {auction?.status === 'bidding' && (
                 <div className="grid grid-cols-3 gap-2 animate-modal-in">
-                  <button onClick={pauseAuction} className="py-3 text-sm font-bold bg-orange-700 hover:bg-orange-600 rounded-xl transition-all duration-200">⏸ 일시정지</button>
-                  <button onClick={finalizeSale} className="py-3 text-sm font-bold bg-blue-700 hover:bg-blue-600 rounded-xl transition-all duration-200">🔨 강제낙찰</button>
-                  <button onClick={passCurrent} className="py-3 text-sm font-bold bg-gray-600 hover:bg-gray-500 rounded-xl transition-all duration-200">⏭ 강제유찰</button>
+                  <button onClick={pauseAuction} className="py-3 text-base font-bold bg-orange-700 hover:bg-orange-600 rounded-xl transition-all duration-200">⏸ 일시정지</button>
+                  <button onClick={finalizeSale} className="py-3 text-base font-bold bg-blue-700 hover:bg-blue-600 rounded-xl transition-all duration-200">🔨 강제낙찰</button>
+                  <button onClick={passCurrent} className="py-3 text-base font-bold bg-gray-600 hover:bg-gray-500 rounded-xl transition-all duration-200">⏭ 강제유찰</button>
                 </div>
               )}
               {auction?.status === 'paused' && (
                 <div className="grid grid-cols-2 gap-2 animate-modal-in">
-                  <button onClick={resumeAuction} className="py-3 text-lg font-bold bg-green-600 hover:bg-green-500 rounded-xl transition-all duration-200">▶ 재진행</button>
-                  <button onClick={passCurrent} className="py-3 text-lg font-bold bg-gray-600 hover:bg-gray-500 rounded-xl transition-all duration-200">⏭ 강제유찰</button>
+                  <button onClick={resumeAuction} className="py-3 text-xl font-bold bg-green-600 hover:bg-green-500 rounded-xl transition-all duration-200">▶ 재진행</button>
+                  <button onClick={passCurrent} className="py-3 text-xl font-bold bg-gray-600 hover:bg-gray-500 rounded-xl transition-all duration-200">⏭ 강제유찰</button>
                 </div>
               )}
               {auction?.status === 'done' && (
                 <div className="space-y-2">
                   {unsoldPlayers.length > 0 && (
                     <div className="bg-yellow-900/30 border border-yellow-700 rounded-xl p-4">
-                      <p className="text-yellow-300 text-sm font-bold mb-2">유찰 선수 {unsoldPlayers.length}명</p>
-                      {unsoldPlayers.slice(0, 4).map(p => <p key={p.id} className="text-gray-300 text-xs">• {p.name}</p>)}
-                      {unsoldPlayers.length > 4 && <p className="text-gray-500 text-xs">외 {unsoldPlayers.length - 4}명...</p>}
-                      <button onClick={startReAuction} className="w-full mt-3 py-2 text-sm font-bold bg-yellow-600 hover:bg-yellow-500 rounded-xl transition-all">
+                      <p className="text-yellow-300 text-base font-bold mb-2">유찰 선수 {unsoldPlayers.length}명</p>
+                      {unsoldPlayers.slice(0, 4).map(p => <p key={p.id} className="text-gray-300 text-sm">• {p.name}</p>)}
+                      {unsoldPlayers.length > 4 && <p className="text-gray-500 text-sm">외 {unsoldPlayers.length - 4}명...</p>}
+                      <button onClick={startReAuction} className="w-full mt-3 py-2 text-base font-bold bg-yellow-600 hover:bg-yellow-500 rounded-xl transition-all">
                         🔄 유찰 선수 재경매
                       </button>
                     </div>
@@ -847,14 +852,14 @@ export default function AuctionPage() {
                     }
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-white font-black text-base leading-tight">{nextQueuePlayer.name}</p>
+                    <p className="text-white font-black text-lg leading-tight">{nextQueuePlayer.name}</p>
                     {(nextQueuePlayer.tierType && nextQueuePlayer.position) && (
-                      <span className={`inline-block mt-1 px-2 py-0.5 text-xs font-bold rounded-full border ${TIER_POS_STYLES[`${nextQueuePlayer.tierType} ${nextQueuePlayer.position}`] || 'bg-gray-700 text-gray-300 border-gray-600'}`}>
+                      <span className={`inline-block mt-1 px-2 py-0.5 text-sm font-bold rounded-full border ${TIER_POS_STYLES[`${nextQueuePlayer.tierType} ${nextQueuePlayer.position}`] || 'bg-gray-700 text-gray-300 border-gray-600'}`}>
                         {nextQueuePlayer.tierType} {nextQueuePlayer.position}
                       </span>
                     )}
                     {nextQueuePlayer.tierCurrent && (
-                      <p className="text-gray-400 text-xs mt-1">{nextQueuePlayer.tierCurrent}</p>
+                      <p className="text-gray-400 text-sm mt-1">{nextQueuePlayer.tierCurrent}</p>
                     )}
                   </div>
                 </div>
@@ -864,7 +869,7 @@ export default function AuctionPage() {
 
           {/* Grouped waiting queue (excludes nextQueuePlayer) */}
           <div>
-            <h2 className="text-base font-bold text-gray-300 sticky top-0 bg-[#0f0f1a] pb-2">
+            <h2 className="text-lg font-bold text-gray-300 sticky top-0 bg-[#0f0f1a] pb-2">
               대기 <span className="text-orange-400">{queuePlayers.length}</span>명
             </h2>
             {restQueue.length > 0 ? (
@@ -872,17 +877,17 @@ export default function AuctionPage() {
                 {groupedQueue.map(g => (
                   <div key={g.key}>
                     <div className="flex items-center gap-1.5 mb-1.5">
-                      <span className={`px-2 py-0.5 text-[10px] font-black rounded-full border ${TIER_POS_STYLES[g.key] || 'bg-gray-700 text-gray-300 border-gray-600'}`}>
+                      <span className={`px-2 py-0.5 text-xs font-black rounded-full border ${TIER_POS_STYLES[g.key] || 'bg-gray-700 text-gray-300 border-gray-600'}`}>
                         {g.key}
                       </span>
-                      <span className="text-gray-600 text-[10px]">{g.players.length}명</span>
+                      <span className="text-gray-600 text-xs">{g.players.length}명</span>
                     </div>
                     <div className="space-y-1 pl-1">
                       {g.players.map(p => (
                         <div key={p.id} className="flex items-center gap-2 p-1.5 rounded-lg bg-gray-900/60">
                           {p.photo ? <img src={p.photo} alt={p.name} className="w-6 h-6 rounded-full object-cover flex-shrink-0" /> : <span className="text-sm flex-shrink-0">👤</span>}
-                          <p className="text-xs font-bold text-white truncate flex-1">{p.name}</p>
-                          {p.tierCurrent && <p className="text-[10px] text-gray-500 flex-shrink-0">{p.tierCurrent}</p>}
+                          <p className="text-sm font-bold text-white truncate flex-1">{p.name}</p>
+                          {p.tierCurrent && <p className="text-xs text-gray-500 flex-shrink-0">{p.tierCurrent}</p>}
                         </div>
                       ))}
                     </div>
@@ -891,14 +896,14 @@ export default function AuctionPage() {
                 {ungroupedQueue.length > 0 && (
                   <div>
                     <div className="flex items-center gap-1.5 mb-1.5">
-                      <span className="px-2 py-0.5 text-[10px] font-black rounded-full border bg-gray-700 text-gray-300 border-gray-600">기타</span>
-                      <span className="text-gray-600 text-[10px]">{ungroupedQueue.length}명</span>
+                      <span className="px-2 py-0.5 text-xs font-black rounded-full border bg-gray-700 text-gray-300 border-gray-600">기타</span>
+                      <span className="text-gray-600 text-xs">{ungroupedQueue.length}명</span>
                     </div>
                     <div className="space-y-1 pl-1">
                       {ungroupedQueue.map(p => (
                         <div key={p.id} className="flex items-center gap-2 p-1.5 rounded-lg bg-gray-900/60">
                           {p.photo ? <img src={p.photo} alt={p.name} className="w-6 h-6 rounded-full object-cover flex-shrink-0" /> : <span className="text-sm flex-shrink-0">👤</span>}
-                          <p className="text-xs font-bold text-white truncate">{p.name}</p>
+                          <p className="text-sm font-bold text-white truncate">{p.name}</p>
                         </div>
                       ))}
                     </div>
@@ -906,13 +911,13 @@ export default function AuctionPage() {
                 )}
               </div>
             ) : (
-              <p className="text-gray-600 text-sm">대기 선수 없음</p>
+              <p className="text-gray-600 text-base">대기 선수 없음</p>
             )}
           </div>
 
           {/* History */}
           <div>
-            <h2 className="text-base font-bold text-gray-300 sticky top-0 bg-[#0f0f1a] pb-2">낙찰 내역</h2>
+            <h2 className="text-lg font-bold text-gray-300 sticky top-0 bg-[#0f0f1a] pb-2">낙찰 내역</h2>
             {historyList.length > 0
               ? <div className="space-y-2">
                   {historyList.map((h, i) => {

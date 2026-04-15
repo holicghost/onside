@@ -147,6 +147,9 @@ export default function LobbyPage() {
         />
       )}
 
+      {/* ← Home */}
+      <button onClick={() => router.push('/')} className="absolute top-4 left-4 text-gray-500 hover:text-gray-300 text-sm transition-colors z-20">← 홈</button>
+
       {/* ── Header ── */}
       <div className="text-center mb-10 relative z-10">
         <h1 className="text-4xl font-black text-white">{roomInfo?.name || '로비'}</h1>

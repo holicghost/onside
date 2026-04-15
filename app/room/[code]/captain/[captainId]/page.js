@@ -366,17 +366,17 @@ export default function CaptainPage() {
           <div className="flex-1 min-w-0">
             <div className="flex gap-1.5 flex-wrap mb-1.5">
               {(player.tierType || player.position) && (
-                <span className={`px-2 py-0.5 text-xs font-bold rounded-full border ${
+                <span className={`px-3 py-0.5 text-sm font-bold rounded-full border ${
                   TIER_POS_STYLES[`${player.tierType} ${player.position}`] || 'bg-gray-700 text-gray-300 border-gray-600'
                 }`}>
                   {[player.tierType, player.position].filter(Boolean).join(' ')}
                 </span>
               )}
               {curBid > 0 && auction?.status === 'bidding' && (
-                <span className="px-2 py-0.5 bg-orange-500/80 text-white text-xs font-bold rounded-full animate-pulse">입찰 중</span>
+                <span className="px-3 py-0.5 bg-orange-500/80 text-white text-sm font-bold rounded-full animate-pulse">입찰 중</span>
               )}
             </div>
-            <h2 className="text-3xl font-black text-white leading-tight">{player.name}</h2>
+            <h2 className="font-black text-white leading-tight" style={{ fontSize: '40px' }}>{player.name}</h2>
             <div className="grid grid-cols-3 gap-1.5 mt-2">
               {[
                 { label: '현재 티어', val: player.tierCurrent, color: 'text-purple-400' },
@@ -384,21 +384,21 @@ export default function CaptainPage() {
                 { label: '역대 최고 티어', val: player.tierBest, color: 'text-yellow-400' },
               ].map(({ label, val, color }) => (
                 <div key={label} className="bg-gray-800/80 rounded-lg px-2 py-1.5">
-                  <p className="text-[9px] text-gray-500 mb-0.5 leading-tight">{label}</p>
-                  <p className={`text-xs font-bold ${color} leading-tight`}>{val || '—'}</p>
+                  <p className="text-xs text-gray-500 mb-0.5 leading-tight">{label}</p>
+                  <p className={`text-lg font-bold ${color} leading-tight`}>{val || '—'}</p>
                 </div>
               ))}
             </div>
             {player.style && (
               <div className="mt-2.5">
-                <p className="text-[9px] text-gray-500 mb-0.5">플레이 스타일</p>
-                <p className="text-xs text-gray-300 leading-snug">{player.style}</p>
+                <p className="text-xs text-gray-500 mb-0.5">플레이 스타일</p>
+                <p className="text-sm text-gray-300 leading-snug">{player.style}</p>
               </div>
             )}
             {player.comment && (
               <div className="mt-2.5">
-                <p className="text-[9px] text-gray-500 mb-0.5">한마디</p>
-                <p className="text-xs text-gray-300 leading-snug">{player.comment}</p>
+                <p className="text-xs text-gray-500 mb-0.5">한마디</p>
+                <p className="text-sm text-gray-300 leading-snug">{player.comment}</p>
               </div>
             )}
           </div>
@@ -437,12 +437,12 @@ export default function CaptainPage() {
         )}
 
         <div className="px-5 pb-5">
-          <p className="text-gray-500 text-xs mb-0.5">현재 입찰</p>
-          <p key={curBid} className={`text-4xl font-black text-orange-400 leading-none tabular-nums${curBid > 0 ? ' animate-bid-pop' : ''}`}>
+          <p className="text-gray-500 text-sm mb-0.5">현재 입찰</p>
+          <p key={curBid} className={`font-black text-orange-400 leading-none tabular-nums${curBid > 0 ? ' animate-bid-pop' : ''}`} style={{ fontSize: '48px' }}>
             {curBid > 0 ? `${curBid} pt` : '—'}
           </p>
           {bidderCap && (
-            <p className="text-white text-sm font-bold mt-1">
+            <p className="text-white text-base font-bold mt-1">
               👑 {bidderCap.name} 입찰 중
               {auction?.currentBidCaptainId === captainId && <span className="text-green-400 ml-1">(나)</span>}
             </p>
@@ -504,35 +504,35 @@ export default function CaptainPage() {
                 'border-gray-700 bg-gray-900/40'
               }`}>
                 <div className="flex items-center gap-2 mb-2">
-                  {cap.photo ? <img src={cap.photo} alt={cap.name} className="w-9 h-9 rounded-full object-cover flex-shrink-0" /> : <div className="w-9 h-9 rounded-full bg-gray-700 flex items-center justify-center text-base flex-shrink-0">👤</div>}
+                  {cap.photo ? <img src={cap.photo} alt={cap.name} className="w-10 h-10 rounded-full object-cover flex-shrink-0" /> : <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-lg flex-shrink-0">👤</div>}
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${cap.online ? 'bg-green-400 animate-pulse' : 'bg-gray-600'}`} />
-                      <p className="font-bold text-white text-sm truncate">
-                        {cap.name}{isMe && <span className="text-blue-400 text-xs ml-1">(나)</span>}
+                      <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${cap.online ? 'bg-green-400 animate-pulse' : 'bg-gray-600'}`} />
+                      <p className="font-bold text-white text-lg truncate">
+                        {cap.name}{isMe && <span className="text-blue-400 text-sm ml-1">(나)</span>}
                       </p>
                       {cap.position && (
-                        <span className={`px-1.5 py-0.5 text-[10px] font-bold rounded-full flex-shrink-0 ${
+                        <span className={`px-2 py-0.5 text-xs font-bold rounded-full flex-shrink-0 ${
                           cap.position === '탱커' ? 'bg-yellow-900/60 text-yellow-300' :
                           cap.position === '딜러' ? 'bg-red-900/60 text-red-300' :
                           'bg-green-900/60 text-green-300'
                         }`}>{cap.position}</span>
                       )}
                     </div>
-                    <p className="text-xs text-gray-400">예산 <span className="text-green-400 font-bold">{cap.budget}</span><span className="text-gray-600">/{roomInfo?.budget}</span>P</p>
+                    <p className="text-sm text-gray-400">예산 <span className="text-green-400 font-bold">{cap.budget}</span><span className="text-gray-600">/{roomInfo?.budget}</span>P</p>
                   </div>
                 </div>
                 {teamPlayers.length > 0
                   ? <div className="space-y-1 border-t border-gray-700 pt-2">
                       {teamPlayers.map(p => (
-                        <div key={p.id} className="flex items-center gap-2 text-xs">
+                        <div key={p.id} className="flex items-center gap-2 text-sm">
                           {p.photo ? <img src={p.photo} alt={p.name} className="w-5 h-5 rounded-full object-cover" /> : <span>👤</span>}
                           <span className="text-gray-300 truncate flex-1">{p.name}</span>
                           <span className="text-orange-400 font-bold">{p.soldPrice}P</span>
                         </div>
                       ))}
                     </div>
-                  : <p className="text-xs text-gray-600 border-t border-gray-800 pt-2">팀원 없음</p>
+                  : <p className="text-sm text-gray-600 border-t border-gray-800 pt-2">팀원 없음</p>
                 }
               </div>
             );
@@ -540,12 +540,12 @@ export default function CaptainPage() {
 
           {/* Chat box */}
           <div className="border-t border-gray-800 pt-3 space-y-2">
-            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">채팅</h3>
-            <div ref={chatScrollRef} className="h-36 overflow-y-auto space-y-1 bg-gray-900/40 rounded-xl p-2">
+            <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest">채팅</h3>
+            <div ref={chatScrollRef} className="h-40 overflow-y-auto space-y-1 bg-gray-900/40 rounded-xl p-2">
               {chatMessages.length === 0
-                ? <p className="text-gray-700 text-xs text-center py-4">채팅 없음</p>
+                ? <p className="text-gray-700 text-sm text-center py-4">채팅 없음</p>
                 : chatMessages.map(msg => (
-                    <div key={msg.id} className="text-xs">
+                    <div key={msg.id} style={{ fontSize: '15px' }}>
                       <span className="font-bold text-orange-400">{msg.senderName}: </span>
                       <span className="text-gray-300 break-all">{msg.message}</span>
                     </div>
@@ -559,12 +559,14 @@ export default function CaptainPage() {
                 onChange={e => setChatInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') sendChat(); }}
                 placeholder="메시지 입력..."
-                className="flex-1 px-2 py-1.5 text-xs bg-gray-800 border border-gray-700 rounded-lg focus:border-orange-400 focus:outline-none text-white"
+                className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:border-orange-400 focus:outline-none text-white"
+                style={{ fontSize: '13px' }}
               />
               <button
                 onClick={sendChat}
                 disabled={!chatInput.trim()}
-                className="px-3 py-1.5 text-xs font-bold bg-orange-600 hover:bg-orange-500 disabled:opacity-40 rounded-lg transition-all"
+                className="w-12 flex-shrink-0 py-2 font-bold bg-orange-600 hover:bg-orange-500 disabled:opacity-40 rounded-lg transition-all whitespace-nowrap"
+                style={{ fontSize: '13px' }}
               >
                 전송
               </button>

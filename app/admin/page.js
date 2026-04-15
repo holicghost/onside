@@ -35,18 +35,17 @@ export default function AdminPage() {
 
   if (!authed) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4"
-        style={{ background: 'linear-gradient(135deg, #0f0f1a 0%, #1a1a3e 50%, #0f0f1a 100%)' }}>
-        <div className="w-full max-w-sm bg-gray-900/80 border border-gray-700 rounded-2xl p-6 space-y-4">
-          <h1 className="text-3xl font-black text-center">관리자</h1>
+      <div className="min-h-screen flex items-center justify-center px-4" style={{ background: '#0f0f1a' }}>
+        <div className="w-full max-w-sm bg-gray-900 border border-gray-700 rounded-2xl p-6 space-y-4">
+          <h1 className="text-3xl font-black text-center text-white">관리자</h1>
           <input type="password"
-            className="w-full px-4 py-3 text-xl bg-gray-800 border border-gray-600 rounded-xl focus:border-purple-400 focus:outline-none"
+            className="w-full px-4 py-3 text-xl bg-gray-800 border border-gray-600 rounded-xl focus:border-purple-400 focus:outline-none text-white"
             placeholder="관리자 비밀번호"
             value={password}
             onChange={e => setPassword(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleLogin()}
           />
-          {error && <p className="text-red-400 text-center">{error}</p>}
+          {error && <p className="text-red-400 text-lg text-center">{error}</p>}
           <div className="flex gap-3">
             <button onClick={handleLogin} className="flex-1 py-3 text-xl font-bold bg-purple-600 hover:bg-purple-500 rounded-xl transition-all">로그인</button>
             <button onClick={() => router.push('/')} className="py-3 px-5 text-xl bg-gray-700 hover:bg-gray-600 rounded-xl transition-all">홈</button>
@@ -61,10 +60,11 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen py-10 px-4" style={{ background: '#0f0f1a' }}>
       <div className="max-w-4xl mx-auto space-y-6">
+        <button onClick={() => router.push('/')} className="text-gray-500 hover:text-gray-300 text-sm transition-colors">← 홈</button>
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-4xl font-black text-white">관리자 패널</h1>
-            <p className="text-gray-400 mt-1">방 목록: <span className="text-white font-bold">{roomList.length}</span>개</p>
+            <p className="text-gray-400 text-lg mt-1">방 목록: <span className="text-white font-bold">{roomList.length}</span>개</p>
           </div>
           <div className="flex gap-3">
             <button onClick={() => router.push('/create')}
@@ -95,21 +95,21 @@ export default function AdminPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-3 flex-wrap">
                           <h2 className="text-2xl font-black text-white">{info?.name || '(이름 없음)'}</h2>
-                          <span className={`text-base font-bold ${STATUS_COLOR[info?.status] || 'text-gray-400'}`}>
+                          <span className={`text-lg font-bold ${STATUS_COLOR[info?.status] || 'text-gray-400'}`}>
                             {STATUS_LABEL[info?.status] || info?.status}
                           </span>
                           {!(info?.password) && (
-                            <span className="text-xs bg-green-900/50 text-green-400 px-2 py-0.5 rounded-full">비밀번호 없음</span>
+                            <span className="text-sm bg-green-900/50 text-green-400 px-2 py-0.5 rounded-full">비밀번호 없음</span>
                           )}
                         </div>
                         <div className="flex items-center gap-4 mt-1 flex-wrap">
-                          <span className="font-mono text-orange-400 font-bold text-lg tracking-widest">{code}</span>
-                          <span className="text-gray-500 text-sm">팀장 {captainCount}명</span>
-                          <span className="text-gray-500 text-sm">선수 {soldCount}/{playerCount}명 낙찰</span>
-                          <span className="text-gray-600 text-sm">{createdAt}</span>
+                          <span className="font-mono text-orange-400 font-bold text-xl tracking-widest">{code}</span>
+                          <span className="text-gray-500 text-base">팀장 {captainCount}명</span>
+                          <span className="text-gray-500 text-base">선수 {soldCount}/{playerCount}명 낙찰</span>
+                          <span className="text-gray-600 text-base">{createdAt}</span>
                         </div>
                       </div>
-                      <span className="text-gray-500 text-xl ml-4">→</span>
+                      <span className="text-gray-500 text-2xl ml-4">→</span>
                     </div>
                   </div>
                 );

@@ -37,6 +37,7 @@ export default function ResultPage() {
   return (
     <div className="min-h-screen py-10 px-4" style={{ background: '#0f0f1a' }}>
       <div className="max-w-5xl mx-auto space-y-8">
+        <button onClick={() => router.push('/')} className="text-gray-500 hover:text-gray-300 text-sm transition-colors">← 홈</button>
         {/* Header */}
         <div className="text-center space-y-3">
           <div className="text-5xl">🏆</div>
