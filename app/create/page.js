@@ -79,6 +79,37 @@ function HeroPicker({ heroIds, onChange }) {
   );
 }
 
+function DraftModal({ drafts, onApply, onDelete, onClose }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.8)' }}>
+      <div className="w-full max-w-lg bg-gray-900 border border-gray-700 rounded-2xl p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+        <div className="flex items-center justify-between">
+          <h3 className="text-2xl font-bold text-white">임시저장 목록</h3>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-300 text-2xl">✕</button>
+        </div>
+        {drafts.length === 0
+          ? <p className="text-gray-600 text-center py-6">저장된 임시저장이 없습니다.</p>
+          : drafts.map(d => (
+              <div key={d.id} className="flex items-center justify-between bg-gray-800 rounded-xl p-4">
+                <div>
+                  <p className="text-white font-bold">{d.tournamentName || '(이름 없음)'}</p>
+                  <p className="text-gray-400 text-sm">
+                    {d.captainCount}팀 · 팀당 {d.teamSize}명 ·
+                    {d.updatedAt ? ` ${new Date(d.updatedAt).toLocaleString('ko-KR')}` : ''}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => onApply(d)} className="px-4 py-2 text-sm font-bold bg-blue-600 hover:bg-blue-500 rounded-lg transition-all">불러오기</button>
+                  <button onClick={() => onDelete(d.id)} className="px-3 py-2 text-sm bg-red-800 hover:bg-red-700 rounded-lg transition-all">삭제</button>
+                </div>
+              </div>
+            ))
+        }
+      </div>
+    </div>
+  );
+}
+
 export default function CreateRoom() {
   const router = useRouter();
 
@@ -366,40 +397,10 @@ export default function CreateRoom() {
     );
   }
 
-  // ── 임시저장 모달 ──
-  const DraftModal = () => (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.8)' }}>
-      <div className="w-full max-w-lg bg-gray-900 border border-gray-700 rounded-2xl p-6 space-y-4 max-h-[80vh] overflow-y-auto">
-        <div className="flex items-center justify-between">
-          <h3 className="text-2xl font-bold text-white">임시저장 목록</h3>
-          <button onClick={() => setShowDraftModal(false)} className="text-gray-500 hover:text-gray-300 text-2xl">✕</button>
-        </div>
-        {drafts.length === 0
-          ? <p className="text-gray-600 text-center py-6">저장된 임시저장이 없습니다.</p>
-          : drafts.map(d => (
-              <div key={d.id} className="flex items-center justify-between bg-gray-800 rounded-xl p-4">
-                <div>
-                  <p className="text-white font-bold">{d.tournamentName || '(이름 없음)'}</p>
-                  <p className="text-gray-400 text-sm">
-                    {d.captainCount}팀 · 팀당 {d.teamSize}명 ·
-                    {d.updatedAt ? ` ${new Date(d.updatedAt).toLocaleString('ko-KR')}` : ''}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={() => applyDraft(d)} className="px-4 py-2 text-sm font-bold bg-blue-600 hover:bg-blue-500 rounded-lg transition-all">불러오기</button>
-                  <button onClick={() => deleteDraft(d.id)} className="px-3 py-2 text-sm bg-red-800 hover:bg-red-700 rounded-lg transition-all">삭제</button>
-                </div>
-              </div>
-            ))
-        }
-      </div>
-    </div>
-  );
-
   // ── 메인 폼 ──
   return (
     <div className="min-h-screen py-10 px-4" style={{ background: '#0f0f1a' }}>
-      {showDraftModal && <DraftModal />}
+      {showDraftModal && <DraftModal drafts={drafts} onApply={applyDraft} onDelete={deleteDraft} onClose={() => setShowDraftModal(false)} />}
 
       <div className="max-w-3xl mx-auto space-y-6">
         {/* 헤더 */}
