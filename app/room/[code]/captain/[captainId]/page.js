@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ref, onValue, update, get, set, onDisconnect, query, orderByKey, limitToLast } from 'firebase/database';
 import { db } from '@/lib/firebase';
@@ -64,7 +64,6 @@ export default function CaptainPage() {
   const [timeLeft, setTimeLeft] = useState(0);
   const [countdownLeft, setCountdownLeft] = useState(0);
   const [maxDuration, setMaxDuration] = useState(10000);
-  const [bidAmount, setBidAmount] = useState('');
   const [bidError, setBidError] = useState('');
   const [showLinks, setShowLinks] = useState(false);
   const [origin, setOrigin] = useState('');

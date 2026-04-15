@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ref, onValue, update, set, onDisconnect, query, orderByKey, limitToLast } from 'firebase/database';
 import { db } from '@/lib/firebase';
@@ -62,7 +62,6 @@ export default function AuctionPage() {
   const [timeLeft, setTimeLeft] = useState(0);
   const [countdownLeft, setCountdownLeft] = useState(0);
   const [maxDuration, setMaxDuration] = useState(10000);
-  const [bidAmount, setBidAmount] = useState('');
   const [bidError, setBidError] = useState('');
   const [showLinks, setShowLinks] = useState(false);
   const [origin, setOrigin] = useState('');
@@ -98,18 +97,19 @@ export default function AuctionPage() {
 
   useEffect(() => {
     if (!code) return;
-    const unsubs = [
-      onValue(ref(db, `rooms/${code}/info`), s => setRoomInfo(s.val())),
-      onValue(ref(db, `rooms/${code}/captains`), s => setCaptains(s.val() || {})),
-      onValue(ref(db, `rooms/${code}/players`), s => setPlayers(s.val() || {})),
-      onValue(ref(db, `rooms/${code}/auction`), s => setAuction(s.val())),
-      onValue(query(ref(db, `rooms/${code}/chat`), orderByKey(), limitToLast(50)), snap => {
-        const val = snap.val();
-        if (!val) { setChatMessages([]); return; }
-        setChatMessages(Object.entries(val).map(([k, v]) => ({ id: k, ...v })));
-      }),
-    ];
-    return () => unsubs.forEach(u => u());
+    const rootUnsub = onValue(ref(db, `rooms/${code}`), snap => {
+      const val = snap.val() || {};
+      setRoomInfo(val.info || null);
+      setCaptains(val.captains || {});
+      setPlayers(val.players || {});
+      setAuction(val.auction || null);
+    });
+    const chatUnsub = onValue(query(ref(db, `rooms/${code}/chat`), orderByKey(), limitToLast(50)), snap => {
+      const val = snap.val();
+      if (!val) { setChatMessages([]); return; }
+      setChatMessages(Object.entries(val).map(([k, v]) => ({ id: k, ...v })));
+    });
+    return () => { rootUnsub(); chatUnsub(); };
   }, [code]);
 
   // Auto-redirect all users when room status becomes 'result'
@@ -268,7 +268,13 @@ export default function AuctionPage() {
     const order = toArr(a.playerOrder);
     const nextIndex = (a.currentIndex || 0) + 1;
     if (nextIndex >= order.length) {
-      await update(ref(db), { [`rooms/${code}/auction/status`]: 'done', [`rooms/${code}/info/status`]: 'result' });
+      if (a.isReAuction) {
+        // Re-auction finished → go to result for all clients
+        await update(ref(db), { [`rooms/${code}/auction/status`]: 'done', [`rooms/${code}/info/status`]: 'result' });
+      } else {
+        // First round finished → wait for admin to decide (re-auction or result)
+        await update(ref(db), { [`rooms/${code}/auction/status`]: 'done' });
+      }
       return;
     }
     await update(ref(db), {
@@ -313,6 +319,7 @@ export default function AuctionPage() {
       [`rooms/${code}/auction/currentBidCaptainId`]: null,
       [`rooms/${code}/auction/countdownEnd`]: Date.now() + 10000,
       [`rooms/${code}/auction/timerEnd`]: null,
+      [`rooms/${code}/auction/isReAuction`]: true,
       [`rooms/${code}/info/status`]: 'auction',
     });
   };
@@ -358,45 +365,44 @@ export default function AuctionPage() {
     });
   };
 
+  const sendingRef = useRef(false);
   const sendChat = async () => {
     const msg = chatInput.trim();
-    if (!msg || !code) return;
+    if (!msg || !code || sendingRef.current) return;
+    sendingRef.current = true;
+    setChatInput('');
     const senderName = role === 'admin' ? '관리자' : (captains[captainId]?.name || '관전자');
     await set(ref(db, `rooms/${code}/chat/${Date.now()}`), { senderName, message: msg, timestamp: Date.now() });
-    setChatInput('');
+    sendingRef.current = false;
   };
 
-  // Derived
-  const currentPlayer = auction?.currentPlayerId ? players[auction.currentPlayerId] : null;
-  const captainsList = Object.entries(captains).map(([id, c]) => ({ id, ...c }));
+  // Derived — useMemo prevents recompute on every 100ms timer tick
+  const captainsList = useMemo(() => Object.entries(captains).map(([id, c]) => ({ id, ...c })), [captains]);
   const myCaptain = captainId ? captains[captainId] : null;
-  const playerOrder = toArr(auction?.playerOrder);
+  const playerOrder = useMemo(() => toArr(auction?.playerOrder), [auction?.playerOrder]);
   const currentIdx = auction?.currentIndex || 0;
-  const queuePlayers = playerOrder.slice(currentIdx + 1).map(pid => players[pid]).filter(Boolean);
+  const currentPlayer = auction?.currentPlayerId ? players[auction.currentPlayerId] : null;
+  const queuePlayers = useMemo(() => playerOrder.slice(currentIdx + 1).map(pid => players[pid]).filter(Boolean), [playerOrder, currentIdx, players]);
   const nextQueuePlayer = queuePlayers[0] || null;
-  const historyList = auction?.history ? Object.values(auction.history).sort((a, b) => b.timestamp - a.timestamp) : [];
-  // Include current player in passed count when status is 'passed' so it shows immediately
+  const historyList = useMemo(() => auction?.history ? Object.values(auction.history).sort((a, b) => b.timestamp - a.timestamp) : [], [auction?.history]);
   const processedCount = ['passed', 'sold', 'done'].includes(auction?.status) ? currentIdx + 1 : currentIdx;
-  const passedPlayers = playerOrder.slice(0, processedCount).map(pid => players[pid]).filter(p => p && !p.soldTo);
-  const unsoldPlayers = Object.values(players).filter(p => !p.soldTo);
+  const passedPlayers = useMemo(() => playerOrder.slice(0, processedCount).map(pid => players[pid]).filter(p => p && !p.soldTo), [playerOrder, processedCount, players]);
+  const unsoldPlayers = useMemo(() => Object.values(players).filter(p => !p.soldTo), [players]);
   const curBid = auction?.currentBid || 0;
   const myBudget = myCaptain?.budget || 0;
-  const offlineCaptains = captainsList.filter(c => !c.online);
-  const QUEUE_GROUPS = [
-    '고티어 딜러', '저티어 딜러', '고티어 탱커', '저티어 탱커', '고티어 힐러', '저티어 힐러',
-  ];
+  const offlineCaptains = useMemo(() => captainsList.filter(c => !c.online), [captainsList]);
+  const QUEUE_GROUPS = ['고티어 딜러', '저티어 딜러', '고티어 탱커', '저티어 탱커', '고티어 힐러', '저티어 힐러'];
   const restQueue = queuePlayers.slice(1);
-  const groupedQueue = QUEUE_GROUPS
+  const groupedQueue = useMemo(() => QUEUE_GROUPS
     .map(key => ({ key, players: restQueue.filter(p => `${p.tierType} ${p.position}` === key) }))
-    .filter(g => g.players.length > 0);
-  const ungroupedQueue = restQueue.filter(p => !QUEUE_GROUPS.includes(`${p.tierType} ${p.position}`));
-  const quickBids = [
+    .filter(g => g.players.length > 0), [restQueue]);
+  const ungroupedQueue = useMemo(() => restQueue.filter(p => !QUEUE_GROUPS.includes(`${p.tierType} ${p.position}`)), [restQueue]);
+  const quickBids = useMemo(() => [
     { label: '+10',  val: curBid + 10 },
     { label: '+20',  val: curBid + 20 },
     { label: '+50',  val: curBid + 50 },
-    { label: '+100', val: curBid + 100 },
     { label: '최대', val: Math.floor(myBudget / 10) * 10 },
-  ].filter(q => q.val > curBid && q.val <= myBudget);
+  ].filter(q => q.val > curBid && q.val <= myBudget), [curBid, myBudget]);
 
   const displayTime = (timeLeft / 1000).toFixed(1);
   const displayCountdown = Math.ceil(countdownLeft / 1000);
@@ -741,19 +747,6 @@ export default function AuctionPage() {
                   }}
                 />
               </div>
-              {/* NEXT preview */}
-              {nextQueuePlayer && (
-                <div key={nextQueuePlayer.id} className="flex items-center gap-2 bg-gray-800/60 rounded-xl px-4 py-2.5 animate-slide-up">
-                  <span className="text-gray-500 text-sm font-bold flex-shrink-0">NEXT</span>
-                  {nextQueuePlayer.photo ? <img src={nextQueuePlayer.photo} alt={nextQueuePlayer.name} className="w-8 h-8 rounded-full object-cover flex-shrink-0" /> : <span className="flex-shrink-0">👤</span>}
-                  <span className="text-gray-300 text-base font-bold flex-1 truncate">{nextQueuePlayer.name}</span>
-                  {(nextQueuePlayer.tierType && nextQueuePlayer.position) && (
-                    <span className={`px-2 py-0.5 text-xs font-bold rounded-full border flex-shrink-0 ${TIER_POS_STYLES[`${nextQueuePlayer.tierType} ${nextQueuePlayer.position}`] || 'bg-gray-700 text-gray-300 border-gray-600'}`}>
-                      {nextQueuePlayer.tierType} {nextQueuePlayer.position}
-                    </span>
-                  )}
-                </div>
-              )}
             </div>
           )}
 
@@ -784,28 +777,12 @@ export default function AuctionPage() {
               <div className="grid grid-cols-4 gap-2">
                 {quickBids.map(q => (
                   <button key={q.label}
-                    onClick={() => { placeBid(q.val); setBidAmount(String(q.val)); }}
+                    onClick={() => placeBid(q.val)}
                     className="py-3 text-center font-bold bg-orange-900/60 hover:bg-orange-800 border border-orange-700 rounded-xl transition-all text-orange-300 active:scale-95">
                     <div className="text-base">{q.label}</div>
                     <div className="text-sm text-orange-400 mt-0.5">{q.val}pt</div>
                   </button>
                 ))}
-              </div>
-              <div className="flex gap-2">
-                <input
-                  type="number"
-                  value={bidAmount}
-                  onChange={e => setBidAmount(e.target.value)}
-                  placeholder={String(curBid + 10)}
-                  className="flex-1 px-4 py-3 text-2xl font-bold bg-gray-800 border border-gray-600 rounded-xl text-center focus:border-orange-400 focus:outline-none"
-                />
-                <button
-                  onClick={() => placeBid(Number(bidAmount))}
-                  disabled={!bidAmount || Math.floor(Number(bidAmount)/10)*10 < 10 || Math.floor(Number(bidAmount)/10)*10 <= curBid || Math.floor(Number(bidAmount)/10)*10 > myBudget}
-                  className="px-6 py-3 text-xl font-bold bg-orange-500 hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-all"
-                >
-                  입찰
-                </button>
               </div>
             </div>
           )}
@@ -833,7 +810,7 @@ export default function AuctionPage() {
               )}
               {auction?.status === 'done' && (
                 <div className="space-y-2">
-                  {unsoldPlayers.length > 0 && (
+                  {unsoldPlayers.length > 0 && !auction?.isReAuction && (
                     <div className="bg-yellow-900/30 border border-yellow-700 rounded-xl p-4">
                       <p className="text-yellow-300 text-base font-bold mb-2">유찰 선수 {unsoldPlayers.length}명</p>
                       {unsoldPlayers.slice(0, 4).map(p => <p key={p.id} className="text-gray-300 text-sm">• {p.name}</p>)}
@@ -843,7 +820,9 @@ export default function AuctionPage() {
                       </button>
                     </div>
                   )}
-                  <button onClick={() => router.push(`/room/${code}/result`)} className="w-full py-4 text-xl font-bold bg-purple-600 hover:bg-purple-500 rounded-xl transition-all">
+                  <button onClick={async () => {
+                    await update(ref(db), { [`rooms/${code}/info/status`]: 'result' });
+                  }} className="w-full py-4 text-xl font-bold bg-purple-600 hover:bg-purple-500 rounded-xl transition-all">
                     🏆 결과 보기
                   </button>
                 </div>
@@ -853,6 +832,17 @@ export default function AuctionPage() {
 
           {(!auction || auction?.status === 'idle') && role !== 'admin' && (
             <div className="text-center py-16 text-gray-600 text-lg">관리자가 경매를 시작할 때까지 대기하세요.</div>
+          )}
+
+          {auction?.status === 'done' && !auction?.isReAuction && role !== 'admin' && (
+            <div className="text-center py-16 space-y-3">
+              <p className="text-4xl">⏳</p>
+              <p className="text-white text-xl font-bold">1라운드 종료</p>
+              {unsoldPlayers.length > 0
+                ? <p className="text-yellow-400 text-base">유찰 선수 {unsoldPlayers.length}명 — 재경매 대기 중...</p>
+                : <p className="text-gray-400 text-base">관리자가 결과를 확정하는 중...</p>
+              }
+            </div>
           )}
         </main>
 
