@@ -6,6 +6,16 @@ import { db } from '@/lib/firebase';
 import { ALL_HEROES, TIERS_DETAILED, getHeroPortraitUrl } from '@/lib/heroes';
 import { uploadImage } from '@/lib/cloudinary';
 
+function CopyButton({ text }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); };
+  return (
+    <button onClick={copy} className={`px-3 py-1 text-sm rounded-lg transition-all flex-shrink-0 ${copied ? 'bg-green-700 text-green-200' : 'bg-gray-700 hover:bg-gray-600 text-gray-300'}`}>
+      {copied ? '복사됨!' : '복사'}
+    </button>
+  );
+}
+
 const ROLE_TEXT = { tank: 'text-yellow-400', damage: 'text-red-400', support: 'text-green-400' };
 
 function PhotoInput({ value, onChange }) {
@@ -97,6 +107,10 @@ export default function AdminRoomPage() {
 
   const [saving, setSaving] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showLinks, setShowLinks] = useState(false);
+  const [origin, setOrigin] = useState('');
+
+  useEffect(() => { setOrigin(window.location.origin); }, []);
 
   // 권한 확인
   useEffect(() => {
@@ -203,10 +217,11 @@ export default function AdminRoomPage() {
       [`rooms/${code}/auction/playerOrder`]: shuffled,
       [`rooms/${code}/auction/currentIndex`]: 0,
       [`rooms/${code}/auction/currentPlayerId`]: shuffled[0],
-      [`rooms/${code}/auction/status`]: 'bidding',
+      [`rooms/${code}/auction/status`]: 'countdown',
       [`rooms/${code}/auction/currentBid`]: 0,
       [`rooms/${code}/auction/currentBidCaptainId`]: null,
-      [`rooms/${code}/auction/timerEnd`]: Date.now() + 15000,
+      [`rooms/${code}/auction/countdownEnd`]: Date.now() + 10000,
+      [`rooms/${code}/auction/timerEnd`]: null,
       [`rooms/${code}/info/status`]: 'auction',
     });
     localStorage.setItem('ow_room', code);
@@ -225,7 +240,7 @@ export default function AdminRoomPage() {
     });
     updates[`rooms/${code}/auction`] = {
       status: 'idle', currentPlayerId: null, currentBid: 0, currentBidCaptainId: null,
-      timerEnd: null, playerOrder: null, currentIndex: 0, history: null,
+      timerEnd: null, countdownEnd: null, playerOrder: null, currentIndex: 0, history: null,
     };
     updates[`rooms/${code}/info/status`] = 'lobby';
     updates[`rooms/${code}/lobby`] = { captainOrder: null };
@@ -234,11 +249,22 @@ export default function AdminRoomPage() {
 
   const resumeAuction = async () => {
     if (!auction?.playerOrder) { await startAuction(); return; }
-    await update(ref(db), {
-      [`rooms/${code}/auction/status`]: 'bidding',
-      [`rooms/${code}/auction/timerEnd`]: Date.now() + 15000,
-      [`rooms/${code}/info/status`]: 'auction',
-    });
+    // If paused, restore with remaining time; otherwise start countdown for current player
+    if (auction.status === 'paused' && auction.pausedTimeLeft) {
+      await update(ref(db), {
+        [`rooms/${code}/auction/status`]: 'bidding',
+        [`rooms/${code}/auction/timerEnd`]: Date.now() + auction.pausedTimeLeft,
+        [`rooms/${code}/auction/pausedTimeLeft`]: null,
+        [`rooms/${code}/info/status`]: 'auction',
+      });
+    } else {
+      await update(ref(db), {
+        [`rooms/${code}/auction/status`]: 'countdown',
+        [`rooms/${code}/auction/countdownEnd`]: Date.now() + 10000,
+        [`rooms/${code}/auction/timerEnd`]: null,
+        [`rooms/${code}/info/status`]: 'auction',
+      });
+    }
     localStorage.setItem('ow_room', code);
     router.push(`/room/${code}/auction`);
   };
@@ -269,6 +295,34 @@ export default function AdminRoomPage() {
             </div>
           </div>
         </div>
+
+        {/* ── 링크 공유 ── */}
+        <section className="bg-gray-900/70 border border-gray-700 rounded-2xl p-5">
+          <button onClick={() => setShowLinks(v => !v)} className="flex items-center gap-2 text-base font-bold text-gray-300 hover:text-white transition-all">
+            🔗 링크 공유 {showLinks ? '▲' : '▼'}
+          </button>
+          {showLinks && (
+            <div className="mt-4 space-y-2">
+              {captainsList.map(cap => (
+                <div key={cap.id} className="flex items-center gap-3">
+                  <span className="text-white text-sm font-bold w-20 truncate flex-shrink-0">{cap.name}</span>
+                  <span className="text-gray-500 text-xs flex-1 truncate font-mono min-w-0">{origin}/room/{code}/captain/{cap.id}</span>
+                  <CopyButton text={`${origin}/room/${code}/captain/${cap.id}`} />
+                </div>
+              ))}
+              <div className="flex items-center gap-3">
+                <span className="text-blue-400 text-sm font-bold w-20 flex-shrink-0">관전자</span>
+                <span className="text-gray-500 text-xs flex-1 truncate font-mono min-w-0">{origin}/room/{code}/spectator</span>
+                <CopyButton text={`${origin}/room/${code}/spectator`} />
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-purple-400 text-sm font-bold w-20 flex-shrink-0">관리자</span>
+                <span className="text-gray-500 text-xs flex-1 truncate font-mono min-w-0">{origin}/room/{code}/admin</span>
+                <CopyButton text={`${origin}/room/${code}/admin`} />
+              </div>
+            </div>
+          )}
+        </section>
 
         {/* ── 방 설정 ── */}
         <section className="bg-gray-900/70 border border-gray-700 rounded-2xl p-5">
