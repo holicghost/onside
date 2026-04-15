@@ -112,21 +112,22 @@ export default function CaptainPage() {
     }
   };
 
-  // Firebase listeners once authed
+  // Firebase listeners once authed — consolidated into one root listener
   useEffect(() => {
     if (authStep !== 'authed' || !code) return;
-    const unsubs = [
-      onValue(ref(db, `rooms/${code}/info`), s => setRoomInfo(s.val())),
-      onValue(ref(db, `rooms/${code}/captains`), s => setCaptains(s.val() || {})),
-      onValue(ref(db, `rooms/${code}/players`), s => setPlayers(s.val() || {})),
-      onValue(ref(db, `rooms/${code}/auction`), s => setAuction(s.val())),
-      onValue(query(ref(db, `rooms/${code}/chat`), orderByKey(), limitToLast(50)), snap => {
-        const val = snap.val();
-        if (!val) { setChatMessages([]); return; }
-        setChatMessages(Object.entries(val).map(([k, v]) => ({ id: k, ...v })));
-      }),
-    ];
-    return () => unsubs.forEach(u => u());
+    const rootUnsub = onValue(ref(db, `rooms/${code}`), snap => {
+      const val = snap.val() || {};
+      setRoomInfo(val.info || null);
+      setCaptains(val.captains || {});
+      setPlayers(val.players || {});
+      setAuction(val.auction || null);
+    });
+    const chatUnsub = onValue(query(ref(db, `rooms/${code}/chat`), orderByKey(), limitToLast(50)), snap => {
+      const val = snap.val();
+      if (!val) { setChatMessages([]); return; }
+      setChatMessages(Object.entries(val).map(([k, v]) => ({ id: k, ...v })));
+    });
+    return () => { rootUnsub(); chatUnsub(); };
   }, [authStep, code]);
 
   // Auto-redirect when room status becomes 'result'
@@ -205,15 +206,17 @@ export default function CaptainPage() {
       [`rooms/${code}/auction/currentBidCaptainId`]: captainId,
       [`rooms/${code}/auction/timerEnd`]: newTimerEnd,
     });
-    setBidAmount('');
   };
 
+  const sendingRef = useRef(false);
   const sendChat = async () => {
     const msg = chatInput.trim();
-    if (!msg || !code) return;
+    if (!msg || !code || sendingRef.current) return;
+    sendingRef.current = true;
+    setChatInput('');
     const senderName = captains[captainId]?.name || '팀장';
     await set(ref(db, `rooms/${code}/chat/${Date.now()}`), { senderName, message: msg, timestamp: Date.now() });
-    setChatInput('');
+    sendingRef.current = false;
   };
 
   // ── Auth gates ──
@@ -313,32 +316,32 @@ export default function CaptainPage() {
     );
   }
 
-  // ── Derived state ──
+  // ── Derived state — useMemo prevents recompute on every 100ms timer tick ──
   const myCaptain = captains[captainId];
-  const captainsList = Object.entries(captains).map(([id, c]) => ({ id, ...c }));
+  const captainsList = useMemo(() => Object.entries(captains).map(([id, c]) => ({ id, ...c })), [captains]);
   const currentPlayer = auction?.currentPlayerId ? players[auction.currentPlayerId] : null;
-  const playerOrder = toArr(auction?.playerOrder);
+  const playerOrder = useMemo(() => toArr(auction?.playerOrder), [auction?.playerOrder]);
   const currentIdx = auction?.currentIndex || 0;
-  const queuePlayers = playerOrder.slice(currentIdx + 1).map(pid => players[pid]).filter(Boolean);
+  const queuePlayers = useMemo(() => playerOrder.slice(currentIdx + 1).map(pid => players[pid]).filter(Boolean), [playerOrder, currentIdx, players]);
   const nextQueuePlayer = queuePlayers[0] || null;
-  const historyList = auction?.history ? Object.values(auction.history).sort((a, b) => b.timestamp - a.timestamp) : [];
+  const historyList = useMemo(() => auction?.history ? Object.values(auction.history).sort((a, b) => b.timestamp - a.timestamp) : [], [auction?.history]);
+  const processedCount = ['passed', 'sold', 'done'].includes(auction?.status) ? currentIdx + 1 : currentIdx;
+  const passedPlayers = useMemo(() => playerOrder.slice(0, processedCount).map(pid => players[pid]).filter(p => p && !p.soldTo), [playerOrder, processedCount, players]);
+  const unsoldPlayers = useMemo(() => Object.values(players).filter(p => !p.soldTo), [players]);
   const curBid = auction?.currentBid || 0;
   const myBudget = myCaptain?.budget || 0;
-  const QUEUE_GROUPS = [
-    '고티어 딜러', '저티어 딜러', '고티어 탱커', '저티어 탱커', '고티어 힐러', '저티어 힐러',
-  ];
+  const QUEUE_GROUPS = ['고티어 딜러', '저티어 딜러', '고티어 탱커', '저티어 탱커', '고티어 힐러', '저티어 힐러'];
   const restQueue = queuePlayers.slice(1);
-  const groupedQueue = QUEUE_GROUPS
+  const groupedQueue = useMemo(() => QUEUE_GROUPS
     .map(key => ({ key, players: restQueue.filter(p => `${p.tierType} ${p.position}` === key) }))
-    .filter(g => g.players.length > 0);
-  const ungroupedQueue = restQueue.filter(p => !QUEUE_GROUPS.includes(`${p.tierType} ${p.position}`));
-  const quickBids = [
+    .filter(g => g.players.length > 0), [restQueue]);
+  const ungroupedQueue = useMemo(() => restQueue.filter(p => !QUEUE_GROUPS.includes(`${p.tierType} ${p.position}`)), [restQueue]);
+  const quickBids = useMemo(() => [
     { label: '+10',  val: curBid + 10 },
     { label: '+20',  val: curBid + 20 },
     { label: '+50',  val: curBid + 50 },
-    { label: '+100', val: curBid + 100 },
     { label: '최대', val: Math.floor(myBudget / 10) * 10 },
-  ].filter(q => q.val > curBid && q.val <= myBudget);
+  ].filter(q => q.val > curBid && q.val <= myBudget), [curBid, myBudget]);
   const bidderCap = auction?.currentBidCaptainId ? captains[auction.currentBidCaptainId] : null;
   const displayTime = (timeLeft / 1000).toFixed(1);
   const displayCountdown = Math.ceil(countdownLeft / 1000);
@@ -696,28 +699,12 @@ export default function CaptainPage() {
               <div className="grid grid-cols-4 gap-2">
                 {quickBids.map(q => (
                   <button key={q.label}
-                    onClick={() => { placeBid(q.val); setBidAmount(String(q.val)); }}
+                    onClick={() => placeBid(q.val)}
                     className="py-3 text-center font-bold bg-orange-900/60 hover:bg-orange-800 border border-orange-700 rounded-xl transition-all text-orange-300 active:scale-95">
                     <div className="text-sm">{q.label}</div>
                     <div className="text-xs text-orange-400 mt-0.5">{q.val}pt</div>
                   </button>
                 ))}
-              </div>
-              <div className="flex gap-2">
-                <input
-                  type="number"
-                  value={bidAmount}
-                  onChange={e => setBidAmount(e.target.value)}
-                  placeholder={String(curBid + 10)}
-                  className="flex-1 px-4 py-3 text-2xl font-bold bg-gray-800 border border-gray-600 rounded-xl text-center focus:border-orange-400 focus:outline-none"
-                />
-                <button
-                  onClick={() => placeBid(Number(bidAmount))}
-                  disabled={!bidAmount || Math.floor(Number(bidAmount)/10)*10 < 10 || Math.floor(Number(bidAmount)/10)*10 <= curBid || Math.floor(Number(bidAmount)/10)*10 > myBudget}
-                  className="px-6 py-3 text-xl font-bold bg-orange-500 hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-all"
-                >
-                  입찰
-                </button>
               </div>
             </div>
           )}
@@ -726,7 +713,18 @@ export default function CaptainPage() {
             <div className="text-center py-16 text-gray-600 text-lg">관리자가 경매를 시작할 때까지 대기하세요.</div>
           )}
 
-          {auction?.status === 'done' && (
+          {auction?.status === 'done' && !auction?.isReAuction && (
+            <div className="text-center py-16 space-y-3">
+              <p className="text-4xl">⏳</p>
+              <p className="text-white text-xl font-bold">1라운드 종료</p>
+              {unsoldPlayers.length > 0
+                ? <p className="text-yellow-400 text-base">유찰 선수 {unsoldPlayers.length}명 — 재경매 대기 중...</p>
+                : <p className="text-gray-400 text-base">관리자가 결과를 확정하는 중...</p>
+              }
+            </div>
+          )}
+
+          {auction?.status === 'done' && auction?.isReAuction && (
             <div className="bg-purple-900/30 border border-purple-700 rounded-2xl p-5 text-center">
               <p className="text-purple-300 text-2xl font-black">경매 완료!</p>
               <p className="text-gray-400 mt-2">내 팀: {Object.values(players).filter(p => p.soldTo === captainId).length}명</p>
