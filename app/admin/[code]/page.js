@@ -360,8 +360,7 @@ export default function AdminRoomPage() {
 
         {/* 헤더 */}
         <div className="flex items-center gap-4">
-          <button onClick={() => router.push('/')} className="text-gray-500 hover:text-gray-300 text-sm transition-colors">← 홈</button>
-          <button onClick={() => router.push('/admin')} className="text-gray-500 hover:text-gray-300 text-lg transition-all">← 목록</button>
+          <button onClick={() => router.push('/admin')} className="text-gray-500 hover:text-gray-300 text-sm transition-colors">← 목록</button>
           <div className="flex-1">
             <h1 className="text-3xl font-black text-white">{roomInfo?.name || '로딩 중...'}</h1>
             <div className="flex items-center gap-3 mt-1">

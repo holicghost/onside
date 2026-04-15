@@ -71,8 +71,9 @@ export default function Home() {
       {/* Header */}
       <div className="text-center mb-10">
         <div className="text-5xl mb-4">⚡</div>
-        <h1 className="font-black text-white tracking-tight" style={{ fontSize: '48px' }}>오버워치 내전 경매</h1>
-        <p className="text-gray-500 mt-2" style={{ fontSize: '20px' }}>팀원을 경매로 선발하세요</p>
+        <p className="text-gray-500 font-semibold tracking-wide" style={{ fontSize: '18px' }}>RØDE와 함께하는</p>
+        <h1 className="font-black text-white tracking-tight leading-tight" style={{ fontSize: '48px' }}>도현 배 유인원 컵</h1>
+        <p className="text-gray-500 mt-2" style={{ fontSize: '18px' }}>팀원 선발 경매 홈페이지</p>
       </div>
 
       {error && (

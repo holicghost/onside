@@ -1,8 +1,8 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "오버워치 내전 경매",
-  description: "오버워치 내전 경매 시스템",
+  title: "도현 배 유인원 컵",
+  description: "RØDE와 함께하는 도현 배 유인원 컵 팀원 선발 경매 홈페이지",
 };
 
 export default function RootLayout({ children }) {
