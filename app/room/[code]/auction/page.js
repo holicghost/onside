@@ -833,34 +833,86 @@ export default function AuctionPage() {
           )}
         </main>
 
-        {/* RIGHT: Queue + History */}
-        <aside className="border-l border-gray-800 overflow-y-auto p-4 space-y-6">
+        {/* RIGHT: NEXT Preview + Grouped Queue + History */}
+        <aside className="border-l border-gray-800 overflow-y-auto p-4 space-y-4">
+
+          {/* NEXT preview card */}
+          {nextQueuePlayer && (
+            <div>
+              <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">다음 선수</h2>
+              <div key={nextQueuePlayer.id} className="rounded-xl overflow-hidden border border-blue-700 bg-blue-900/20 animate-slide-up">
+                <div className="flex gap-3 p-3">
+                  <div className="w-16 h-20 rounded-lg overflow-hidden bg-gray-800 flex-shrink-0">
+                    {nextQueuePlayer.photo
+                      ? <img src={nextQueuePlayer.photo} alt={nextQueuePlayer.name} className="w-full h-full object-cover object-top" />
+                      : <div className="w-full h-full flex items-center justify-center text-2xl">👤</div>
+                    }
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white font-black text-base leading-tight">{nextQueuePlayer.name}</p>
+                    {(nextQueuePlayer.tierType && nextQueuePlayer.position) && (
+                      <span className={`inline-block mt-1 px-2 py-0.5 text-xs font-bold rounded-full border ${TIER_POS_STYLES[`${nextQueuePlayer.tierType} ${nextQueuePlayer.position}`] || 'bg-gray-700 text-gray-300 border-gray-600'}`}>
+                        {nextQueuePlayer.tierType} {nextQueuePlayer.position}
+                      </span>
+                    )}
+                    {nextQueuePlayer.tierCurrent && (
+                      <p className="text-gray-400 text-xs mt-1">{nextQueuePlayer.tierCurrent}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Grouped waiting queue (excludes nextQueuePlayer) */}
           <div>
             <h2 className="text-base font-bold text-gray-300 sticky top-0 bg-[#0f0f1a] pb-2">
               대기 <span className="text-orange-400">{queuePlayers.length}</span>명
             </h2>
-            {queuePlayers.length > 0
-              ? <div className="space-y-2">
-                  {queuePlayers.map((p, i) => (
-                    <div key={p.id} className={`flex items-center gap-2 p-2 rounded-lg ${i === 0 ? 'bg-blue-900/30 border border-blue-800' : 'bg-gray-900/60'}`}>
-                      {p.photo ? <img src={p.photo} alt={p.name} className="w-8 h-8 rounded-full object-cover flex-shrink-0" /> : <span className="text-xl flex-shrink-0">👤</span>}
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-bold text-white truncate">{p.name}</p>
-                        {(p.tierType && p.position) ? (
-                          <span className={`inline-block px-1.5 py-0.5 text-[10px] font-bold rounded-full border mt-0.5 ${TIER_POS_STYLES[`${p.tierType} ${p.position}`] || 'bg-gray-700 text-gray-300 border-gray-600'}`}>
-                            {p.tierType} {p.position}
-                          </span>
-                        ) : (
-                          <p className="text-xs text-gray-500">{p.tierCurrent || ''}</p>
-                        )}
-                      </div>
-                      {i === 0 && <span className="text-xs text-blue-400 font-bold flex-shrink-0">NEXT</span>}
+            {restQueue.length > 0 ? (
+              <div className="space-y-3">
+                {groupedQueue.map(g => (
+                  <div key={g.key}>
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <span className={`px-2 py-0.5 text-[10px] font-black rounded-full border ${TIER_POS_STYLES[g.key] || 'bg-gray-700 text-gray-300 border-gray-600'}`}>
+                        {g.key}
+                      </span>
+                      <span className="text-gray-600 text-[10px]">{g.players.length}명</span>
                     </div>
-                  ))}
-                </div>
-              : <p className="text-gray-600 text-sm">대기 선수 없음</p>
-            }
+                    <div className="space-y-1 pl-1">
+                      {g.players.map(p => (
+                        <div key={p.id} className="flex items-center gap-2 p-1.5 rounded-lg bg-gray-900/60">
+                          {p.photo ? <img src={p.photo} alt={p.name} className="w-6 h-6 rounded-full object-cover flex-shrink-0" /> : <span className="text-sm flex-shrink-0">👤</span>}
+                          <p className="text-xs font-bold text-white truncate flex-1">{p.name}</p>
+                          {p.tierCurrent && <p className="text-[10px] text-gray-500 flex-shrink-0">{p.tierCurrent}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                {ungroupedQueue.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <span className="px-2 py-0.5 text-[10px] font-black rounded-full border bg-gray-700 text-gray-300 border-gray-600">기타</span>
+                      <span className="text-gray-600 text-[10px]">{ungroupedQueue.length}명</span>
+                    </div>
+                    <div className="space-y-1 pl-1">
+                      {ungroupedQueue.map(p => (
+                        <div key={p.id} className="flex items-center gap-2 p-1.5 rounded-lg bg-gray-900/60">
+                          {p.photo ? <img src={p.photo} alt={p.name} className="w-6 h-6 rounded-full object-cover flex-shrink-0" /> : <span className="text-sm flex-shrink-0">👤</span>}
+                          <p className="text-xs font-bold text-white truncate">{p.name}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-gray-600 text-sm">대기 선수 없음</p>
+            )}
           </div>
+
+          {/* History */}
           <div>
             <h2 className="text-base font-bold text-gray-300 sticky top-0 bg-[#0f0f1a] pb-2">낙찰 내역</h2>
             {historyList.length > 0
