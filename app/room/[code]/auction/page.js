@@ -64,6 +64,8 @@ export default function AuctionPage() {
   const roleRef = useRef('spectator');
   const lastTimerEndRef = useRef(null);
   const goToNextPlayerRef = useRef(null);
+  const barRef = useRef(null);
+  const maxDurationRef = useRef(10000);
 
   useEffect(() => { auctionRef.current = auction; }, [auction]);
   useEffect(() => { captainsRef.current = captains; }, [captains]);
@@ -108,8 +110,30 @@ export default function AuctionPage() {
     if (!auction?.timerEnd || auction?.status !== 'bidding') return;
     if (auction.timerEnd !== lastTimerEndRef.current) {
       lastTimerEndRef.current = auction.timerEnd;
-      setMaxDuration(Math.max(1000, auction.timerEnd - Date.now()));
+      const dur = Math.max(1000, auction.timerEnd - Date.now());
+      maxDurationRef.current = dur;
+      setMaxDuration(dur);
     }
+  }, [auction?.timerEnd, auction?.status]);
+
+  // Smooth CSS bar animation — one imperative write per new timerEnd
+  useEffect(() => {
+    const bar = barRef.current;
+    if (!bar) return;
+    if (auction?.status !== 'bidding' || !auction?.timerEnd) {
+      bar.style.transition = 'none';
+      bar.style.width = '0%';
+      return;
+    }
+    const remaining = Math.max(0, auction.timerEnd - Date.now());
+    const pct = Math.min(100, (remaining / Math.max(1, maxDurationRef.current)) * 100);
+    bar.style.transition = 'none';
+    bar.style.width = `${pct}%`;
+    // Double rAF: ensure the snap frame is painted before the transition starts
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      bar.style.transition = `width ${remaining}ms linear`;
+      bar.style.width = '0%';
+    }));
   }, [auction?.timerEnd, auction?.status]);
 
   // Pre-player countdown
@@ -332,7 +356,7 @@ export default function AuctionPage() {
     if (!player) return null;
     const heroIdsList = toArr(player.heroIds).filter(Boolean);
     return (
-      <div className="w-full bg-gray-900 rounded-2xl border border-gray-700 overflow-hidden">
+      <div className="relative w-full bg-gray-900 rounded-2xl border border-gray-700 overflow-hidden">
         {/* Photo + info row */}
         <div className="flex gap-4 p-5">
           <div className="w-28 h-36 rounded-xl overflow-hidden bg-gray-800 flex-shrink-0 flex items-center justify-center">

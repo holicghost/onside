@@ -77,3 +77,28 @@ body {
   100% { transform: perspective(600px) rotateY(0deg);   opacity: 1; }
 }
 .animate-flip-in { animation: flip-in 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
+
+@keyframes player-enter {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+@keyframes bid-pop {
+  0%   { transform: scale(1);    filter: drop-shadow(0 0 0px rgba(251,146,60,0)); }
+  45%  { transform: scale(1.22); filter: drop-shadow(0 0 14px rgba(251,146,60,0.8)); }
+  100% { transform: scale(1);    filter: drop-shadow(0 0 0px rgba(251,146,60,0)); }
+}
+@keyframes result-in {
+  0%   { opacity: 0; transform: scale(0.72); }
+  20%  { opacity: 1; transform: scale(1.06); }
+  55%  { opacity: 1; transform: scale(1); }
+  85%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1); }
+}
+@keyframes modal-in {
+  from { opacity: 0; transform: scale(0.95) translateY(6px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0); }
+}
+.animate-player-enter { animation: player-enter 0.4s ease-out forwards; }
+.animate-bid-pop      { animation: bid-pop      0.35s ease-out forwards; }
+.animate-result-in    { animation: result-in    1.6s ease-out forwards; }
+.animate-modal-in     { animation: modal-in     0.2s ease-out forwards; }
