@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ref, onValue, update } from 'firebase/database';
+import { ref, onValue, update, set, onDisconnect, query, orderByKey, limitToLast } from 'firebase/database';
 import { db } from '@/lib/firebase';
 import { getHeroPortraitUrl, loadHeroPortraits, ALL_HEROES } from '@/lib/heroes';
 
@@ -66,6 +66,8 @@ export default function AuctionPage() {
   const [bidError, setBidError] = useState('');
   const [showLinks, setShowLinks] = useState(false);
   const [origin, setOrigin] = useState('');
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
 
   const auctionRef = useRef(null);
   const captainsRef = useRef({});
@@ -74,6 +76,7 @@ export default function AuctionPage() {
   const goToNextPlayerRef = useRef(null);
   const barRef = useRef(null);
   const maxDurationRef = useRef(10000);
+  const chatScrollRef = useRef(null);
 
   useEffect(() => { auctionRef.current = auction; }, [auction]);
   useEffect(() => { captainsRef.current = captains; }, [captains]);
@@ -100,6 +103,11 @@ export default function AuctionPage() {
       onValue(ref(db, `rooms/${code}/captains`), s => setCaptains(s.val() || {})),
       onValue(ref(db, `rooms/${code}/players`), s => setPlayers(s.val() || {})),
       onValue(ref(db, `rooms/${code}/auction`), s => setAuction(s.val())),
+      onValue(query(ref(db, `rooms/${code}/chat`), orderByKey(), limitToLast(50)), snap => {
+        const val = snap.val();
+        if (!val) { setChatMessages([]); return; }
+        setChatMessages(Object.entries(val).map(([k, v]) => ({ id: k, ...v })));
+      }),
     ];
     return () => unsubs.forEach(u => u());
   }, [code]);
@@ -264,6 +272,22 @@ export default function AuctionPage() {
 
   useEffect(() => { goToNextPlayerRef.current = goToNextPlayer; }, [goToNextPlayer]);
 
+  // Captain online presence
+  useEffect(() => {
+    if (!code || !captainId || role !== 'captain') return;
+    const presenceRef = ref(db, `rooms/${code}/captains/${captainId}/online`);
+    set(presenceRef, true);
+    onDisconnect(presenceRef).set(false);
+    return () => { set(presenceRef, false); };
+  }, [code, captainId, role]);
+
+  // Chat auto-scroll
+  useEffect(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
+  }, [chatMessages]);
+
   const startReAuction = async () => {
     const unsoldMap = Object.fromEntries(Object.entries(players).filter(([, p]) => !p.soldTo));
     const ordered = buildPlayerOrder(unsoldMap);
@@ -322,6 +346,14 @@ export default function AuctionPage() {
     });
   };
 
+  const sendChat = async () => {
+    const msg = chatInput.trim();
+    if (!msg || !code) return;
+    const senderName = role === 'admin' ? '관리자' : (captains[captainId]?.name || '관전자');
+    await set(ref(db, `rooms/${code}/chat/${Date.now()}`), { senderName, message: msg, timestamp: Date.now() });
+    setChatInput('');
+  };
+
   // Derived
   const currentPlayer = auction?.currentPlayerId ? players[auction.currentPlayerId] : null;
   const captainsList = Object.entries(captains).map(([id, c]) => ({ id, ...c }));
@@ -334,6 +366,15 @@ export default function AuctionPage() {
   const unsoldPlayers = Object.values(players).filter(p => !p.soldTo);
   const curBid = auction?.currentBid || 0;
   const myBudget = myCaptain?.budget || 0;
+  const offlineCaptains = captainsList.filter(c => !c.online);
+  const QUEUE_GROUPS = [
+    '고티어 딜러', '저티어 딜러', '고티어 탱커', '저티어 탱커', '고티어 힐러', '저티어 힐러',
+  ];
+  const restQueue = queuePlayers.slice(1);
+  const groupedQueue = QUEUE_GROUPS
+    .map(key => ({ key, players: restQueue.filter(p => `${p.tierType} ${p.position}` === key) }))
+    .filter(g => g.players.length > 0);
+  const ungroupedQueue = restQueue.filter(p => !QUEUE_GROUPS.includes(`${p.tierType} ${p.position}`));
   const quickBids = [
     { label: '+10',  val: curBid + 10 },
     { label: '+20',  val: curBid + 20 },
@@ -501,6 +542,14 @@ export default function AuctionPage() {
         </div>
       </header>
 
+      {/* Offline captain warning */}
+      {role === 'admin' && offlineCaptains.length > 0 && (
+        <div className="flex items-center gap-2 px-6 py-2 bg-red-950/60 border-b border-red-800 text-red-400 text-sm font-bold flex-shrink-0">
+          <span>⚠️</span>
+          <span>오프라인 팀장: {offlineCaptains.map(c => c.name).join(', ')}</span>
+        </div>
+      )}
+
       {/* 3-column layout */}
       <div className="flex-1 grid overflow-hidden" style={{ gridTemplateColumns: '240px 1fr 240px' }}>
 
@@ -516,6 +565,7 @@ export default function AuctionPage() {
                   {cap.photo ? <img src={cap.photo} alt={cap.name} className="w-9 h-9 rounded-full object-cover flex-shrink-0" /> : <div className="w-9 h-9 rounded-full bg-gray-700 flex items-center justify-center text-base flex-shrink-0">👤</div>}
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${cap.online ? 'bg-green-400 animate-pulse' : 'bg-gray-600'}`} />
                       <p className="font-bold text-white text-sm truncate">{cap.name}</p>
                       {cap.position && (
                         <span className={`px-1.5 py-0.5 text-[10px] font-bold rounded-full flex-shrink-0 ${
@@ -543,6 +593,39 @@ export default function AuctionPage() {
               </div>
             );
           })}
+
+          {/* Chat box */}
+          <div className="border-t border-gray-800 pt-3 space-y-2">
+            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">채팅</h3>
+            <div ref={chatScrollRef} className="h-36 overflow-y-auto space-y-1 bg-gray-900/40 rounded-xl p-2">
+              {chatMessages.length === 0
+                ? <p className="text-gray-700 text-xs text-center py-4">채팅 없음</p>
+                : chatMessages.map(msg => (
+                    <div key={msg.id} className="text-xs">
+                      <span className="font-bold text-orange-400">{msg.senderName}: </span>
+                      <span className="text-gray-300 break-all">{msg.message}</span>
+                    </div>
+                  ))
+              }
+            </div>
+            <div className="flex gap-1">
+              <input
+                type="text"
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') sendChat(); }}
+                placeholder="메시지 입력..."
+                className="flex-1 px-2 py-1.5 text-xs bg-gray-800 border border-gray-700 rounded-lg focus:border-orange-400 focus:outline-none text-white"
+              />
+              <button
+                onClick={sendChat}
+                disabled={!chatInput.trim()}
+                className="px-3 py-1.5 text-xs font-bold bg-orange-600 hover:bg-orange-500 disabled:opacity-40 rounded-lg transition-all"
+              >
+                전송
+              </button>
+            </div>
+          </div>
 
           {/* Link sharing — bottom of left panel */}
           <div className="border-t border-gray-800 pt-3">
