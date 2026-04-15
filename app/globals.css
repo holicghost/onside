@@ -83,9 +83,8 @@ body {
   to   { opacity: 1; transform: translateY(0)    scale(1); }
 }
 @keyframes bid-pop {
-  0%   { transform: scale(1);    filter: drop-shadow(0 0 0px rgba(251,146,60,0)); }
-  45%  { transform: scale(1.22); filter: drop-shadow(0 0 14px rgba(251,146,60,0.8)); }
-  100% { transform: scale(1);    filter: drop-shadow(0 0 0px rgba(251,146,60,0)); }
+  0%   { filter: brightness(2.2); }
+  100% { filter: brightness(1); }
 }
 @keyframes result-in {
   0%   { opacity: 0; transform: scale(0.72); }
@@ -99,6 +98,6 @@ body {
   to   { opacity: 1; transform: scale(1)    translateY(0); }
 }
 .animate-player-enter { animation: player-enter 0.4s ease-out forwards; }
-.animate-bid-pop      { animation: bid-pop      0.35s ease-out forwards; }
+.animate-bid-pop      { animation: bid-pop      0.3s ease-out forwards; }
 .animate-result-in    { animation: result-in    1.6s ease-out forwards; }
 .animate-modal-in     { animation: modal-in     0.2s ease-out forwards; }

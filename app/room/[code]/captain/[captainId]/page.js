@@ -438,7 +438,7 @@ export default function CaptainPage() {
 
         <div className="px-5 pb-5">
           <p className="text-gray-500 text-sm mb-0.5">현재 입찰</p>
-          <p key={curBid} className={`font-black text-orange-400 leading-none tabular-nums${curBid > 0 ? ' animate-bid-pop' : ''}`} style={{ fontSize: '48px' }}>
+          <p key={curBid} className="font-black text-orange-400 leading-none tabular-nums animate-bid-pop" style={{ fontSize: '48px' }}>
             {curBid > 0 ? `${curBid} pt` : '—'}
           </p>
           {bidderCap && (

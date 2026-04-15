@@ -370,6 +370,8 @@ export default function AuctionPage() {
   const queuePlayers = playerOrder.slice(currentIdx + 1).map(pid => players[pid]).filter(Boolean);
   const nextQueuePlayer = queuePlayers[0] || null;
   const historyList = auction?.history ? Object.values(auction.history).sort((a, b) => b.timestamp - a.timestamp) : [];
+  const soldPlayerIds = new Set(historyList.map(h => h.playerId));
+  const passedPlayers = playerOrder.slice(0, currentIdx).map(pid => players[pid]).filter(p => p && !soldPlayerIds.has(p.id));
   const unsoldPlayers = Object.values(players).filter(p => !p.soldTo);
   const curBid = auction?.currentBid || 0;
   const myBudget = myCaptain?.budget || 0;
@@ -497,7 +499,7 @@ export default function AuctionPage() {
         {/* Current bid + bidder */}
         <div className="px-5 pb-5">
           <p className="text-gray-500 text-sm mb-0.5">현재 입찰</p>
-          <p key={curBid} className={`font-black text-orange-400 leading-none tabular-nums${curBid > 0 ? ' animate-bid-pop' : ''}`} style={{ fontSize: '48px' }}>
+          <p key={curBid} className="font-black text-orange-400 leading-none tabular-nums animate-bid-pop" style={{ fontSize: '48px' }}>
             {curBid > 0 ? `${curBid} pt` : '—'}
           </p>
           {bidderCap && (
@@ -922,22 +924,21 @@ export default function AuctionPage() {
             )}
           </div>
 
-          {/* History */}
+          {/* 낙찰 내역 */}
           <div>
             <h2 className="text-lg font-bold text-gray-300 sticky top-0 bg-[#0f0f1a] pb-2">낙찰 내역</h2>
             {historyList.length > 0
-              ? <div className="space-y-2">
+              ? <div className="space-y-1.5">
                   {historyList.map((h, i) => {
                     const p = players[h.playerId];
                     const cap = captains[h.captainId];
                     if (!p || !cap) return null;
                     return (
-                      <div key={i} className="p-2 bg-gray-900/60 rounded-lg">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-white font-bold truncate">{p.name}</span>
-                          <span className="text-orange-400 font-bold ml-2">{h.price}P</span>
-                        </div>
-                        <p className="text-xs text-gray-500">→ {cap.name} 팀</p>
+                      <div key={i} className="flex items-center gap-1.5 text-sm leading-snug">
+                        <span className="text-white font-bold truncate min-w-0">{p.name}</span>
+                        <span className="text-gray-600 flex-shrink-0">→</span>
+                        <span className="text-green-400 font-bold truncate min-w-0">{cap.name}</span>
+                        <span className="text-orange-400 font-bold flex-shrink-0 ml-auto">({h.price}P)</span>
                       </div>
                     );
                   })}
@@ -945,6 +946,22 @@ export default function AuctionPage() {
               : <p className="text-gray-600 text-sm">낙찰 내역 없음</p>
             }
           </div>
+
+          {/* 유찰 내역 */}
+          {passedPlayers.length > 0 && (
+            <div>
+              <h2 className="text-lg font-bold text-gray-300 sticky top-0 bg-[#0f0f1a] pb-2 mt-4">유찰 내역</h2>
+              <div className="space-y-1.5">
+                {passedPlayers.map(p => (
+                  <div key={p.id} className="flex items-center gap-1.5 text-sm leading-snug">
+                    <span className="text-gray-400 truncate min-w-0">{p.name}</span>
+                    <span className="text-gray-600 flex-shrink-0">→</span>
+                    <span className="px-1.5 py-0.5 bg-red-900/50 text-red-400 text-xs font-bold rounded flex-shrink-0">유찰</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </aside>
 
       </div>
