@@ -19,6 +19,28 @@ function CopyButton({ text }) {
   );
 }
 
+function BlurCode({ text, className = '' }) {
+  const [revealed, setRevealed] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const timerRef = useRef(null);
+  const handleClick = () => {
+    navigator.clipboard.writeText(text).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1000);
+    setRevealed(true);
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setRevealed(false), 3000);
+  };
+  return (
+    <span className={`relative inline-block cursor-pointer select-none ${className}`} onClick={handleClick}>
+      <span style={{ filter: revealed ? 'none' : 'blur(6px)', transition: 'filter 0.3s' }}>{text}</span>
+      {copied && (
+        <span className="absolute -top-6 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-green-700 text-green-100 text-xs font-bold rounded-full whitespace-nowrap pointer-events-none z-50">복사됨!</span>
+      )}
+    </span>
+  );
+}
+
 export default function AuctionPage() {
   const { code } = useParams();
   const router = useRouter();
@@ -151,12 +173,35 @@ export default function AuctionPage() {
     await update(ref(db), updates);
   }, [code]);
 
+  const buildPlayerOrder = (playerMap) => {
+    const shuffle = arr => [...arr].sort(() => Math.random() - 0.5);
+    const GROUPS = [
+      { tierType: '고티어', position: '딜러' },
+      { tierType: '저티어', position: '딜러' },
+      { tierType: '고티어', position: '탱커' },
+      { tierType: '저티어', position: '탱커' },
+      { tierType: '고티어', position: '힐러' },
+      { tierType: '저티어', position: '힐러' },
+    ];
+    const ordered = [];
+    for (const g of GROUPS) {
+      const group = Object.entries(playerMap)
+        .filter(([, p]) => p.tierType === g.tierType && p.position === g.position)
+        .map(([id]) => id);
+      ordered.push(...shuffle(group));
+    }
+    const assigned = new Set(ordered);
+    const rest = Object.keys(playerMap).filter(id => !assigned.has(id));
+    ordered.push(...shuffle(rest));
+    return ordered;
+  };
+
   const startAuction = async () => {
-    const shuffled = Object.keys(players).sort(() => Math.random() - 0.5);
+    const ordered = buildPlayerOrder(players);
     await update(ref(db), {
-      [`rooms/${code}/auction/playerOrder`]: shuffled,
+      [`rooms/${code}/auction/playerOrder`]: ordered,
       [`rooms/${code}/auction/currentIndex`]: 0,
-      [`rooms/${code}/auction/currentPlayerId`]: shuffled[0],
+      [`rooms/${code}/auction/currentPlayerId`]: ordered[0],
       [`rooms/${code}/auction/status`]: 'countdown',
       [`rooms/${code}/auction/currentBid`]: 0,
       [`rooms/${code}/auction/currentBidCaptainId`]: null,
@@ -417,7 +462,7 @@ export default function AuctionPage() {
       <header className="flex items-center justify-between px-6 py-3 border-b border-gray-800 flex-shrink-0 gap-3">
         <div className="min-w-0">
           <h1 className="text-2xl font-black text-white truncate">{roomInfo?.name || '경매'}</h1>
-          <span className="text-sm text-gray-500">코드: <span className="font-mono text-orange-400 font-bold">{code}</span></span>
+          <span className="text-sm text-gray-500">코드: <BlurCode text={code} className="font-mono text-orange-400 font-bold" /></span>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <span className={`px-3 py-1 rounded-full text-sm font-bold ${

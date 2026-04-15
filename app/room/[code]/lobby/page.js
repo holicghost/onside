@@ -190,6 +190,12 @@ export default function LobbyPage() {
                 animationDelay:    `${i * 0.1}s`,
               }}
             >
+              {/* Blurred captain photo */}
+              {cap.photo && (
+                <div className="absolute inset-0" style={{ filter: 'blur(4px)', transform: 'scale(1.1)' }}>
+                  <img src={cap.photo} alt="" className="w-full h-full object-cover opacity-30" />
+                </div>
+              )}
               {/* Crosshatch pattern on card back */}
               <div
                 className="absolute inset-0 opacity-[0.07]"
@@ -204,6 +210,10 @@ export default function LobbyPage() {
                   <span className="text-2xl font-black text-indigo-300/60">?</span>
                 </div>
                 <span className="text-indigo-400/40 text-[10px] font-bold uppercase tracking-widest">ONSIDE</span>
+              </div>
+              {/* Blurred captain name */}
+              <div className="absolute bottom-2 left-0 right-0 text-center px-1" style={{ filter: 'blur(4px)' }}>
+                <span className="text-white text-[10px] font-bold">{cap.name}</span>
               </div>
             </div>
           ))}
@@ -236,7 +246,7 @@ export default function LobbyPage() {
               return (
                 <div
                   key={captainId}
-                  className="flex items-center gap-4 rounded-2xl px-5 py-4 animate-reveal-pop"
+                  className="flex items-center gap-4 rounded-2xl px-5 py-4 animate-flip-in"
                   style={{
                     background: i === 0
                       ? 'linear-gradient(135deg, rgba(124,45,18,0.85) 0%, rgba(154,52,18,0.85) 100%)'

@@ -142,7 +142,7 @@ export default function CreateRoom() {
   const [tournamentName, setTournamentName] = useState('');
   const [captainCount, setCaptainCount] = useState(2);
   const [teamSize, setTeamSize] = useState(5); // 팀장 포함 한 팀당 인원
-  const [budget, setBudget] = useState(100);
+  const [budget, setBudget] = useState(1000);
   const [password, setPassword] = useState('');
   const [captainForms, setCaptainForms] = useState([]);
   const [playerForms, setPlayerForms] = useState([]);
@@ -242,7 +242,7 @@ export default function CreateRoom() {
     setTournamentName(draft.tournamentName || '');
     setCaptainCount(draft.captainCount || 2);
     setTeamSize(draft.teamSize || 5);
-    setBudget(draft.budget || 100);
+    setBudget(draft.budget || 1000);
     setPassword(draft.password || '');
     if (draft.captainForms) setCaptainForms(draft.captainForms.map(c => ({ ...c, photoFile: null, photoPreview: c.photo || '' })));
     if (draft.playerForms) setPlayerForms(draft.playerForms.map(p => ({ ...p, photoFile: null, photoPreview: p.photo || '', heroIds: p.heroIds || ['', '', ''] })));
