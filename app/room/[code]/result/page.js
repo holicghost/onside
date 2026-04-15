@@ -100,11 +100,13 @@ export default function ResultPage() {
                           <div className="flex-1 min-w-0">
                             <p className="font-bold text-white text-base">{p.name}</p>
                             <div className="flex items-center gap-2 flex-wrap mt-1">
-                              {p.hero && <span className="text-xs px-2 py-0.5 bg-blue-900/50 text-blue-300 rounded-full">{p.hero}</span>}
-                              {p.heroRole && <span className={`text-xs font-bold ${ROLE_COLOR[p.heroRole] || 'text-gray-400'}`}>{ROLE_LABEL[p.heroRole] || p.heroRole}</span>}
-                              {p.tier && <span className="text-xs text-purple-400">{p.tier}</span>}
+                              {(p.tierType || p.position) && (
+                                <span className="text-xs px-2 py-0.5 bg-gray-700 text-gray-300 rounded-full font-bold">
+                                  {[p.tierType, p.position].filter(Boolean).join(' ')}
+                                </span>
+                              )}
+                              {p.tierCurrent && <span className="text-xs text-purple-400 font-bold">{p.tierCurrent}</span>}
                             </div>
-                            {p.comment && <p className="text-xs text-gray-500 italic mt-0.5">"{p.comment}"</p>}
                           </div>
                           <div className="text-right flex-shrink-0">
                             <p className="text-orange-400 font-black text-lg">{p.soldPrice}P</p>
@@ -121,15 +123,20 @@ export default function ResultPage() {
         {/* Unsold players */}
         {unsoldPlayers.length > 0 && (
           <section className="bg-gray-900/50 border border-gray-700 rounded-2xl p-6">
-            <h2 className="text-xl font-bold text-gray-400 mb-4">미낙찰 선수 ({unsoldPlayers.length}명)</h2>
+            <h2 className="text-xl font-bold text-gray-400 mb-4">유찰 선수 ({unsoldPlayers.length}명)</h2>
             <div className="flex flex-wrap gap-3">
               {unsoldPlayers.map(p => (
                 <div key={p.id} className="flex items-center gap-2 bg-gray-800 rounded-xl px-3 py-2">
                   {p.photo
-                    ? <img src={p.photo} alt={p.name} className="w-8 h-8 rounded-full object-cover" />
-                    : <span>👤</span>
+                    ? <img src={p.photo} alt={p.name} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+                    : <span className="flex-shrink-0">👤</span>
                   }
-                  <span className="text-gray-400 text-sm">{p.name}</span>
+                  <div className="min-w-0">
+                    <p className="text-gray-300 text-sm font-bold truncate">{p.name}</p>
+                    {(p.tierType || p.position) && (
+                      <p className="text-gray-500 text-xs">{[p.tierType, p.position].filter(Boolean).join(' ')}</p>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

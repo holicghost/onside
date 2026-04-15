@@ -112,6 +112,11 @@ export default function AuctionPage() {
     return () => unsubs.forEach(u => u());
   }, [code]);
 
+  // Auto-redirect all users when room status becomes 'result'
+  useEffect(() => {
+    if (roomInfo?.status === 'result') router.push(`/room/${code}/result`);
+  }, [roomInfo?.status]);
+
   // Bidding timer (100ms for decimal)
   useEffect(() => {
     if (!auction?.timerEnd || auction?.status !== 'bidding') { setTimeLeft(0); return; }
@@ -370,8 +375,9 @@ export default function AuctionPage() {
   const queuePlayers = playerOrder.slice(currentIdx + 1).map(pid => players[pid]).filter(Boolean);
   const nextQueuePlayer = queuePlayers[0] || null;
   const historyList = auction?.history ? Object.values(auction.history).sort((a, b) => b.timestamp - a.timestamp) : [];
-  const soldPlayerIds = new Set(historyList.map(h => h.playerId));
-  const passedPlayers = playerOrder.slice(0, currentIdx).map(pid => players[pid]).filter(p => p && !soldPlayerIds.has(p.id));
+  // Include current player in passed count when status is 'passed' so it shows immediately
+  const processedCount = ['passed', 'sold', 'done'].includes(auction?.status) ? currentIdx + 1 : currentIdx;
+  const passedPlayers = playerOrder.slice(0, processedCount).map(pid => players[pid]).filter(p => p && !p.soldTo);
   const unsoldPlayers = Object.values(players).filter(p => !p.soldTo);
   const curBid = auction?.currentBid || 0;
   const myBudget = myCaptain?.budget || 0;
@@ -512,10 +518,10 @@ export default function AuctionPage() {
           <div
             key={`sold-${auction.currentPlayerId}`}
             className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none animate-result-in"
-            style={{ background: 'rgba(37,99,235,0.82)', borderRadius: 'inherit' }}
+            style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 'inherit' }}
           >
             <p className="text-white text-6xl font-black drop-shadow-lg">낙찰!</p>
-            {bidderCap && <p className="text-blue-100 text-xl font-bold mt-2">{bidderCap.name} 팀</p>}
+            {bidderCap && <p className="text-white/80 text-xl font-bold mt-2">{bidderCap.name} 팀</p>}
           </div>
         )}
         {auction?.status === 'passed' && (
@@ -926,37 +932,41 @@ export default function AuctionPage() {
 
           {/* 낙찰 내역 */}
           <div>
-            <h2 className="text-lg font-bold text-gray-300 sticky top-0 bg-[#0f0f1a] pb-2">낙찰 내역</h2>
+            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest pb-2">낙찰 내역</h2>
             {historyList.length > 0
-              ? <div className="space-y-1.5">
+              ? <div className="space-y-2">
                   {historyList.map((h, i) => {
                     const p = players[h.playerId];
                     const cap = captains[h.captainId];
                     if (!p || !cap) return null;
                     return (
-                      <div key={i} className="flex items-center gap-1.5 text-sm leading-snug">
-                        <span className="text-white font-bold truncate min-w-0">{p.name}</span>
-                        <span className="text-gray-600 flex-shrink-0">→</span>
-                        <span className="text-green-400 font-bold truncate min-w-0">{cap.name}</span>
-                        <span className="text-orange-400 font-bold flex-shrink-0 ml-auto">({h.price}P)</span>
+                      <div key={i} className="space-y-0.5">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-white font-bold text-sm truncate">{p.name}</span>
+                          <span className="text-orange-400 font-bold text-sm flex-shrink-0">{h.price}P</span>
+                        </div>
+                        <span className="text-green-400 text-xs">{cap.name} 팀</span>
                       </div>
                     );
                   })}
                 </div>
-              : <p className="text-gray-600 text-sm">낙찰 내역 없음</p>
+              : <p className="text-gray-700 text-sm">없음</p>
             }
           </div>
 
           {/* 유찰 내역 */}
           {passedPlayers.length > 0 && (
             <div>
-              <h2 className="text-lg font-bold text-gray-300 sticky top-0 bg-[#0f0f1a] pb-2 mt-4">유찰 내역</h2>
+              <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest pb-2">유찰 내역</h2>
               <div className="space-y-1.5">
                 {passedPlayers.map(p => (
-                  <div key={p.id} className="flex items-center gap-1.5 text-sm leading-snug">
-                    <span className="text-gray-400 truncate min-w-0">{p.name}</span>
-                    <span className="text-gray-600 flex-shrink-0">→</span>
-                    <span className="px-1.5 py-0.5 bg-red-900/50 text-red-400 text-xs font-bold rounded flex-shrink-0">유찰</span>
+                  <div key={p.id} className="flex items-center gap-2">
+                    <span className="text-gray-400 text-sm font-bold truncate min-w-0">{p.name}</span>
+                    {(p.tierType || p.position) && (
+                      <span className="px-1.5 py-0.5 bg-gray-800 text-gray-500 text-xs font-bold rounded flex-shrink-0">
+                        {[p.tierType, p.position].filter(Boolean).join(' ')}
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>

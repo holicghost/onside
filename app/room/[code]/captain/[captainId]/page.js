@@ -130,6 +130,12 @@ export default function CaptainPage() {
     return () => unsubs.forEach(u => u());
   }, [authStep, code]);
 
+  // Auto-redirect when room status becomes 'result'
+  useEffect(() => {
+    if (authStep !== 'authed' || !code) return;
+    if (roomInfo?.status === 'result') router.push(`/room/${code}/result`);
+  }, [roomInfo?.status, authStep]);
+
   // Bidding timer
   useEffect(() => {
     if (!auction?.timerEnd || auction?.status !== 'bidding') { setTimeLeft(0); return; }
