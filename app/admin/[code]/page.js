@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ref, onValue, update, remove } from 'firebase/database';
 import { db } from '@/lib/firebase';
-import { ALL_HEROES, TIERS_DETAILED, getHeroPortraitUrl } from '@/lib/heroes';
+import { ALL_HEROES, TIERS_DETAILED, getHeroPortraitUrl, loadHeroPortraits } from '@/lib/heroes';
 import { uploadImage } from '@/lib/cloudinary';
 
 function CopyButton({ text }) {
@@ -80,10 +80,12 @@ export default function AdminRoomPage() {
   const [players, setPlayers] = useState({});
   const [auction, setAuction] = useState(null);
 
-  // 편집 중인 항목
+  // 편집 / 추가 중인 항목
   const [editingCaptain, setEditingCaptain] = useState(null);
   const [editingPlayer, setEditingPlayer] = useState(null);
   const [editingRoom, setEditingRoom] = useState(false);
+  const [addingCaptain, setAddingCaptain] = useState(false);
+  const [addingPlayer, setAddingPlayer] = useState(false);
 
   // 팀장 편집 폼
   const [capName, setCapName] = useState('');
@@ -111,6 +113,9 @@ export default function AdminRoomPage() {
   const [origin, setOrigin] = useState('');
 
   useEffect(() => { setOrigin(window.location.origin); }, []);
+  // 영웅 포트레이트 프리로드
+  const [, setPortraitsReady] = useState(false);
+  useEffect(() => { loadHeroPortraits().then(() => setPortraitsReady(true)); }, []);
 
   // 권한 확인
   useEffect(() => {
@@ -142,6 +147,31 @@ export default function AdminRoomPage() {
     setCapPhotoFile(null);
     setEditingPlayer(null);
     setEditingRoom(false);
+    setAddingCaptain(false);
+    setAddingPlayer(false);
+  };
+  const startAddCaptain = () => {
+    setAddingCaptain(true);
+    setCapName('');
+    setCapPhotoFile(null);
+    setCapPhotoPreview('');
+    setEditingCaptain(null);
+    setEditingPlayer(null);
+    setAddingPlayer(false);
+    setEditingRoom(false);
+  };
+  const saveNewCaptain = async () => {
+    if (!capName.trim()) return;
+    setSaving('newcaptain');
+    let photoUrl = '';
+    if (capPhotoFile) photoUrl = await uploadImage(capPhotoFile);
+    const newId = `captain_${Date.now()}`;
+    await update(ref(db), {
+      [`rooms/${code}/captains/${newId}`]: { id: newId, name: capName.trim(), photo: photoUrl, budget: roomInfo?.budget || 100 },
+      [`rooms/${code}/info/captainCount`]: captainsList.length + 1,
+    });
+    setAddingCaptain(false);
+    setSaving('');
   };
   const handleCapPhoto = (e) => {
     const file = e.target.files[0]; if (!file) return;
@@ -174,6 +204,47 @@ export default function AdminRoomPage() {
     setPComment(p.comment || '');
     setEditingCaptain(null);
     setEditingRoom(false);
+    setAddingCaptain(false);
+    setAddingPlayer(false);
+  };
+  const startAddPlayer = () => {
+    setAddingPlayer(true);
+    setPName('');
+    setPPhotoFile(null);
+    setPPhotoPreview('');
+    setPHeroIds(['', '', '']);
+    setPTierCurrent('');
+    setPTierPrevious('');
+    setPTierBest('');
+    setPStyle('');
+    setPComment('');
+    setEditingPlayer(null);
+    setEditingCaptain(null);
+    setAddingCaptain(false);
+    setEditingRoom(false);
+  };
+  const saveNewPlayer = async () => {
+    if (!pName.trim()) return;
+    setSaving('newplayer');
+    let photoUrl = '';
+    if (pPhotoFile) photoUrl = await uploadImage(pPhotoFile);
+    const primaryHero = ALL_HEROES.find(h => h.id === pHeroIds[0]);
+    const newId = `player_${Date.now()}`;
+    await update(ref(db), {
+      [`rooms/${code}/players/${newId}`]: {
+        id: newId, name: pName.trim(), photo: photoUrl,
+        heroIds: pHeroIds,
+        hero: primaryHero?.name || '',
+        heroId: pHeroIds[0] || '',
+        heroRole: primaryHero?.role || '',
+        tierCurrent: pTierCurrent, tierPrevious: pTierPrevious, tierBest: pTierBest,
+        tier: pTierCurrent,
+        style: pStyle, comment: pComment,
+        soldTo: null, soldPrice: null,
+      },
+    });
+    setAddingPlayer(false);
+    setSaving('');
   };
   const handlePPhoto = (e) => {
     const file = e.target.files[0]; if (!file) return;
