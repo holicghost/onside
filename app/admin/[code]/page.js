@@ -92,6 +92,7 @@ export default function AdminRoomPage() {
   const [capPhotoFile, setCapPhotoFile] = useState(null);
   const [capPhotoPreview, setCapPhotoPreview] = useState('');
   const [capPosition, setCapPosition] = useState('');
+  const [capBudget, setCapBudget] = useState(1000);
 
   // 팀원 편집 폼
   const [pName, setPName] = useState('');
@@ -160,6 +161,7 @@ export default function AdminRoomPage() {
     setCapPhotoPreview(cap.photo || '');
     setCapPhotoFile(null);
     setCapPosition(cap.position || '');
+    setCapBudget(cap.budget || 1000);
     setEditingPlayer(null);
     setEditingRoom(false);
     setAddingCaptain(false);
@@ -171,6 +173,7 @@ export default function AdminRoomPage() {
     setCapPhotoFile(null);
     setCapPhotoPreview('');
     setCapPosition('');
+    setCapBudget(1000);
     setEditingCaptain(null);
     setEditingPlayer(null);
     setAddingPlayer(false);
@@ -189,7 +192,7 @@ export default function AdminRoomPage() {
       setSaving('newcaptain');
       const newId = `captain_${Date.now()}`;
       await update(ref(db), {
-        [`rooms/${code}/captains/${newId}`]: { id: newId, name: capName.trim(), photo: photoUrl, budget: roomInfo?.budget || 100, position: capPosition },
+        [`rooms/${code}/captains/${newId}`]: { id: newId, name: capName.trim(), photo: photoUrl, budget: capBudget, position: capPosition },
         [`rooms/${code}/info/captainCount`]: Object.keys(captains).length + 1,
       });
       setAddingCaptain(false);
@@ -217,7 +220,7 @@ export default function AdminRoomPage() {
         photoUrl = await uploadImage(capPhotoFile);
       }
       setSaving('captain');
-      await update(ref(db, `rooms/${code}/captains/${cid}`), { name: capName, photo: photoUrl, position: capPosition });
+      await update(ref(db, `rooms/${code}/captains/${cid}`), { name: capName, photo: photoUrl, position: capPosition, budget: capBudget });
       setEditingCaptain(null);
       setSavedMsg('저장됨');
       setTimeout(() => setSavedMsg(''), 3000);

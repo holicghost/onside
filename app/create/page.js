@@ -159,7 +159,7 @@ export default function CreateRoom() {
   useEffect(() => {
     setCaptainForms(prev => {
       const next = [...prev];
-      while (next.length < captainCount) next.push({ name: '', photoFile: null, photoPreview: '', position: '' });
+      while (next.length < captainCount) next.push({ name: '', photoFile: null, photoPreview: '', position: '', budget: 1000 });
       return next.slice(0, captainCount);
     });
   }, [captainCount]);
@@ -204,7 +204,7 @@ export default function CreateRoom() {
           teamSize,
           budget,
           password,
-          captainForms: captainForms.map(c => ({ name: c.name, photo: '' })),
+          captainForms: captainForms.map(c => ({ name: c.name, photo: '', budget: c.budget || 1000 })),
           playerForms: playerForms.map(p => ({
             name: p.name, photo: '', heroIds: p.heroIds,
             tierCurrent: p.tierCurrent, tierPrevious: p.tierPrevious, tierBest: p.tierBest,
@@ -244,7 +244,7 @@ export default function CreateRoom() {
     setTeamSize(draft.teamSize || 5);
     setBudget(draft.budget || 1000);
     setPassword(draft.password || '');
-    if (draft.captainForms) setCaptainForms(draft.captainForms.map(c => ({ ...c, photoFile: null, photoPreview: c.photo || '' })));
+    if (draft.captainForms) setCaptainForms(draft.captainForms.map(c => ({ ...c, photoFile: null, photoPreview: c.photo || '', budget: c.budget || 1000 })));
     if (draft.playerForms) setPlayerForms(draft.playerForms.map(p => ({ ...p, photoFile: null, photoPreview: p.photo || '', heroIds: p.heroIds || ['', ''] })));
     setDraftId(draft.id);
     localStorage.setItem('ow_draft_id', draft.id);
@@ -317,7 +317,7 @@ export default function CreateRoom() {
         let photoUrl = '';
         if (c.photoFile) { setUploadStatus(`팀장 사진 업로드 (${i + 1}/${captainForms.length})`); photoUrl = await uploadImage(c.photoFile); }
         const cid = `captain_${i}`;
-        captainData[cid] = { id: cid, name: c.name, photo: photoUrl, budget, position: c.position || '' };
+        captainData[cid] = { id: cid, name: c.name, photo: photoUrl, budget: c.budget || budget, position: c.position || '' };
       }
 
       const playerData = {};
@@ -507,22 +507,31 @@ export default function CreateRoom() {
                   value={cap.name}
                   onChange={e => updateCaptain(i, 'name', e.target.value)}
                 />
-                <div>
-                  <label className="text-base text-gray-400 mb-2 block font-semibold">포지션 <span className="text-red-400">*</span></label>
-                  <div className="flex gap-2">
-                    {[
-                      { val: '탱커', active: 'bg-yellow-600 border-yellow-500 text-white' },
-                      { val: '딜러', active: 'bg-red-600 border-red-500 text-white' },
-                      { val: '힐러', active: 'bg-green-600 border-green-500 text-white' },
-                    ].map(({ val, active }) => (
-                      <button key={val} type="button"
-                        onClick={() => updateCaptain(i, 'position', val)}
-                        className={`flex-1 py-2 text-sm font-bold rounded-lg border transition-all ${
-                          cap.position === val ? active : 'bg-gray-800 border-gray-600 text-gray-400 hover:border-gray-500'
-                        }`}>
-                        {val}
-                      </button>
-                    ))}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-base text-gray-400 mb-2 block font-semibold">포지션 <span className="text-red-400">*</span></label>
+                    <div className="flex gap-2">
+                      {[
+                        { val: '탱커', active: 'bg-yellow-600 border-yellow-500 text-white' },
+                        { val: '딜러', active: 'bg-red-600 border-red-500 text-white' },
+                        { val: '힐러', active: 'bg-green-600 border-green-500 text-white' },
+                      ].map(({ val, active }) => (
+                        <button key={val} type="button"
+                          onClick={() => updateCaptain(i, 'position', val)}
+                          className={`flex-1 py-2 text-sm font-bold rounded-lg border transition-all ${
+                            cap.position === val ? active : 'bg-gray-800 border-gray-600 text-gray-400 hover:border-gray-500'
+                          }`}>
+                          {val}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-base text-gray-400 mb-2 block font-semibold">예산 포인트</label>
+                    <input type="number" min={10} max={9999}
+                      value={cap.budget || 1000}
+                      onChange={e => updateCaptain(i, 'budget', Number(e.target.value))}
+                      className="w-full px-3 py-2 text-lg bg-gray-800 border border-gray-600 rounded-lg focus:border-orange-400 focus:outline-none" />
                   </div>
                 </div>
               </div>
