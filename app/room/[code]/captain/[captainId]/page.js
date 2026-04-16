@@ -795,25 +795,13 @@ export default function CaptainPage() {
           {nextQueuePlayer && (
             <div>
               <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2">다음 선수</h2>
-              <div key={nextQueuePlayer.id} className="rounded-xl overflow-hidden border border-blue-700 bg-blue-900/20 animate-slide-up">
-                <div className="flex gap-3 p-3">
-                  <div className="w-16 h-20 rounded-lg overflow-hidden bg-gray-800 flex-shrink-0">
-                    {nextQueuePlayer.photo
-                      ? <img src={nextQueuePlayer.photo} alt={nextQueuePlayer.name} className="w-full h-full object-cover object-top" />
-                      : <div className="w-full h-full flex items-center justify-center text-2xl">👤</div>
-                    }
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white font-black text-xl leading-tight">{nextQueuePlayer.name}</p>
-                    {(nextQueuePlayer.tierType && nextQueuePlayer.position) && (
-                      <span className={`inline-block mt-1 px-2 py-0.5 text-base font-bold rounded-full border ${TIER_POS_STYLES[`${nextQueuePlayer.tierType} ${nextQueuePlayer.position}`] || 'bg-gray-700 text-gray-300 border-gray-600'}`}>
-                        {nextQueuePlayer.tierType} {nextQueuePlayer.position}
-                      </span>
-                    )}
-                    {nextQueuePlayer.tierCurrent && (
-                      <p className="text-gray-400 text-base mt-1">{nextQueuePlayer.tierCurrent}</p>
-                    )}
-                  </div>
+              <div key={nextQueuePlayer.id} className="flex items-center gap-2 text-base">
+                {nextQueuePlayer.photo ? <img src={nextQueuePlayer.photo} alt={nextQueuePlayer.name} className="w-6 h-6 rounded-full object-cover flex-shrink-0" /> : <span className="flex-shrink-0">👤</span>}
+                <div className="flex-1 min-w-0">
+                  <p className="text-gray-300 truncate leading-tight">{nextQueuePlayer.name}</p>
+                  {(nextQueuePlayer.tierType || nextQueuePlayer.position) && (
+                    <span className="text-sm text-gray-600 font-bold">{[nextQueuePlayer.tierType, nextQueuePlayer.position].filter(Boolean).join(' ')}</span>
+                  )}
                 </div>
               </div>
             </div>
