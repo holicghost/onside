@@ -115,14 +115,14 @@ function PlayerCard({ player, curBid, auction, bidderCap, captainId }) {
 
       {heroIdsList.length > 0 && (
         <div className="px-5 pb-4 flex gap-3">
-          {heroIdsList.map((hid, i) => {
+          {heroIdsList.map((hid) => {
             const url = getHeroPortraitUrl(hid);
             const hero = ALL_HEROES.find(h => h.id === hid);
             const roleKey = hero?.role;
             const roleName = ROLE_LABEL[roleKey] || '';
             const roleColor = { tank: 'text-yellow-300', damage: 'text-red-300', support: 'text-green-300' }[roleKey] || 'text-gray-400';
             return (
-              <div key={i} className="flex flex-col items-center gap-1">
+              <div key={hid} className="flex flex-col items-center gap-1">
                 <div className="relative w-14 h-14 rounded-lg overflow-hidden bg-gray-700 border border-gray-600 flex items-center justify-center flex-shrink-0">
                   {url ? (
                     <img src={url} alt={hero?.name || hid} className="absolute inset-0 w-full h-full object-cover"
@@ -832,12 +832,12 @@ export default function CaptainPage() {
             <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest pb-2">낙찰 내역</h2>
             {historyList.length > 0
               ? <div className="space-y-2">
-                  {historyList.map((h, i) => {
+                  {historyList.map((h) => {
                     const p = players[h.playerId];
                     const cap = captains[h.captainId];
                     if (!p || !cap) return null;
                     return (
-                      <div key={i} className="space-y-0.5">
+                      <div key={`${h.playerId}-${h.timestamp}`} className="space-y-0.5">
                         <div className="flex items-center justify-between gap-1">
                           <span className="text-white font-bold text-sm truncate">{p.name}</span>
                           <span className="text-orange-400 font-bold text-sm flex-shrink-0">{h.price}P</span>

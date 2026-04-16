@@ -959,12 +959,12 @@ export default function AuctionPage() {
             <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest pb-2">낙찰 내역</h2>
             {historyList.length > 0
               ? <div className="space-y-2">
-                  {historyList.map((h, i) => {
+                  {historyList.map((h) => {
                     const p = players[h.playerId];
                     const cap = captains[h.captainId];
                     if (!p || !cap) return null;
                     return (
-                      <div key={i} className="space-y-0.5">
+                      <div key={`${h.playerId}-${h.timestamp}`} className="space-y-0.5">
                         <div className="flex items-center justify-between gap-1">
                           <span className="text-white font-bold text-sm truncate">{p.name}</span>
                           <span className="text-orange-400 font-bold text-sm flex-shrink-0">{h.price}P</span>
