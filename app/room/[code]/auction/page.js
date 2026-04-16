@@ -49,10 +49,11 @@ function BlurCode({ text, className = '' }) {
   );
 }
 
-const STATUS_LABEL = { idle: '⏳ 대기 중', countdown: '⏱ 경매 준비', bidding: '🔨 경매 중', paused: '⏸ 일시정지', sold: '✅ 낙찰', passed: '⏭ 유찰', done: '🏆 완료' };
+const STATUS_LABEL = { idle: '⏳ 대기 중', countdown: '⏱ 경매 준비', countdown_paused: '⏸ 대기 일시정지', bidding: '🔨 경매 중', paused: '⏸ 일시정지', sold: '✅ 낙찰', passed: '⏭ 유찰', done: '🏆 완료' };
 const STATUS_COLOR = {
   idle: 'bg-gray-800 text-gray-400',
   countdown: 'bg-yellow-900/60 text-yellow-300 border border-yellow-700',
+  countdown_paused: 'bg-orange-900/60 text-orange-300 border border-orange-700',
   bidding: 'bg-green-900/60 text-green-300 border border-green-700',
   paused: 'bg-orange-900/60 text-orange-300 border border-orange-700',
   sold: 'bg-blue-900/60 text-blue-300 border border-blue-700',
@@ -113,7 +114,7 @@ function AuctionPlayerCard({ player, curBid, auction, bidderCap }) {
         </div>
       </div>
       {heroIdsList.length > 0 && (
-        <div className="px-5 pb-4 flex gap-3">
+        <div className="px-5 pb-4 flex gap-4">
           {heroIdsList.map((hid) => {
             const url = getHeroPortraitUrl(hid);
             const hero = ALL_HEROES.find(h => h.id === hid);
@@ -121,13 +122,13 @@ function AuctionPlayerCard({ player, curBid, auction, bidderCap }) {
             const roleName = ROLE_LABEL[roleKey] || '';
             const roleColor = { tank: 'text-yellow-300', damage: 'text-red-300', support: 'text-green-300' }[roleKey] || 'text-gray-400';
             return (
-              <div key={hid} className="flex flex-col items-center gap-1">
-                <div className="relative w-14 h-14 rounded-lg overflow-hidden bg-gray-700 border border-gray-600 flex items-center justify-center flex-shrink-0">
+              <div key={hid} className="flex flex-col items-center gap-1.5">
+                <div className="relative rounded-xl overflow-hidden bg-gray-700 border border-gray-600 flex items-center justify-center flex-shrink-0" style={{ width: '80px', height: '80px' }}>
                   {url ? (
                     <img src={url} alt={hero?.name || hid} className="absolute inset-0 w-full h-full object-cover"
                       onError={e => { e.currentTarget.style.display = 'none'; }} />
                   ) : (
-                    <span className="text-gray-500 text-xl">?</span>
+                    <span className="text-gray-500 text-2xl">?</span>
                   )}
                   {roleName && (
                     <span className={`absolute bottom-0 left-0 right-0 text-center text-[10px] font-bold py-0.5 ${roleColor}`}
@@ -136,7 +137,7 @@ function AuctionPlayerCard({ player, curBid, auction, bidderCap }) {
                     </span>
                   )}
                 </div>
-                <span className="text-gray-400 text-[11px] text-center leading-tight w-14 truncate">{hero?.name || hid}</span>
+                <span className="text-gray-400 text-sm text-center leading-tight truncate" style={{ width: '80px' }}>{hero?.name || hid}</span>
               </div>
             );
           })}
@@ -472,6 +473,23 @@ export default function AuctionPage() {
     });
   };
 
+  const pauseCountdown = async () => {
+    const remaining = Math.max(1000, (auction?.countdownEnd || Date.now()) - Date.now());
+    await update(ref(db), {
+      [`rooms/${code}/auction/status`]: 'countdown_paused',
+      [`rooms/${code}/auction/countdownEnd`]: null,
+      [`rooms/${code}/auction/pausedCountdownLeft`]: remaining,
+    });
+  };
+
+  const resumeCountdown = async () => {
+    await update(ref(db), {
+      [`rooms/${code}/auction/status`]: 'countdown',
+      [`rooms/${code}/auction/countdownEnd`]: Date.now() + (auction?.pausedCountdownLeft || 10000),
+      [`rooms/${code}/auction/pausedCountdownLeft`]: null,
+    });
+  };
+
   const passCurrent = async () => {
     await update(ref(db), {
       [`rooms/${code}/auction/status`]: 'passed',
@@ -595,7 +613,7 @@ export default function AuctionPage() {
       )}
 
       {/* 3-column layout */}
-      <div className="flex-1 grid overflow-hidden" style={{ gridTemplateColumns: '240px 1fr 240px' }}>
+      <div className="flex-1 grid overflow-hidden" style={{ gridTemplateColumns: '25% 45% 30%' }}>
 
         {/* LEFT: Team Rosters */}
         <aside className="border-r border-gray-800 overflow-y-auto p-4 space-y-3">
@@ -726,13 +744,36 @@ export default function AuctionPage() {
               </div>
               <div key={displayCountdown} className="text-7xl font-black text-yellow-400 animate-count-down">{displayCountdown}</div>
               <p className="text-gray-500 text-sm">초 후 경매 시작</p>
-              {/* Countdown progress bar */}
               <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-yellow-400 rounded-full transition-none"
                   style={{ width: `${Math.max(0, Math.min(100, (countdownLeft / 10000) * 100))}%` }}
                 />
               </div>
+              {role === 'admin' && (
+                <button onClick={pauseCountdown} className="px-6 py-2 text-base font-bold bg-orange-700 hover:bg-orange-600 rounded-xl transition-all">
+                  ⏸ 대기 일시정지
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Countdown paused */}
+          {auction?.status === 'countdown_paused' && currentPlayer && (
+            <div className="flex flex-col items-center gap-3">
+              <p className="text-orange-400 text-sm font-bold">대기 일시정지됨</p>
+              <div key={`cd-${auction?.currentPlayerId}`} className="w-full">
+                <AuctionPlayerCard player={currentPlayer} curBid={curBid} auction={auction} bidderCap={bidderCap} />
+              </div>
+              <div className="text-center bg-orange-900/20 border border-orange-800 rounded-xl p-4 w-full">
+                <p className="text-orange-400 font-bold text-lg">⏸ 대기 일시정지</p>
+                <p className="text-gray-500 text-sm mt-1">남은 시간: {((auction?.pausedCountdownLeft || 0) / 1000).toFixed(1)}초</p>
+              </div>
+              {role === 'admin' && (
+                <button onClick={resumeCountdown} className="px-6 py-2 text-base font-bold bg-green-600 hover:bg-green-500 rounded-xl transition-all">
+                  ▶ 재개
+                </button>
+              )}
             </div>
           )}
 
@@ -860,7 +901,7 @@ export default function AuctionPage() {
           {/* NEXT preview card */}
           {nextQueuePlayer && (
             <div>
-              <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">다음 선수</h2>
+              <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2">다음 선수</h2>
               <div key={nextQueuePlayer.id} className="rounded-xl overflow-hidden border border-blue-700 bg-blue-900/20 animate-slide-up">
                 <div className="flex gap-3 p-3">
                   <div className="w-16 h-20 rounded-lg overflow-hidden bg-gray-800 flex-shrink-0">
@@ -870,14 +911,14 @@ export default function AuctionPage() {
                     }
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-white font-black text-lg leading-tight">{nextQueuePlayer.name}</p>
+                    <p className="text-white font-black text-xl leading-tight">{nextQueuePlayer.name}</p>
                     {(nextQueuePlayer.tierType && nextQueuePlayer.position) && (
-                      <span className={`inline-block mt-1 px-2 py-0.5 text-sm font-bold rounded-full border ${TIER_POS_STYLES[`${nextQueuePlayer.tierType} ${nextQueuePlayer.position}`] || 'bg-gray-700 text-gray-300 border-gray-600'}`}>
+                      <span className={`inline-block mt-1 px-2 py-0.5 text-base font-bold rounded-full border ${TIER_POS_STYLES[`${nextQueuePlayer.tierType} ${nextQueuePlayer.position}`] || 'bg-gray-700 text-gray-300 border-gray-600'}`}>
                         {nextQueuePlayer.tierType} {nextQueuePlayer.position}
                       </span>
                     )}
                     {nextQueuePlayer.tierCurrent && (
-                      <p className="text-gray-400 text-sm mt-1">{nextQueuePlayer.tierCurrent}</p>
+                      <p className="text-gray-400 text-base mt-1">{nextQueuePlayer.tierCurrent}</p>
                     )}
                   </div>
                 </div>
@@ -887,7 +928,7 @@ export default function AuctionPage() {
 
           {/* Grouped waiting queue (excludes nextQueuePlayer) */}
           <div>
-            <h2 className="text-lg font-bold text-gray-300 sticky top-0 bg-[#0f0f1a] pb-2">
+            <h2 className="text-xl font-bold text-gray-300 sticky top-0 bg-[#0f0f1a] pb-2">
               대기 <span className="text-orange-400">{queuePlayers.length}</span>명
             </h2>
             {restQueue.length > 0 ? (
@@ -895,17 +936,17 @@ export default function AuctionPage() {
                 {groupedQueue.map(g => (
                   <div key={g.key}>
                     <div className="flex items-center gap-1.5 mb-1.5">
-                      <span className={`px-2 py-0.5 text-xs font-black rounded-full border ${TIER_POS_STYLES[g.key] || 'bg-gray-700 text-gray-300 border-gray-600'}`}>
+                      <span className={`px-2 py-0.5 text-sm font-black rounded-full border ${TIER_POS_STYLES[g.key] || 'bg-gray-700 text-gray-300 border-gray-600'}`}>
                         {g.key}
                       </span>
-                      <span className="text-gray-600 text-xs">{g.players.length}명</span>
+                      <span className="text-gray-600 text-sm">{g.players.length}명</span>
                     </div>
                     <div className="space-y-1 pl-1">
                       {g.players.map(p => (
                         <div key={p.id} className="flex items-center gap-2 p-1.5 rounded-lg bg-gray-900/60">
-                          {p.photo ? <img src={p.photo} alt={p.name} className="w-6 h-6 rounded-full object-cover flex-shrink-0" /> : <span className="text-sm flex-shrink-0">👤</span>}
-                          <p className="text-sm font-bold text-white truncate flex-1">{p.name}</p>
-                          {p.tierCurrent && <p className="text-xs text-gray-500 flex-shrink-0">{p.tierCurrent}</p>}
+                          {p.photo ? <img src={p.photo} alt={p.name} className="w-6 h-6 rounded-full object-cover flex-shrink-0" /> : <span className="text-base flex-shrink-0">👤</span>}
+                          <p className="text-base font-bold text-white truncate flex-1">{p.name}</p>
+                          {p.tierCurrent && <p className="text-sm text-gray-500 flex-shrink-0">{p.tierCurrent}</p>}
                         </div>
                       ))}
                     </div>
@@ -914,14 +955,14 @@ export default function AuctionPage() {
                 {ungroupedQueue.length > 0 && (
                   <div>
                     <div className="flex items-center gap-1.5 mb-1.5">
-                      <span className="px-2 py-0.5 text-xs font-black rounded-full border bg-gray-700 text-gray-300 border-gray-600">기타</span>
-                      <span className="text-gray-600 text-xs">{ungroupedQueue.length}명</span>
+                      <span className="px-2 py-0.5 text-sm font-black rounded-full border bg-gray-700 text-gray-300 border-gray-600">기타</span>
+                      <span className="text-gray-600 text-sm">{ungroupedQueue.length}명</span>
                     </div>
                     <div className="space-y-1 pl-1">
                       {ungroupedQueue.map(p => (
                         <div key={p.id} className="flex items-center gap-2 p-1.5 rounded-lg bg-gray-900/60">
-                          {p.photo ? <img src={p.photo} alt={p.name} className="w-6 h-6 rounded-full object-cover flex-shrink-0" /> : <span className="text-sm flex-shrink-0">👤</span>}
-                          <p className="text-sm font-bold text-white truncate">{p.name}</p>
+                          {p.photo ? <img src={p.photo} alt={p.name} className="w-6 h-6 rounded-full object-cover flex-shrink-0" /> : <span className="text-base flex-shrink-0">👤</span>}
+                          <p className="text-base font-bold text-white truncate">{p.name}</p>
                         </div>
                       ))}
                     </div>
@@ -935,7 +976,7 @@ export default function AuctionPage() {
 
           {/* 낙찰 내역 */}
           <div>
-            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest pb-2">낙찰 내역</h2>
+            <h2 className="text-base font-bold text-gray-500 uppercase tracking-widest pb-2">낙찰 내역</h2>
             {historyList.length > 0
               ? <div className="space-y-2">
                   {historyList.map((h) => {
@@ -945,28 +986,28 @@ export default function AuctionPage() {
                     return (
                       <div key={`${h.playerId}-${h.timestamp}`} className="space-y-0.5">
                         <div className="flex items-center justify-between gap-1">
-                          <span className="text-white font-bold text-sm truncate">{p.name}</span>
-                          <span className="text-orange-400 font-bold text-sm flex-shrink-0">{h.price}P</span>
+                          <span className="text-white font-bold text-base truncate">{p.name}</span>
+                          <span className="text-orange-400 font-bold text-base flex-shrink-0">{h.price}P</span>
                         </div>
-                        <span className="text-green-400 text-xs">{cap.name} 팀</span>
+                        <span className="text-green-400 text-sm">{cap.name} 팀</span>
                       </div>
                     );
                   })}
                 </div>
-              : <p className="text-gray-700 text-sm">없음</p>
+              : <p className="text-gray-700 text-base">없음</p>
             }
           </div>
 
           {/* 유찰 내역 */}
           {passedPlayers.length > 0 && (
             <div>
-              <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest pb-2">유찰 내역</h2>
+              <h2 className="text-base font-bold text-gray-500 uppercase tracking-widest pb-2">유찰 내역</h2>
               <div className="space-y-1.5">
                 {passedPlayers.map(p => (
                   <div key={p.id} className="flex items-center gap-2">
-                    <span className="text-gray-400 text-sm font-bold truncate min-w-0">{p.name}</span>
+                    <span className="text-gray-400 text-base font-bold truncate min-w-0">{p.name}</span>
                     {(p.tierType || p.position) && (
-                      <span className="px-1.5 py-0.5 bg-gray-800 text-gray-500 text-xs font-bold rounded flex-shrink-0">
+                      <span className="px-1.5 py-0.5 bg-gray-800 text-gray-500 text-sm font-bold rounded flex-shrink-0">
                         {[p.tierType, p.position].filter(Boolean).join(' ')}
                       </span>
                     )}
