@@ -68,7 +68,7 @@ export default function LobbyPage() {
       if (remaining <= 0) {
         setCountdown(0);
         if (roleRef.current === 'admin') {
-          update(ref(db), { [`rooms/${code}/info/status`]: 'auction' });
+          update(ref(db), { [`rooms/${code}/info/status`]: 'auction' }).catch(() => {});
         }
         return;
       }
@@ -137,7 +137,7 @@ export default function LobbyPage() {
                 ? <img src={cap.photo} alt={cap.name} className="w-16 h-16 rounded-full object-cover border-2 border-gray-600" />
                 : <div className="w-16 h-16 rounded-full bg-gray-800 border-2 border-gray-600 flex items-center justify-center text-2xl">👤</div>
               }
-              <span className="text-white text-sm font-bold text-center leading-tight truncate w-full text-center">{cap.name}</span>
+              <span className="text-white text-sm font-bold text-center leading-tight truncate w-full">{cap.name}</span>
             </div>
           ))}
         </div>

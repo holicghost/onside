@@ -333,9 +333,10 @@ export default function CaptainPage() {
   useEffect(() => {
     if (authStep !== 'authed' || !code || !captainId) return;
     const presenceRef = ref(db, `rooms/${code}/captains/${captainId}/online`);
+    const disconnectRef = onDisconnect(presenceRef);
     set(presenceRef, true);
-    onDisconnect(presenceRef).set(false);
-    return () => { set(presenceRef, false); };
+    disconnectRef.set(false);
+    return () => { disconnectRef.cancel(); set(presenceRef, false); };
   }, [authStep, code, captainId]);
 
   useEffect(() => {
@@ -399,8 +400,10 @@ export default function CaptainPage() {
     if (!msg || !code || sendingRef.current) return;
     sendingRef.current = true;
     setChatInput('');
-    const senderName = captains[captainId]?.name || '팀장';
-    await set(ref(db, `rooms/${code}/chat/${Date.now()}`), { senderName, message: msg, timestamp: Date.now() });
+    try {
+      const senderName = captains[captainId]?.name || '팀장';
+      await set(ref(db, `rooms/${code}/chat/${Date.now()}`), { senderName, message: msg, timestamp: Date.now() });
+    } catch { /* ignore */ }
     sendingRef.current = false;
   };
 

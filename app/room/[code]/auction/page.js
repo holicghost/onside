@@ -49,6 +49,127 @@ function BlurCode({ text, className = '' }) {
   );
 }
 
+const STATUS_LABEL = { idle: '⏳ 대기 중', countdown: '⏱ 경매 준비', bidding: '🔨 경매 중', paused: '⏸ 일시정지', sold: '✅ 낙찰', passed: '⏭ 유찰', done: '🏆 완료' };
+const STATUS_COLOR = {
+  idle: 'bg-gray-800 text-gray-400',
+  countdown: 'bg-yellow-900/60 text-yellow-300 border border-yellow-700',
+  bidding: 'bg-green-900/60 text-green-300 border border-green-700',
+  paused: 'bg-orange-900/60 text-orange-300 border border-orange-700',
+  sold: 'bg-blue-900/60 text-blue-300 border border-blue-700',
+  passed: 'bg-gray-700/60 text-gray-400',
+  done: 'bg-purple-900/60 text-purple-300 border border-purple-700',
+};
+
+function AuctionPlayerCard({ player, curBid, auction, bidderCap }) {
+  if (!player) return null;
+  const heroIdsList = toArr(player.heroIds).filter(Boolean);
+  return (
+    <div className="relative w-full bg-gray-900 rounded-2xl border border-gray-700 overflow-hidden">
+      <div className="flex gap-4 p-5">
+        <div className="w-48 h-64 rounded-xl overflow-hidden bg-gray-800 flex-shrink-0 flex items-center justify-center">
+          {player.photo
+            ? <img src={player.photo} alt={player.name} className="w-full h-full object-cover object-top" />
+            : <span className="text-6xl">👤</span>
+          }
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex gap-1.5 flex-wrap mb-1.5">
+            {(player.tierType || player.position) && (
+              <span className={`px-3 py-0.5 text-sm font-bold rounded-full border ${
+                TIER_POS_STYLES[`${player.tierType} ${player.position}`] || 'bg-gray-700 text-gray-300 border-gray-600'
+              }`}>
+                {[player.tierType, player.position].filter(Boolean).join(' ')}
+              </span>
+            )}
+            {curBid > 0 && auction?.status === 'bidding' && (
+              <span className="px-3 py-0.5 bg-orange-500/80 text-white text-sm font-bold rounded-full animate-pulse">입찰 중</span>
+            )}
+          </div>
+          <h2 className="font-black text-white leading-tight" style={{ fontSize: '40px' }}>{player.name}</h2>
+          <div className="grid grid-cols-3 gap-1.5 mt-2">
+            {[
+              { label: '현재 티어', val: player.tierCurrent, color: 'text-purple-400' },
+              { label: '이전 시즌 티어', val: player.tierPrevious, color: 'text-gray-300' },
+              { label: '역대 최고 티어', val: player.tierBest, color: 'text-yellow-400' },
+            ].map(({ label, val, color }) => (
+              <div key={label} className="bg-gray-800/80 rounded-lg px-2 py-1.5">
+                <p className="text-xs text-gray-500 mb-0.5 leading-tight">{label}</p>
+                <p className={`text-lg font-bold ${color} leading-tight`}>{val || '—'}</p>
+              </div>
+            ))}
+          </div>
+          {player.style && (
+            <div className="mt-2.5">
+              <p className="text-xs text-gray-500 mb-0.5">플레이 스타일</p>
+              <p className="text-sm text-gray-300 leading-snug">{player.style}</p>
+            </div>
+          )}
+          {player.comment && (
+            <div className="mt-2.5">
+              <p className="text-xs text-gray-500 mb-0.5">한마디</p>
+              <p className="text-sm text-gray-300 leading-snug">{player.comment}</p>
+            </div>
+          )}
+        </div>
+      </div>
+      {heroIdsList.length > 0 && (
+        <div className="px-5 pb-4 flex gap-3">
+          {heroIdsList.map((hid) => {
+            const url = getHeroPortraitUrl(hid);
+            const hero = ALL_HEROES.find(h => h.id === hid);
+            const roleKey = hero?.role;
+            const roleName = ROLE_LABEL[roleKey] || '';
+            const roleColor = { tank: 'text-yellow-300', damage: 'text-red-300', support: 'text-green-300' }[roleKey] || 'text-gray-400';
+            return (
+              <div key={hid} className="flex flex-col items-center gap-1">
+                <div className="relative w-14 h-14 rounded-lg overflow-hidden bg-gray-700 border border-gray-600 flex items-center justify-center flex-shrink-0">
+                  {url ? (
+                    <img src={url} alt={hero?.name || hid} className="absolute inset-0 w-full h-full object-cover"
+                      onError={e => { e.currentTarget.style.display = 'none'; }} />
+                  ) : (
+                    <span className="text-gray-500 text-xl">?</span>
+                  )}
+                  {roleName && (
+                    <span className={`absolute bottom-0 left-0 right-0 text-center text-[8px] font-bold py-0.5 ${roleColor}`}
+                      style={{ background: 'rgba(0,0,0,0.7)' }}>
+                      {roleName}
+                    </span>
+                  )}
+                </div>
+                <span className="text-gray-400 text-[9px] text-center leading-tight w-14 truncate">{hero?.name || hid}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <div className="px-5 pb-5">
+        <p className="text-gray-500 text-sm mb-0.5">현재 입찰</p>
+        <p key={curBid} className="font-black text-orange-400 leading-none tabular-nums animate-bid-pop" style={{ fontSize: '48px' }}>
+          {curBid > 0 ? `${curBid} pt` : '—'}
+        </p>
+        {bidderCap && (
+          <p className="text-white text-base font-bold mt-1">👑 {bidderCap.name} 입찰 중</p>
+        )}
+      </div>
+      {auction?.status === 'sold' && (
+        <div key={`sold-${auction.currentPlayerId}`}
+          className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none animate-result-in"
+          style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 'inherit' }}>
+          <p className="text-white text-6xl font-black drop-shadow-lg">낙찰!</p>
+          {bidderCap && <p className="text-white/80 text-xl font-bold mt-2">{bidderCap.name} 팀</p>}
+        </div>
+      )}
+      {auction?.status === 'passed' && (
+        <div key={`passed-${auction.currentPlayerId}`}
+          className="absolute inset-0 flex items-center justify-center pointer-events-none animate-result-in"
+          style={{ background: 'rgba(75,85,99,0.82)', borderRadius: 'inherit' }}>
+          <p className="text-white text-6xl font-black drop-shadow-lg">유찰</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AuctionPage() {
   const { code } = useParams();
   const router = useRouter();
@@ -342,9 +463,10 @@ export default function AuctionPage() {
   useEffect(() => {
     if (!code || !captainId || role !== 'captain') return;
     const presenceRef = ref(db, `rooms/${code}/captains/${captainId}/online`);
+    const disconnectRef = onDisconnect(presenceRef);
     set(presenceRef, true);
-    onDisconnect(presenceRef).set(false);
-    return () => { set(presenceRef, false); };
+    disconnectRef.set(false);
+    return () => { disconnectRef.cancel(); set(presenceRef, false); };
   }, [code, captainId, role]);
 
   // Chat auto-scroll
@@ -408,8 +530,10 @@ export default function AuctionPage() {
     if (!msg || !code || sendingRef.current) return;
     sendingRef.current = true;
     setChatInput('');
-    const senderName = role === 'admin' ? '관리자' : (captains[captainId]?.name || '관전자');
-    await set(ref(db, `rooms/${code}/chat/${Date.now()}`), { senderName, message: msg, timestamp: Date.now() });
+    try {
+      const senderName = role === 'admin' ? '관리자' : (captains[captainId]?.name || '관전자');
+      await set(ref(db, `rooms/${code}/chat/${Date.now()}`), { senderName, message: msg, timestamp: Date.now() });
+    } catch { /* ignore */ }
     sendingRef.current = false;
   };
 
@@ -449,140 +573,8 @@ export default function AuctionPage() {
   const displayCountdown = Math.ceil(countdownLeft / 1000);
   const progressPct = maxDuration > 0 ? Math.max(0, (timeLeft / maxDuration) * 100) : 0;
 
-  const statusLabel = { idle: '⏳ 대기 중', countdown: '⏱ 경매 준비', bidding: '🔨 경매 중', paused: '⏸ 일시정지', sold: '✅ 낙찰', passed: '⏭ 유찰', done: '🏆 완료' };
-  const statusColor = {
-    idle: 'bg-gray-800 text-gray-400',
-    countdown: 'bg-yellow-900/60 text-yellow-300 border border-yellow-700',
-    bidding: 'bg-green-900/60 text-green-300 border border-green-700',
-    paused: 'bg-orange-900/60 text-orange-300 border border-orange-700',
-    sold: 'bg-blue-900/60 text-blue-300 border border-blue-700',
-    passed: 'bg-gray-700/60 text-gray-400',
-    done: 'bg-purple-900/60 text-purple-300 border border-purple-700',
-  };
 
   const bidderCap = auction?.currentBidCaptainId ? captains[auction.currentBidCaptainId] : null;
-
-  // Reusable player card for center panel
-  const PlayerCard = ({ player }) => {
-    if (!player) return null;
-    const heroIdsList = toArr(player.heroIds).filter(Boolean);
-    return (
-      <div className="relative w-full bg-gray-900 rounded-2xl border border-gray-700 overflow-hidden">
-        {/* Photo + info row */}
-        <div className="flex gap-4 p-5">
-          <div className="w-48 h-64 rounded-xl overflow-hidden bg-gray-800 flex-shrink-0 flex items-center justify-center">
-            {player.photo
-              ? <img src={player.photo} alt={player.name} className="w-full h-full object-cover object-top" />
-              : <span className="text-6xl">👤</span>
-            }
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex gap-1.5 flex-wrap mb-1.5">
-              {(player.tierType || player.position) && (
-                <span className={`px-3 py-0.5 text-sm font-bold rounded-full border ${
-                  TIER_POS_STYLES[`${player.tierType} ${player.position}`] || 'bg-gray-700 text-gray-300 border-gray-600'
-                }`}>
-                  {[player.tierType, player.position].filter(Boolean).join(' ')}
-                </span>
-              )}
-              {curBid > 0 && auction?.status === 'bidding' && (
-                <span className="px-3 py-0.5 bg-orange-500/80 text-white text-sm font-bold rounded-full animate-pulse">입찰 중</span>
-              )}
-            </div>
-            <h2 className="font-black text-white leading-tight" style={{ fontSize: '40px' }}>{player.name}</h2>
-            <div className="grid grid-cols-3 gap-1.5 mt-2">
-              {[
-                { label: '현재 티어', val: player.tierCurrent, color: 'text-purple-400' },
-                { label: '이전 시즌 티어', val: player.tierPrevious, color: 'text-gray-300' },
-                { label: '역대 최고 티어', val: player.tierBest, color: 'text-yellow-400' },
-              ].map(({ label, val, color }) => (
-                <div key={label} className="bg-gray-800/80 rounded-lg px-2 py-1.5">
-                  <p className="text-xs text-gray-500 mb-0.5 leading-tight">{label}</p>
-                  <p className={`text-lg font-bold ${color} leading-tight`}>{val || '—'}</p>
-                </div>
-              ))}
-            </div>
-            {player.style && (
-              <div className="mt-2.5">
-                <p className="text-xs text-gray-500 mb-0.5">플레이 스타일</p>
-                <p className="text-sm text-gray-300 leading-snug">{player.style}</p>
-              </div>
-            )}
-            {player.comment && (
-              <div className="mt-2.5">
-                <p className="text-xs text-gray-500 mb-0.5">한마디</p>
-                <p className="text-sm text-gray-300 leading-snug">{player.comment}</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Hero portraits */}
-        {heroIdsList.length > 0 && (
-          <div className="px-5 pb-4 flex gap-3">
-            {heroIdsList.map((hid, i) => {
-              const url = getHeroPortraitUrl(hid);
-              const hero = ALL_HEROES.find(h => h.id === hid);
-              const roleKey = hero?.role;
-              const roleName = ROLE_LABEL[roleKey] || '';
-              const roleColor = { tank: 'text-yellow-300', damage: 'text-red-300', support: 'text-green-300' }[roleKey] || 'text-gray-400';
-              return (
-                <div key={i} className="flex flex-col items-center gap-1">
-                  <div className="relative w-14 h-14 rounded-lg overflow-hidden bg-gray-700 border border-gray-600 flex items-center justify-center flex-shrink-0">
-                    {url ? (
-                      <img src={url} alt={hero?.name || hid} className="absolute inset-0 w-full h-full object-cover"
-                        onError={e => { e.currentTarget.style.display = 'none'; }} />
-                    ) : (
-                      <span className="text-gray-500 text-xl">?</span>
-                    )}
-                    {roleName && (
-                      <span className={`absolute bottom-0 left-0 right-0 text-center text-[8px] font-bold py-0.5 ${roleColor}`}
-                        style={{ background: 'rgba(0,0,0,0.7)' }}>
-                        {roleName}
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-gray-400 text-[9px] text-center leading-tight w-14 truncate">{hero?.name || hid}</span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Current bid + bidder */}
-        <div className="px-5 pb-5">
-          <p className="text-gray-500 text-sm mb-0.5">현재 입찰</p>
-          <p key={curBid} className="font-black text-orange-400 leading-none tabular-nums animate-bid-pop" style={{ fontSize: '48px' }}>
-            {curBid > 0 ? `${curBid} pt` : '—'}
-          </p>
-          {bidderCap && (
-            <p className="text-white text-base font-bold mt-1">👑 {bidderCap.name} 입찰 중</p>
-          )}
-        </div>
-
-        {/* Result overlay */}
-        {auction?.status === 'sold' && (
-          <div
-            key={`sold-${auction.currentPlayerId}`}
-            className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none animate-result-in"
-            style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 'inherit' }}
-          >
-            <p className="text-white text-6xl font-black drop-shadow-lg">낙찰!</p>
-            {bidderCap && <p className="text-white/80 text-xl font-bold mt-2">{bidderCap.name} 팀</p>}
-          </div>
-        )}
-        {auction?.status === 'passed' && (
-          <div
-            key={`passed-${auction.currentPlayerId}`}
-            className="absolute inset-0 flex items-center justify-center pointer-events-none animate-result-in"
-            style={{ background: 'rgba(75,85,99,0.82)', borderRadius: 'inherit' }}
-          >
-            <p className="text-white text-6xl font-black drop-shadow-lg">유찰</p>
-          </div>
-        )}
-      </div>
-    );
-  };
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: '#0f0f1a' }}>
@@ -742,8 +734,8 @@ export default function AuctionPage() {
         <main className="overflow-y-auto p-5 flex flex-col gap-4">
 
           {/* Status pill */}
-          <div className={`px-5 py-2 rounded-full text-base font-bold self-center ${statusColor[auction?.status] || 'bg-gray-800 text-gray-400'}`}>
-            {statusLabel[auction?.status] || '⏳ 대기 중'}
+          <div className={`px-5 py-2 rounded-full text-base font-bold self-center ${STATUS_COLOR[auction?.status] || 'bg-gray-800 text-gray-400'}`}>
+            {STATUS_LABEL[auction?.status] || '⏳ 대기 중'}
           </div>
 
           {/* Pre-player countdown */}
@@ -751,7 +743,7 @@ export default function AuctionPage() {
             <div className="flex flex-col items-center gap-3">
               <p className="text-yellow-400 text-sm font-bold">다음 선수 경매 준비</p>
               <div key={`cd-${auction?.currentPlayerId}`} className="animate-player-enter w-full">
-                <PlayerCard player={currentPlayer} />
+                <AuctionPlayerCard player={currentPlayer} curBid={curBid} auction={auction} bidderCap={bidderCap} />
               </div>
               <div key={displayCountdown} className="text-7xl font-black text-yellow-400 animate-count-down">{displayCountdown}</div>
               <p className="text-gray-500 text-sm">초 후 경매 시작</p>
@@ -768,7 +760,7 @@ export default function AuctionPage() {
           {/* Active / resolved player */}
           {['bidding', 'paused', 'sold', 'passed'].includes(auction?.status) && (
             <div key={auction?.currentPlayerId} className="animate-player-enter w-full">
-              <PlayerCard player={currentPlayer} />
+              <AuctionPlayerCard player={currentPlayer} curBid={curBid} auction={auction} bidderCap={bidderCap} />
             </div>
           )}
 

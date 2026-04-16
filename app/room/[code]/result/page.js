@@ -32,7 +32,7 @@ export default function ResultPage() {
   };
 
   const captainsList = Object.entries(captains).map(([id, c]) => ({ id, ...c }));
-  const unsoldPlayers = Object.values(players).filter(p => !p.soldTo);
+  const unsoldPlayers = Object.entries(players).filter(([, p]) => !p.soldTo).map(([id, p]) => ({ id, ...p }));
 
   return (
     <div className="min-h-screen py-10 px-4" style={{ background: '#0f0f1a' }}>
@@ -58,9 +58,9 @@ export default function ResultPage() {
         {/* Team cards */}
         <div className="grid gap-6" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
           {captainsList.map((cap, idx) => {
-            const teamPlayers = Object.values(players).filter(p => p.soldTo === cap.id);
+            const teamPlayers = Object.entries(players).filter(([, p]) => p.soldTo === cap.id).map(([id, p]) => ({ id, ...p }));
             const originalBudget = roomInfo?.budget || 100;
-            const spent = originalBudget - cap.budget;
+            const spent = originalBudget - (cap.budget || 0);
             return (
               <div key={cap.id}
                 className="bg-gray-900/70 border border-gray-700 rounded-2xl overflow-hidden animate-reveal"
