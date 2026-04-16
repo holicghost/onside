@@ -12,15 +12,35 @@ export default function MusicPlayer() {
     audio.loop = true;
   }, []);
 
+  useEffect(() => {
+    const handleStart = () => {
+      const audio = audioRef.current;
+      if (!audio) return;
+      audio.play().then(() => setPlaying(true)).catch(() => {});
+    };
+    const handleStop = () => {
+      const audio = audioRef.current;
+      if (!audio) return;
+      audio.pause();
+      setPlaying(false);
+    };
+    window.addEventListener('startBGM', handleStart);
+    window.addEventListener('stopBGM', handleStop);
+    return () => {
+      window.removeEventListener('startBGM', handleStart);
+      window.removeEventListener('stopBGM', handleStop);
+    };
+  }, []);
+
   const toggle = () => {
     const audio = audioRef.current;
     if (!audio) return;
     if (playing) {
       audio.pause();
+      setPlaying(false);
     } else {
-      audio.play().catch(() => {});
+      audio.play().then(() => setPlaying(true)).catch(() => {});
     }
-    setPlaying(!playing);
   };
 
   return (

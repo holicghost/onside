@@ -1,4 +1,5 @@
 import "./globals.css";
+import MusicPlayer from "./components/MusicPlayer";
 
 export const metadata = {
   title: "RØDE 유인원 컵 경매",
@@ -32,6 +33,7 @@ export default function RootLayout({ children }) {
         className="min-h-full flex flex-col"
         style={{ fontFamily: "'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif", backgroundColor: '#0f0f1a', color: '#f0f0f0' }}
       >
+        <MusicPlayer />
         <div className="flex-1">{children}</div>
         <footer className="py-4 text-center text-gray-600" style={{ fontSize: '14px' }}>
           © 2026 ONSIDE. All rights reserved.

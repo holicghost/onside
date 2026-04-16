@@ -88,6 +88,7 @@ export default function LobbyPage() {
       const j = Math.floor(Math.random() * (i + 1));
       [ids[i], ids[j]] = [ids[j], ids[i]];
     }
+    window.dispatchEvent(new Event('startBGM'));
     await update(ref(db), {
       [`rooms/${code}/captainOrder`]: ids,
       [`rooms/${code}/lobby/countdownStartedAt`]: Date.now(),
