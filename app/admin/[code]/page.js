@@ -45,7 +45,7 @@ function HeroPicker({ heroIds, onChange }) {
         return (
           <div key={hi} className="flex flex-col items-center gap-1 flex-1">
             <div className="relative w-12 h-12 rounded-lg overflow-hidden bg-gray-700 flex items-center justify-center">
-              <span className="text-gray-600 text-lg">?</span>
+              {!portraitUrl && <span className="text-gray-600 text-xs">없음</span>}
               {portraitUrl && (
                 <img src={portraitUrl} alt={hero?.name} className="absolute inset-0 w-full h-full object-cover"
                   onError={e => e.currentTarget.remove()} />
@@ -53,7 +53,7 @@ function HeroPicker({ heroIds, onChange }) {
             </div>
             <select value={hid} onChange={e => handleChange(hi, e.target.value)}
               className="w-full px-1 py-1 text-xs bg-gray-800 border border-gray-600 rounded-lg focus:outline-none">
-              <option value="">{hi + 1}픽</option>
+              <option value="">없음</option>
               <optgroup label="탱커">
                 {ALL_HEROES.filter(h => h.role === 'tank').map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
               </optgroup>

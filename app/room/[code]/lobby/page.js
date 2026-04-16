@@ -122,7 +122,7 @@ export default function LobbyPage() {
 
       {/* Broadcasting warning */}
       <div className="w-full max-w-2xl mb-8">
-        <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-yellow-900/40 border border-yellow-700/60 text-yellow-400 text-sm font-bold">
+        <div className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-yellow-900/40 border border-yellow-700/60 text-yellow-400 text-sm font-bold text-center">
           <span>⚠️</span>
           <span>방송 중이라면 화면의 방 코드와 링크가 노출되지 않도록 주의하세요!</span>
         </div>
