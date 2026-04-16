@@ -101,7 +101,7 @@ export default function LobbyPage() {
   const resumeLobbyCountdown = async () => {
     if (countdownPausedRemaining === null) return;
     await update(ref(db), {
-      [`rooms/${code}/lobby/countdownStartedAt`]: Date.now() - (10000 - countdownPausedRemaining),
+      [`rooms/${code}/lobby/countdownStartedAt`]: Date.now() - (15000 - countdownPausedRemaining),
       [`rooms/${code}/lobby/countdownPausedRemaining`]: null,
     });
   };

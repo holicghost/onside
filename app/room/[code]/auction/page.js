@@ -985,7 +985,7 @@ export default function AuctionPage() {
                             <div key={p.id} className={`flex items-center gap-1.5 py-1 px-1 rounded-lg ${p.soldTo ? 'bg-green-950/40' : p.soldPrice === null && passedPlayers.some(pp => pp.id === p.id) ? 'bg-gray-800/60' : 'bg-gray-900/60'}`}>
                               {p.photo ? <img src={p.photo} alt={p.name} className="w-5 h-5 rounded-full object-cover flex-shrink-0" /> : <span className="text-sm flex-shrink-0">👤</span>}
                               {soldCap ? (
-                                <p className="text-sm font-bold text-green-400 truncate flex-1">{p.name} → {soldCap.name} {p.soldPrice}pt</p>
+                                <p className="text-sm font-bold text-green-400 truncate flex-1">{p.name} → {soldCap.name} 팀</p>
                               ) : !p.soldTo && passedPlayers.some(pp => pp.id === p.id) ? (
                                 <p className="text-sm font-bold text-gray-500 truncate flex-1 line-through">{p.name} → 유찰</p>
                               ) : (
@@ -1010,7 +1010,7 @@ export default function AuctionPage() {
                             <div key={p.id} className={`flex items-center gap-1.5 py-1 px-1 rounded-lg ${p.soldTo ? 'bg-green-950/40' : !p.soldTo && passedPlayers.some(pp => pp.id === p.id) ? 'bg-gray-800/60' : 'bg-gray-900/60'}`}>
                               {p.photo ? <img src={p.photo} alt={p.name} className="w-5 h-5 rounded-full object-cover flex-shrink-0" /> : <span className="text-sm flex-shrink-0">👤</span>}
                               {soldCap ? (
-                                <p className="text-sm font-bold text-green-400 truncate flex-1">{p.name} → {soldCap.name} {p.soldPrice}pt</p>
+                                <p className="text-sm font-bold text-green-400 truncate flex-1">{p.name} → {soldCap.name} 팀</p>
                               ) : !p.soldTo && passedPlayers.some(pp => pp.id === p.id) ? (
                                 <p className="text-sm font-bold text-gray-500 truncate flex-1 line-through">{p.name} → 유찰</p>
                               ) : (
@@ -1036,7 +1036,7 @@ export default function AuctionPage() {
                           <div key={p.id} className={`flex items-center gap-1.5 py-1 px-1 rounded-lg ${p.soldTo ? 'bg-green-950/40' : !p.soldTo && passedPlayers.some(pp => pp.id === p.id) ? 'bg-gray-800/60' : 'bg-gray-900/60'}`}>
                             {p.photo ? <img src={p.photo} alt={p.name} className="w-5 h-5 rounded-full object-cover flex-shrink-0" /> : <span className="text-sm flex-shrink-0">👤</span>}
                             {soldCap ? (
-                              <p className="text-sm font-bold text-green-400 truncate flex-1">{p.name} → {soldCap.name} {p.soldPrice}pt</p>
+                              <p className="text-sm font-bold text-green-400 truncate flex-1">{p.name} → {soldCap.name} 팀</p>
                             ) : !p.soldTo && passedPlayers.some(pp => pp.id === p.id) ? (
                               <p className="text-sm font-bold text-gray-500 truncate flex-1 line-through">{p.name} → 유찰</p>
                             ) : (
