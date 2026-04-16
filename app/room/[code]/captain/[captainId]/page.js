@@ -241,6 +241,52 @@ export default function CaptainPage() {
     sendingRef.current = false;
   };
 
+  // ── Derived state — useMemo prevents recompute on every 100ms timer tick ──
+  const myCaptain = captains[captainId];
+  const captainsList = useMemo(() => Object.entries(captains).map(([id, c]) => ({ id, ...c })), [captains]);
+  const currentPlayer = auction?.currentPlayerId ? players[auction.currentPlayerId] : null;
+  // Duplicate line restriction: is this captain already holding the current player's line?
+  const myLineDuplicate = useMemo(() => {
+    if (!captainId || !currentPlayer?.tierType || !currentPlayer?.position) return false;
+    const playerLine = `${currentPlayer.tierType} ${currentPlayer.position}`;
+    return Object.values(players).some(p => p.soldTo === captainId && `${p.tierType} ${p.position}` === playerLine);
+  }, [captainId, currentPlayer, players]);
+  const playerOrder = useMemo(() => toArr(auction?.playerOrder), [auction?.playerOrder]);
+  const currentIdx = auction?.currentIndex || 0;
+  const queuePlayers = useMemo(() => playerOrder.slice(currentIdx + 1).map(pid => players[pid]).filter(Boolean), [playerOrder, currentIdx, players]);
+  const nextQueuePlayer = queuePlayers[0] || null;
+  const historyList = useMemo(() => auction?.history ? Object.values(auction.history).sort((a, b) => b.timestamp - a.timestamp) : [], [auction?.history]);
+  const processedCount = ['passed', 'sold', 'done'].includes(auction?.status) ? currentIdx + 1 : currentIdx;
+  const passedPlayers = useMemo(() => playerOrder.slice(0, processedCount).map(pid => players[pid]).filter(p => p && !p.soldTo), [playerOrder, processedCount, players]);
+  const unsoldPlayers = useMemo(() => Object.values(players).filter(p => !p.soldTo), [players]);
+  const curBid = auction?.currentBid || 0;
+  const myBudget = myCaptain?.budget || 0;
+  const restQueue = useMemo(() => queuePlayers.slice(1), [queuePlayers]);
+  const groupedQueue = useMemo(() => QUEUE_GROUPS
+    .map(key => ({ key, players: restQueue.filter(p => `${p.tierType} ${p.position}` === key) }))
+    .filter(g => g.players.length > 0), [restQueue]);
+  const ungroupedQueue = useMemo(() => restQueue.filter(p => !QUEUE_GROUPS.includes(`${p.tierType} ${p.position}`)), [restQueue]);
+  const quickBids = useMemo(() => [
+    { label: '+10',  val: curBid + 10 },
+    { label: '+20',  val: curBid + 20 },
+    { label: '+50',  val: curBid + 50 },
+    { label: '최대', val: Math.floor(myBudget / 10) * 10 },
+  ].filter(q => q.val > curBid && q.val <= myBudget), [curBid, myBudget]);
+  const bidderCap = auction?.currentBidCaptainId ? captains[auction.currentBidCaptainId] : null;
+  const displayTime = (timeLeft / 1000).toFixed(1);
+  const displayCountdown = Math.ceil(countdownLeft / 1000);
+
+  const statusLabel = { idle: '⏳ 대기 중', countdown: '⏱ 경매 준비', bidding: '🔨 경매 중', paused: '⏸ 일시정지', sold: '✅ 낙찰', passed: '⏭ 유찰', done: '🏆 완료' };
+  const statusColor = {
+    idle: 'bg-gray-800 text-gray-400',
+    countdown: 'bg-yellow-900/60 text-yellow-300 border border-yellow-700',
+    bidding: 'bg-green-900/60 text-green-300 border border-green-700',
+    paused: 'bg-orange-900/60 text-orange-300 border border-orange-700',
+    sold: 'bg-blue-900/60 text-blue-300 border border-blue-700',
+    passed: 'bg-gray-700/60 text-gray-400',
+    done: 'bg-purple-900/60 text-purple-300 border border-purple-700',
+  };
+
   // ── Auth gates ──
   if (authStep === 'loading') {
     return (
@@ -337,52 +383,6 @@ export default function CaptainPage() {
       </div>
     );
   }
-
-  // ── Derived state — useMemo prevents recompute on every 100ms timer tick ──
-  const myCaptain = captains[captainId];
-  const captainsList = useMemo(() => Object.entries(captains).map(([id, c]) => ({ id, ...c })), [captains]);
-  const currentPlayer = auction?.currentPlayerId ? players[auction.currentPlayerId] : null;
-  // Duplicate line restriction: is this captain already holding the current player's line?
-  const myLineDuplicate = useMemo(() => {
-    if (!captainId || !currentPlayer?.tierType || !currentPlayer?.position) return false;
-    const playerLine = `${currentPlayer.tierType} ${currentPlayer.position}`;
-    return Object.values(players).some(p => p.soldTo === captainId && `${p.tierType} ${p.position}` === playerLine);
-  }, [captainId, currentPlayer, players]);
-  const playerOrder = useMemo(() => toArr(auction?.playerOrder), [auction?.playerOrder]);
-  const currentIdx = auction?.currentIndex || 0;
-  const queuePlayers = useMemo(() => playerOrder.slice(currentIdx + 1).map(pid => players[pid]).filter(Boolean), [playerOrder, currentIdx, players]);
-  const nextQueuePlayer = queuePlayers[0] || null;
-  const historyList = useMemo(() => auction?.history ? Object.values(auction.history).sort((a, b) => b.timestamp - a.timestamp) : [], [auction?.history]);
-  const processedCount = ['passed', 'sold', 'done'].includes(auction?.status) ? currentIdx + 1 : currentIdx;
-  const passedPlayers = useMemo(() => playerOrder.slice(0, processedCount).map(pid => players[pid]).filter(p => p && !p.soldTo), [playerOrder, processedCount, players]);
-  const unsoldPlayers = useMemo(() => Object.values(players).filter(p => !p.soldTo), [players]);
-  const curBid = auction?.currentBid || 0;
-  const myBudget = myCaptain?.budget || 0;
-  const restQueue = useMemo(() => queuePlayers.slice(1), [queuePlayers]);
-  const groupedQueue = useMemo(() => QUEUE_GROUPS
-    .map(key => ({ key, players: restQueue.filter(p => `${p.tierType} ${p.position}` === key) }))
-    .filter(g => g.players.length > 0), [restQueue]);
-  const ungroupedQueue = useMemo(() => restQueue.filter(p => !QUEUE_GROUPS.includes(`${p.tierType} ${p.position}`)), [restQueue]);
-  const quickBids = useMemo(() => [
-    { label: '+10',  val: curBid + 10 },
-    { label: '+20',  val: curBid + 20 },
-    { label: '+50',  val: curBid + 50 },
-    { label: '최대', val: Math.floor(myBudget / 10) * 10 },
-  ].filter(q => q.val > curBid && q.val <= myBudget), [curBid, myBudget]);
-  const bidderCap = auction?.currentBidCaptainId ? captains[auction.currentBidCaptainId] : null;
-  const displayTime = (timeLeft / 1000).toFixed(1);
-  const displayCountdown = Math.ceil(countdownLeft / 1000);
-
-  const statusLabel = { idle: '⏳ 대기 중', countdown: '⏱ 경매 준비', bidding: '🔨 경매 중', paused: '⏸ 일시정지', sold: '✅ 낙찰', passed: '⏭ 유찰', done: '🏆 완료' };
-  const statusColor = {
-    idle: 'bg-gray-800 text-gray-400',
-    countdown: 'bg-yellow-900/60 text-yellow-300 border border-yellow-700',
-    bidding: 'bg-green-900/60 text-green-300 border border-green-700',
-    paused: 'bg-orange-900/60 text-orange-300 border border-orange-700',
-    sold: 'bg-blue-900/60 text-blue-300 border border-blue-700',
-    passed: 'bg-gray-700/60 text-gray-400',
-    done: 'bg-purple-900/60 text-purple-300 border border-purple-700',
-  };
 
   // ── PlayerCard (identical to auction page) ──
   const PlayerCard = ({ player }) => {
