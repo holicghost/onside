@@ -17,7 +17,7 @@ const TIER_POS_STYLES = {
   '저티어 힐러': 'bg-green-900/70 text-green-200 border-green-700/60',
 };
 
-const STATUS_LABEL = { idle: '⏳ 대기 중', countdown: '⏱ 경매 준비', bidding: '🔨 경매 중', paused: '⏸ 일시정지', sold: '✅ 낙찰', passed: '⏭ 유찰', done: '🏆 완료' };
+const STATUS_LABEL = { idle: '⏳ 대기 중', countdown: '⏱ 경매 준비', bidding: '🔨 경매 중', paused: '⏸ 일시정지', sold: '✅ 낙찰', passed: '⏭ 유찰', waiting: '⏳ 다음 경매 대기', pending_reauction: '🔄 유찰 경매 대기', done: '🏆 완료' };
 const STATUS_COLOR = {
   idle: 'bg-gray-800 text-gray-400',
   countdown: 'bg-yellow-900/60 text-yellow-300 border border-yellow-700',
@@ -25,6 +25,8 @@ const STATUS_COLOR = {
   paused: 'bg-orange-900/60 text-orange-300 border border-orange-700',
   sold: 'bg-blue-900/60 text-blue-300 border border-blue-700',
   passed: 'bg-gray-700/60 text-gray-400',
+  waiting: 'bg-gray-800 text-gray-400',
+  pending_reauction: 'bg-yellow-900/60 text-yellow-300 border border-yellow-700',
   done: 'bg-purple-900/60 text-purple-300 border border-purple-700',
 };
 
@@ -62,7 +64,7 @@ function BlurCode({ text, className = '' }) {
 
 function PlayerCard({ player, curBid, auction, bidderCap, captainId }) {
   if (!player) return null;
-  const heroIdsList = toArr(player.heroIds).filter(Boolean);
+  const heroIdsList = toArr(player.heroIds).filter(Boolean).slice(0, 2);
   return (
     <div className="relative w-full bg-gray-900 rounded-2xl border border-gray-700 overflow-hidden">
       <div className="flex gap-4 p-5">
@@ -241,7 +243,6 @@ export default function CaptainPage() {
     { label: '+10',  val: curBid + 10 },
     { label: '+20',  val: curBid + 20 },
     { label: '+50',  val: curBid + 50 },
-    { label: '최대', val: Math.floor(myBudget / 10) * 10 },
   ].filter(q => q.val > curBid && q.val <= myBudget), [curBid, myBudget]);
   const bidderCap = auction?.currentBidCaptainId ? captains[auction.currentBidCaptainId] : null;
   const bidLogList = useMemo(() => auction?.bidLog ? Object.values(auction.bidLog).sort((a, b) => b.timestamp - a.timestamp).slice(0, 10) : [], [auction?.bidLog]);
@@ -574,17 +575,16 @@ export default function CaptainPage() {
                   </div>
                 </div>
                 {teamPlayers.length > 0
-                  ? <div className="space-y-1.5 border-t border-gray-700 pt-2">
+                  ? <div className="grid grid-cols-2 gap-2 border-t border-gray-700 pt-2">
                       {teamPlayers.map(p => (
-                        <div key={p.id} className="flex items-center gap-2 text-base">
-                          {p.photo ? <img src={p.photo} alt={p.name} className="w-6 h-6 rounded-full object-cover flex-shrink-0" /> : <span className="flex-shrink-0">👤</span>}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-gray-300 truncate leading-tight">{p.name}</p>
+                        <div key={p.id} className="flex items-center gap-1.5">
+                          {p.photo ? <img src={p.photo} alt={p.name} className="w-5 h-5 rounded-full object-cover flex-shrink-0" /> : <span className="text-sm flex-shrink-0">👤</span>}
+                          <div className="min-w-0">
+                            <p className="text-sm text-gray-300 truncate leading-tight">{p.name}</p>
                             {(p.tierType || p.position) && (
-                              <span className="text-sm text-gray-600 font-bold">{[p.tierType, p.position].filter(Boolean).join(' ')}</span>
+                              <span className="text-xs text-gray-600 font-bold">{[p.tierType, p.position].filter(Boolean).join(' ')}</span>
                             )}
                           </div>
-                          <span className="text-orange-400 font-bold flex-shrink-0">{p.soldPrice}P</span>
                         </div>
                       ))}
                     </div>
@@ -735,6 +735,31 @@ export default function CaptainPage() {
             </div>
           )}
 
+          {/* Pending re-auction overlay */}
+          {auction?.status === 'pending_reauction' && (
+            <div className="fixed inset-0 z-40 flex items-center justify-center pointer-events-none" style={{ background: 'rgba(0,0,0,0.7)' }}>
+              <div className="text-center bg-gray-900 border border-yellow-700 rounded-2xl px-10 py-8 shadow-2xl animate-modal-in space-y-4 max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto">
+                <p className="text-4xl">🔄</p>
+                <p className="text-yellow-400 font-black text-2xl">지금부터 유찰 선수 경매를 시작합니다</p>
+                <div className="space-y-2 mt-4">
+                  <p className="text-gray-400 text-sm font-bold">유찰 선수 목록</p>
+                  <div className="space-y-1">
+                    {Object.entries(players).filter(([, p]) => !p.soldTo).map(([id, p]) => (
+                      <div key={id} className="flex items-center gap-2 bg-gray-800/60 rounded-lg px-3 py-2">
+                        {p.photo ? <img src={p.photo} alt={p.name} className="w-6 h-6 rounded-full object-cover flex-shrink-0" /> : <span className="text-sm flex-shrink-0">👤</span>}
+                        <span className="text-white text-base font-bold truncate">{p.name}</span>
+                        {(p.tierType || p.position) && (
+                          <span className="text-sm text-gray-500">{[p.tierType, p.position].filter(Boolean).join(' ')}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-gray-500 text-base mt-4 animate-pulse">대기 중...</p>
+              </div>
+            </div>
+          )}
+
           {/* Bid UI — captain only */}
           {auction?.status === 'bidding' && (
             <div className="space-y-3">
@@ -749,7 +774,7 @@ export default function CaptainPage() {
               ) : (
                 <>
                   {bidError && <p className="text-red-400 text-center text-sm">{bidError}</p>}
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     {quickBids.map(q => (
                       <button key={q.label}
                         onClick={() => placeBid(q.val)}

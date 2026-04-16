@@ -49,7 +49,7 @@ function BlurCode({ text, className = '' }) {
   );
 }
 
-const STATUS_LABEL = { idle: '⏳ 대기 중', countdown: '⏱ 경매 준비', countdown_paused: '⏸ 대기 일시정지', bidding: '🔨 경매 중', paused: '⏸ 일시정지', sold: '✅ 낙찰', passed: '⏭ 유찰', done: '🏆 완료' };
+const STATUS_LABEL = { idle: '⏳ 대기 중', countdown: '⏱ 경매 준비', countdown_paused: '⏸ 대기 일시정지', bidding: '🔨 경매 중', paused: '⏸ 일시정지', sold: '✅ 낙찰', passed: '⏭ 유찰', waiting: '⏳ 다음 경매 대기', pending_reauction: '🔄 유찰 경매 대기', done: '🏆 완료' };
 const STATUS_COLOR = {
   idle: 'bg-gray-800 text-gray-400',
   countdown: 'bg-yellow-900/60 text-yellow-300 border border-yellow-700',
@@ -58,12 +58,14 @@ const STATUS_COLOR = {
   paused: 'bg-orange-900/60 text-orange-300 border border-orange-700',
   sold: 'bg-blue-900/60 text-blue-300 border border-blue-700',
   passed: 'bg-gray-700/60 text-gray-400',
+  waiting: 'bg-gray-800 text-gray-400',
+  pending_reauction: 'bg-yellow-900/60 text-yellow-300 border border-yellow-700',
   done: 'bg-purple-900/60 text-purple-300 border border-purple-700',
 };
 
 function AuctionPlayerCard({ player, curBid, auction, bidderCap }) {
   if (!player) return null;
-  const heroIdsList = toArr(player.heroIds).filter(Boolean);
+  const heroIdsList = toArr(player.heroIds).filter(Boolean).slice(0, 2);
   return (
     <div className="relative w-full bg-gray-900 rounded-2xl border border-gray-700 overflow-hidden">
       <div className="flex gap-4 p-5">
@@ -395,21 +397,10 @@ export default function AuctionPage() {
         checkViableBids(unsoldEntries, currentCaptains, currentPlayers);
 
       if (anyViable) {
-        const unsoldMap = Object.fromEntries(unsoldEntries);
-        const ordered = buildPlayerOrder(unsoldMap);
         await update(ref(db), {
-          [`rooms/${code}/auction/playerOrder`]: ordered,
-          [`rooms/${code}/auction/currentIndex`]: 0,
-          [`rooms/${code}/auction/currentPlayerId`]: ordered[0],
-          [`rooms/${code}/auction/status`]: 'bidding',
-          [`rooms/${code}/auction/currentBid`]: 0,
-          [`rooms/${code}/auction/currentBidCaptainId`]: null,
+          [`rooms/${code}/auction/status`]: 'pending_reauction',
+          [`rooms/${code}/auction/timerEnd`]: null,
           [`rooms/${code}/auction/countdownEnd`]: null,
-          [`rooms/${code}/auction/timerEnd`]: Date.now() + 15000,
-          [`rooms/${code}/auction/bidLog`]: null,
-          [`rooms/${code}/auction/isReAuction`]: true,
-          [`rooms/${code}/auction/roundStartUnsoldCount`]: unsoldEntries.length,
-          [`rooms/${code}/info/status`]: 'auction',
         });
       } else {
         await update(ref(db), {
@@ -492,6 +483,69 @@ export default function AuctionPage() {
     });
   };
 
+  const [redoConfirm, setRedoConfirm] = useState(false);
+  const redoPreviousAuction = async () => {
+    const a = auctionRef.current;
+    if (!a) return;
+    const order = toArr(a.playerOrder);
+    const curIdx = a.currentIndex || 0;
+    if (curIdx <= 0) return;
+    const prevIdx = curIdx - 1;
+    const prevPlayerId = order[prevIdx];
+    const prevPlayer = playersRef.current[prevPlayerId];
+    const updates = {};
+    updates[`rooms/${code}/players/${prevPlayerId}/soldTo`] = null;
+    updates[`rooms/${code}/players/${prevPlayerId}/soldPrice`] = null;
+    if (prevPlayer?.soldTo && prevPlayer?.soldPrice) {
+      const cap = captainsRef.current[prevPlayer.soldTo];
+      if (cap) {
+        updates[`rooms/${code}/captains/${prevPlayer.soldTo}/budget`] = (cap.budget || 0) + prevPlayer.soldPrice;
+      }
+    }
+    const history = a.history;
+    if (history) {
+      const entries = Object.entries(history).sort(([, a], [, b]) => b.timestamp - a.timestamp);
+      const lastEntry = entries.find(([, h]) => h.playerId === prevPlayerId);
+      if (lastEntry) {
+        updates[`rooms/${code}/auction/history/${lastEntry[0]}`] = null;
+      }
+    }
+    // Set index to one BEFORE the target so goToNextPlayer advances to the right player
+    updates[`rooms/${code}/auction/currentIndex`] = Math.max(0, prevIdx - 1);
+    updates[`rooms/${code}/auction/currentPlayerId`] = prevIdx > 0 ? order[prevIdx - 1] : prevPlayerId;
+    updates[`rooms/${code}/auction/status`] = 'sold';
+    updates[`rooms/${code}/auction/currentBid`] = 0;
+    updates[`rooms/${code}/auction/currentBidCaptainId`] = null;
+    updates[`rooms/${code}/auction/countdownEnd`] = null;
+    updates[`rooms/${code}/auction/timerEnd`] = null;
+    updates[`rooms/${code}/auction/bidLog`] = null;
+    await update(ref(db), updates);
+    setRedoConfirm(false);
+  };
+
+  const startReAuction = async () => {
+    const currentPlayers = playersRef.current;
+    const currentCaptains = captainsRef.current;
+    const unsoldEntries = Object.entries(currentPlayers).filter(([, p]) => !p.soldTo);
+    if (unsoldEntries.length === 0) return;
+    const unsoldMap = Object.fromEntries(unsoldEntries);
+    const ordered = buildPlayerOrder(unsoldMap);
+    await update(ref(db), {
+      [`rooms/${code}/auction/playerOrder`]: ordered,
+      [`rooms/${code}/auction/currentIndex`]: 0,
+      [`rooms/${code}/auction/currentPlayerId`]: ordered[0],
+      [`rooms/${code}/auction/status`]: 'bidding',
+      [`rooms/${code}/auction/currentBid`]: 0,
+      [`rooms/${code}/auction/currentBidCaptainId`]: null,
+      [`rooms/${code}/auction/countdownEnd`]: null,
+      [`rooms/${code}/auction/timerEnd`]: Date.now() + 15000,
+      [`rooms/${code}/auction/bidLog`]: null,
+      [`rooms/${code}/auction/isReAuction`]: true,
+      [`rooms/${code}/auction/roundStartUnsoldCount`]: unsoldEntries.length,
+      [`rooms/${code}/info/status`]: 'auction',
+    });
+  };
+
   const placeBid = async (amount) => {
     setBidError('');
     const a = auction;
@@ -563,7 +617,6 @@ export default function AuctionPage() {
     { label: '+10',  val: curBid + 10 },
     { label: '+20',  val: curBid + 20 },
     { label: '+50',  val: curBid + 50 },
-    { label: '최대', val: Math.floor(myBudget / 10) * 10 },
   ].filter(q => q.val > curBid && q.val <= myBudget), [curBid, myBudget]);
 
   const displayTime = (timeLeft / 1000).toFixed(1);
@@ -750,9 +803,14 @@ export default function AuctionPage() {
                 />
               </div>
               {role === 'admin' && (
-                <button onClick={pauseCountdown} className="px-6 py-2 text-base font-bold bg-orange-700 hover:bg-orange-600 rounded-xl transition-all">
-                  ⏸ 대기 일시정지
-                </button>
+                <div className="flex gap-2 justify-center">
+                  <button onClick={pauseCountdown} className="px-6 py-2 text-base font-bold bg-orange-700 hover:bg-orange-600 rounded-xl transition-all">
+                    ⏸ 대기 일시정지
+                  </button>
+                  <button onClick={startBidding} className="px-6 py-2 text-base font-bold bg-green-600 hover:bg-green-500 rounded-xl transition-all">
+                    ⚡ 즉시 시작
+                  </button>
+                </div>
               )}
             </div>
           )}
@@ -844,6 +902,37 @@ export default function AuctionPage() {
             </div>
           )}
 
+          {/* Pending re-auction overlay */}
+          {auction?.status === 'pending_reauction' && (
+            <div className="fixed inset-0 z-40 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.7)' }}>
+              <div className="pointer-events-auto text-center bg-gray-900 border border-yellow-700 rounded-2xl px-10 py-8 shadow-2xl animate-modal-in space-y-4 max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto">
+                <p className="text-4xl">🔄</p>
+                <p className="text-yellow-400 font-black text-2xl">지금부터 유찰 선수 경매를 시작합니다</p>
+                <div className="space-y-2 mt-4">
+                  <p className="text-gray-400 text-sm font-bold">유찰 선수 목록</p>
+                  <div className="space-y-1">
+                    {Object.entries(players).filter(([, p]) => !p.soldTo).map(([id, p]) => (
+                      <div key={id} className="flex items-center gap-2 bg-gray-800/60 rounded-lg px-3 py-2">
+                        {p.photo ? <img src={p.photo} alt={p.name} className="w-6 h-6 rounded-full object-cover flex-shrink-0" /> : <span className="text-sm flex-shrink-0">👤</span>}
+                        <span className="text-white text-base font-bold truncate">{p.name}</span>
+                        {(p.tierType || p.position) && (
+                          <span className="text-sm text-gray-500">{[p.tierType, p.position].filter(Boolean).join(' ')}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {role === 'admin' ? (
+                  <button onClick={startReAuction} className="mt-4 px-8 py-3 text-lg font-bold bg-yellow-600 hover:bg-yellow-500 text-white rounded-xl transition-all">
+                    🔨 유찰 경매 시작
+                  </button>
+                ) : (
+                  <p className="text-gray-500 text-base mt-4 animate-pulse">대기 중...</p>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Captain bid UI */}
           {role === 'captain' && auction?.status === 'bidding' && captainId && (
             <div className="space-y-3 animate-modal-in">
@@ -858,7 +947,7 @@ export default function AuctionPage() {
               ) : (
                 <>
                   {bidError && <p className="text-red-400 text-center text-sm">{bidError}</p>}
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     {quickBids.map(q => (
                       <button key={q.label}
                         onClick={() => placeBid(q.val)}
@@ -922,6 +1011,24 @@ export default function AuctionPage() {
 
           {(!auction || auction?.status === 'idle') && role !== 'admin' && (
             <div className="text-center py-16 text-gray-600 text-lg">관리자가 경매를 시작할 때까지 대기하세요.</div>
+          )}
+
+          {/* ↩ 이전 경매 — always visible to admin when currentIndex > 0 */}
+          {role === 'admin' && auction && (auction.currentIndex || 0) > 0 && auction.status !== 'idle' && (
+            <div className="mt-2">
+              {!redoConfirm ? (
+                <button onClick={() => setRedoConfirm(true)}
+                  className="px-4 py-2 text-sm font-bold bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-xl transition-all">
+                  ↩ 이전 경매
+                </button>
+              ) : (
+                <div className="flex items-center gap-2 bg-gray-800 rounded-xl p-3">
+                  <span className="text-gray-300 text-sm">이전 선수 경매를 다시 시작하시겠습니까?</span>
+                  <button onClick={redoPreviousAuction} className="px-3 py-1.5 text-sm font-bold bg-red-600 hover:bg-red-500 rounded-lg transition-all">확인</button>
+                  <button onClick={() => setRedoConfirm(false)} className="px-3 py-1.5 text-sm bg-gray-600 hover:bg-gray-500 rounded-lg transition-all">취소</button>
+                </div>
+              )}
+            </div>
           )}
         </main>
 
