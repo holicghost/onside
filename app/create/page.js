@@ -38,7 +38,7 @@ function HeroSlot({ hi, hid, heroIds, onChange }) {
   return (
     <div className="flex flex-col items-center gap-1">
       <div className="relative w-14 h-14 rounded-lg overflow-hidden bg-gray-700 flex items-center justify-center flex-shrink-0">
-        {(!portraitUrl || imgError) && <span className="text-gray-600 text-xl">?</span>}
+        {(!portraitUrl || imgError) && <span className="text-gray-600 text-xs">없음</span>}
         {portraitUrl && !imgError && (
           <img
             src={portraitUrl}
@@ -65,7 +65,7 @@ function HeroSlot({ hi, hid, heroIds, onChange }) {
         }}
         className="w-full px-1 py-1 text-xs bg-gray-800 border border-gray-600 rounded-lg focus:outline-none focus:border-blue-400"
       >
-        <option value="">{hi + 1}픽</option>
+        <option value="">없음</option>
         <optgroup label="탱커">
           {ALL_HEROES.filter(h => h.role === 'tank').map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
         </optgroup>
