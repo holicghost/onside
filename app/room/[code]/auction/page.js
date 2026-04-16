@@ -353,6 +353,7 @@ export default function AuctionPage() {
       [`rooms/${code}/auction/currentBidCaptainId`]: null,
       [`rooms/${code}/auction/countdownEnd`]: Date.now() + 10000,
       [`rooms/${code}/auction/timerEnd`]: null,
+      [`rooms/${code}/auction/bidLog`]: null,
       [`rooms/${code}/auction/roundStartUnsoldCount`]: Object.keys(players).length,
       [`rooms/${code}/auction/isReAuction`]: false,
     });
@@ -404,6 +405,7 @@ export default function AuctionPage() {
           [`rooms/${code}/auction/currentBidCaptainId`]: null,
           [`rooms/${code}/auction/countdownEnd`]: null,
           [`rooms/${code}/auction/timerEnd`]: Date.now() + 10000,
+          [`rooms/${code}/auction/bidLog`]: null,
           [`rooms/${code}/auction/isReAuction`]: true,
           [`rooms/${code}/auction/roundStartUnsoldCount`]: unsoldEntries.length,
           [`rooms/${code}/info/status`]: 'auction',
@@ -425,6 +427,7 @@ export default function AuctionPage() {
       [`rooms/${code}/auction/currentBidCaptainId`]: null,
       [`rooms/${code}/auction/countdownEnd`]: null,
       [`rooms/${code}/auction/timerEnd`]: Date.now() + 10000,
+      [`rooms/${code}/auction/bidLog`]: null,
     });
   }, [code]);
 
@@ -906,9 +909,9 @@ export default function AuctionPage() {
                 const prevCap = b.prevCaptainId ? captains[b.prevCaptainId] : null;
                 return (
                   <div key={b.timestamp} className="animate-modal-in" style={{ animationDelay: `${i * 0.03}s` }}>
-                    <p className="text-gray-500 text-sm leading-tight">
-                      {prevCap ? prevCap.name : '시작'}
-                    </p>
+                    {prevCap && (
+                      <p className="text-gray-500 text-sm leading-tight">{prevCap.name}</p>
+                    )}
                     <p className="text-base font-bold leading-tight">
                       <span className="text-gray-400">→ </span>
                       <span className="text-orange-400">{cap?.name || '?'}</span>

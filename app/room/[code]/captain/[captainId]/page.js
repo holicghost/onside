@@ -769,9 +769,9 @@ export default function CaptainPage() {
                 const prevCap = b.prevCaptainId ? captains[b.prevCaptainId] : null;
                 return (
                   <div key={b.timestamp} className="animate-modal-in" style={{ animationDelay: `${i * 0.03}s` }}>
-                    <p className="text-gray-500 text-sm leading-tight">
-                      {prevCap ? prevCap.name : '시작'}
-                    </p>
+                    {prevCap && (
+                      <p className="text-gray-500 text-sm leading-tight">{prevCap.name}</p>
+                    )}
                     <p className="text-base font-bold leading-tight">
                       <span className="text-gray-400">→ </span>
                       <span className="text-orange-400">{cap?.name || '?'}</span>
