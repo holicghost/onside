@@ -3,12 +3,21 @@ import { useState, useRef, useEffect } from 'react';
 
 export default function MusicPlayer() {
   const [playing, setPlaying] = useState(false);
+  const [volume, setVolume] = useState(50);
+  const [muted, setMuted] = useState(false);
+  const [showVolume, setShowVolume] = useState(false);
   const audioRef = useRef(null);
+  const hideTimer = useRef(null);
 
   useEffect(() => {
+    const saved = localStorage.getItem('bgm_volume');
+    const savedMute = localStorage.getItem('bgm_muted');
+    const vol = saved !== null ? Number(saved) : 50;
+    setVolume(vol);
+    setMuted(savedMute === 'true');
     const audio = audioRef.current;
     if (!audio) return;
-    audio.volume = 0.5;
+    audio.volume = savedMute === 'true' ? 0 : vol / 100;
     audio.loop = true;
   }, []);
 
@@ -32,6 +41,27 @@ export default function MusicPlayer() {
     };
   }, []);
 
+  const applyVolume = (vol, isMuted) => {
+    const audio = audioRef.current;
+    if (audio) audio.volume = isMuted ? 0 : vol / 100;
+  };
+
+  const handleVolumeChange = (e) => {
+    const vol = Number(e.target.value);
+    setVolume(vol);
+    setMuted(false);
+    applyVolume(vol, false);
+    localStorage.setItem('bgm_volume', String(vol));
+    localStorage.setItem('bgm_muted', 'false');
+  };
+
+  const toggleMute = () => {
+    const next = !muted;
+    setMuted(next);
+    applyVolume(volume, next);
+    localStorage.setItem('bgm_muted', String(next));
+  };
+
   const toggle = () => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -43,25 +73,56 @@ export default function MusicPlayer() {
     }
   };
 
+  const handleMouseEnter = () => {
+    clearTimeout(hideTimer.current);
+    setShowVolume(true);
+  };
+  const handleMouseLeave = () => {
+    hideTimer.current = setTimeout(() => setShowVolume(false), 600);
+  };
+
   return (
-    <div className="fixed top-3 right-3 z-50">
-      <button
-        onClick={toggle}
-        className="flex items-center gap-2 px-3 py-2 rounded-full transition-all hover:scale-105 active:scale-95"
-        style={{ background: 'rgba(15,15,26,0.85)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(8px)' }}
+    <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-1"
+      onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
+      <div
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full transition-all"
+        style={{ background: 'rgba(15,15,26,0.9)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(8px)' }}
       >
-        <span className={`text-base ${playing ? 'animate-spin-slow text-orange-400' : 'text-gray-500'}`}>
-          🎵
+        <button onClick={toggle} className="flex items-center gap-1.5 hover:scale-105 active:scale-95 transition-transform">
+          <span className={`text-sm ${playing ? 'animate-spin-slow text-orange-400' : 'text-gray-500'}`}>🎵</span>
+          <span className="hidden sm:inline text-[11px] font-bold text-gray-400 max-w-[100px] truncate">OWCS War Gamer</span>
+          <span className={`w-4.5 h-4.5 flex items-center justify-center rounded-full text-[10px] font-black flex-shrink-0 ${
+            playing ? 'bg-orange-500 text-white' : 'bg-gray-700 text-gray-400'
+          }`}>
+            {playing ? '⏸' : '▶'}
+          </span>
+        </button>
+
+        <div className="w-px h-3.5 bg-gray-700 mx-0.5" />
+
+        <button onClick={toggleMute} className="text-sm hover:scale-110 active:scale-95 transition-transform flex-shrink-0"
+          title={muted ? '음소거 해제' : '음소거'}>
+          {muted || volume === 0 ? '🔇' : volume < 40 ? '🔈' : '🔊'}
+        </button>
+
+        <span className="text-[10px] font-bold text-gray-500 w-6 text-right tabular-nums flex-shrink-0">
+          {muted ? 0 : volume}
         </span>
-        <span className="hidden sm:inline text-xs font-bold text-gray-400 max-w-[140px] truncate">
-          OWCS War Gamer
-        </span>
-        <span className={`w-5 h-5 flex items-center justify-center rounded-full text-xs font-black flex-shrink-0 ${
-          playing ? 'bg-orange-500 text-white' : 'bg-gray-700 text-gray-400'
-        }`}>
-          {playing ? '⏸' : '▶'}
-        </span>
-      </button>
+      </div>
+
+      {showVolume && (
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full animate-modal-in"
+          style={{ background: 'rgba(15,15,26,0.9)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(8px)' }}>
+          <span className="text-[10px] text-gray-600">0</span>
+          <input
+            type="range" min="0" max="100" value={muted ? 0 : volume}
+            onChange={handleVolumeChange}
+            className="w-24 h-1 appearance-none bg-gray-700 rounded-full cursor-pointer accent-orange-500"
+          />
+          <span className="text-[10px] text-gray-600">100</span>
+        </div>
+      )}
+
       <audio ref={audioRef} src="/bgm.mp3" preload="none" />
     </div>
   );
