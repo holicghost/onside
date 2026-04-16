@@ -246,7 +246,7 @@ export default function CaptainPage() {
   ].filter(q => q.val > curBid && q.val <= myBudget), [curBid, myBudget]);
   const bidderCap = auction?.currentBidCaptainId ? captains[auction.currentBidCaptainId] : null;
   const displayTime = (timeLeft / 1000).toFixed(1);
-  const displayCountdown = Math.ceil(countdownLeft / 1000);
+  const displayCountdown = Math.min(10, Math.ceil(countdownLeft / 1000));
 
   // ── useEffect ──
   useEffect(() => { auctionRef.current = auction; }, [auction]);

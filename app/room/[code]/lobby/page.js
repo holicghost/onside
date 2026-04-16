@@ -64,7 +64,7 @@ export default function LobbyPage() {
     if (!countdownStartedAt) { setCountdown(null); return; }
     const DURATION = 10000;
     const tick = () => {
-      const remaining = Math.ceil((countdownStartedAt + DURATION - Date.now()) / 1000);
+      const remaining = Math.min(10, Math.ceil((countdownStartedAt + DURATION - Date.now()) / 1000));
       if (remaining <= 0) {
         setCountdown(0);
         if (roleRef.current === 'admin') {

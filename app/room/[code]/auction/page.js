@@ -570,7 +570,7 @@ export default function AuctionPage() {
   ].filter(q => q.val > curBid && q.val <= myBudget), [curBid, myBudget]);
 
   const displayTime = (timeLeft / 1000).toFixed(1);
-  const displayCountdown = Math.ceil(countdownLeft / 1000);
+  const displayCountdown = Math.min(10, Math.ceil(countdownLeft / 1000));
   const progressPct = maxDuration > 0 ? Math.max(0, (timeLeft / maxDuration) * 100) : 0;
 
 
