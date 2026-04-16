@@ -555,10 +555,12 @@ export default function AuctionPage() {
   const myBudget = myCaptain?.budget || 0;
   const offlineCaptains = useMemo(() => captainsList.filter(c => !c.online), [captainsList]);
   const restQueue = useMemo(() => queuePlayers.slice(1), [queuePlayers]);
-  const groupedQueue = useMemo(() => QUEUE_GROUPS
-    .map(key => ({ key, players: restQueue.filter(p => `${p.tierType} ${p.position}` === key) }))
-    .filter(g => g.players.length > 0), [restQueue]);
-  const ungroupedQueue = useMemo(() => restQueue.filter(p => !QUEUE_GROUPS.includes(`${p.tierType} ${p.position}`)), [restQueue]);
+  const allPlayersList = useMemo(() => Object.entries(players).map(([id, p]) => ({ id, ...p })), [players]);
+  const totalPlayerCount = allPlayersList.length;
+  const allGrouped = useMemo(() => QUEUE_GROUPS
+    .map(key => ({ key, players: allPlayersList.filter(p => `${p.tierType} ${p.position}` === key) }))
+    .filter(g => g.players.length > 0), [allPlayersList]);
+  const allUngrouped = useMemo(() => allPlayersList.filter(p => !QUEUE_GROUPS.includes(`${p.tierType} ${p.position}`)), [allPlayersList]);
   const quickBids = useMemo(() => [
     { label: '+10',  val: curBid + 10 },
     { label: '+20',  val: curBid + 20 },
@@ -814,9 +816,17 @@ export default function AuctionPage() {
           )}
 
           {auction?.status === 'paused' && (
-            <div className="text-center bg-orange-900/20 border border-orange-800 rounded-xl p-3">
-              <p className="text-orange-400 font-bold">⏸ 일시정지됨</p>
-              <p className="text-gray-500 text-sm">남은 시간: {((auction.pausedTimeLeft || 0) / 1000).toFixed(1)}초</p>
+            <div className="fixed inset-0 z-40 flex items-center justify-center pointer-events-none" style={{ background: 'rgba(0,0,0,0.6)' }}>
+              <div className="pointer-events-auto text-center bg-gray-900 border border-orange-700 rounded-2xl px-10 py-8 shadow-2xl animate-modal-in space-y-3">
+                <p className="text-5xl">⏸</p>
+                <p className="text-orange-400 font-black text-2xl">관리자가 경매를 일시정지 하였습니다</p>
+                <p className="text-gray-500 text-base">남은 시간: {((auction.pausedTimeLeft || 0) / 1000).toFixed(1)}초</p>
+                {role === 'admin' && (
+                  <button onClick={resumeAuction} className="mt-2 px-8 py-3 text-lg font-bold bg-green-600 hover:bg-green-500 rounded-xl transition-all">
+                    ▶ 재진행
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
@@ -926,96 +936,100 @@ export default function AuctionPage() {
             </div>
           )}
 
-          {/* Grouped waiting queue (excludes nextQueuePlayer) */}
+          {/* All players — 2-column: 고티어 | 저티어, with inline sold/passed status */}
           <div>
-            <h2 className="text-xl font-bold text-gray-300 sticky top-0 bg-[#0f0f1a] pb-2">
-              대기 <span className="text-orange-400">{queuePlayers.length}</span>명
+            <h2 className="text-xl font-bold text-gray-300 sticky top-0 bg-[#0f0f1a] pb-2 z-10">
+              총 <span className="text-orange-400">{totalPlayerCount}</span>명
             </h2>
-            {restQueue.length > 0 ? (
-              <div className="space-y-3">
-                {groupedQueue.map(g => (
-                  <div key={g.key}>
-                    <div className="flex items-center gap-1.5 mb-1.5">
-                      <span className={`px-2 py-0.5 text-sm font-black rounded-full border ${TIER_POS_STYLES[g.key] || 'bg-gray-700 text-gray-300 border-gray-600'}`}>
-                        {g.key}
-                      </span>
-                      <span className="text-gray-600 text-sm">{g.players.length}명</span>
-                    </div>
-                    <div className="space-y-1 pl-1">
-                      {g.players.map(p => (
-                        <div key={p.id} className="flex items-center gap-2 p-1.5 rounded-lg bg-gray-900/60">
-                          {p.photo ? <img src={p.photo} alt={p.name} className="w-6 h-6 rounded-full object-cover flex-shrink-0" /> : <span className="text-base flex-shrink-0">👤</span>}
-                          <p className="text-base font-bold text-white truncate flex-1">{p.name}</p>
-                          {p.tierCurrent && <p className="text-sm text-gray-500 flex-shrink-0">{p.tierCurrent}</p>}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-                {ungroupedQueue.length > 0 && (
-                  <div>
-                    <div className="flex items-center gap-1.5 mb-1.5">
+            {totalPlayerCount > 0 ? (
+              <div className="grid grid-cols-2 gap-x-2 gap-y-3">
+                {['딜러', '탱커', '힐러'].map(pos => {
+                  const high = allGrouped.find(g => g.key === `고티어 ${pos}`);
+                  const low = allGrouped.find(g => g.key === `저티어 ${pos}`);
+                  if (!high && !low) return null;
+                  return [
+                    <div key={`고티어-${pos}`}>
+                      <div className="flex items-center gap-1 mb-1">
+                        <span className={`px-2 py-0.5 text-sm font-black rounded-full border ${TIER_POS_STYLES[`고티어 ${pos}`] || 'bg-gray-700 text-gray-300 border-gray-600'}`}>
+                          고티어 {pos}
+                        </span>
+                        {high && <span className="text-gray-600 text-sm">{high.players.length}</span>}
+                      </div>
+                      <div className="space-y-0.5">
+                        {high ? high.players.map(p => {
+                          const soldCap = p.soldTo ? captains[p.soldTo] : null;
+                          return (
+                            <div key={p.id} className={`flex items-center gap-1.5 py-1 px-1 rounded-lg ${p.soldTo ? 'bg-green-950/40' : p.soldPrice === null && passedPlayers.some(pp => pp.id === p.id) ? 'bg-gray-800/60' : 'bg-gray-900/60'}`}>
+                              {p.photo ? <img src={p.photo} alt={p.name} className="w-5 h-5 rounded-full object-cover flex-shrink-0" /> : <span className="text-sm flex-shrink-0">👤</span>}
+                              {soldCap ? (
+                                <p className="text-sm font-bold text-green-400 truncate flex-1">{p.name} → {soldCap.name} {p.soldPrice}pt</p>
+                              ) : !p.soldTo && passedPlayers.some(pp => pp.id === p.id) ? (
+                                <p className="text-sm font-bold text-gray-500 truncate flex-1 line-through">{p.name} → 유찰</p>
+                              ) : (
+                                <p className="text-sm font-bold text-white truncate flex-1">{p.name}</p>
+                              )}
+                            </div>
+                          );
+                        }) : <p className="text-gray-700 text-xs py-1 px-1">—</p>}
+                      </div>
+                    </div>,
+                    <div key={`저티어-${pos}`}>
+                      <div className="flex items-center gap-1 mb-1">
+                        <span className={`px-2 py-0.5 text-sm font-black rounded-full border ${TIER_POS_STYLES[`저티어 ${pos}`] || 'bg-gray-700 text-gray-300 border-gray-600'}`}>
+                          저티어 {pos}
+                        </span>
+                        {low && <span className="text-gray-600 text-sm">{low.players.length}</span>}
+                      </div>
+                      <div className="space-y-0.5">
+                        {low ? low.players.map(p => {
+                          const soldCap = p.soldTo ? captains[p.soldTo] : null;
+                          return (
+                            <div key={p.id} className={`flex items-center gap-1.5 py-1 px-1 rounded-lg ${p.soldTo ? 'bg-green-950/40' : !p.soldTo && passedPlayers.some(pp => pp.id === p.id) ? 'bg-gray-800/60' : 'bg-gray-900/60'}`}>
+                              {p.photo ? <img src={p.photo} alt={p.name} className="w-5 h-5 rounded-full object-cover flex-shrink-0" /> : <span className="text-sm flex-shrink-0">👤</span>}
+                              {soldCap ? (
+                                <p className="text-sm font-bold text-green-400 truncate flex-1">{p.name} → {soldCap.name} {p.soldPrice}pt</p>
+                              ) : !p.soldTo && passedPlayers.some(pp => pp.id === p.id) ? (
+                                <p className="text-sm font-bold text-gray-500 truncate flex-1 line-through">{p.name} → 유찰</p>
+                              ) : (
+                                <p className="text-sm font-bold text-white truncate flex-1">{p.name}</p>
+                              )}
+                            </div>
+                          );
+                        }) : <p className="text-gray-700 text-xs py-1 px-1">—</p>}
+                      </div>
+                    </div>,
+                  ];
+                })}
+                {allUngrouped.length > 0 && (
+                  <div className="col-span-2">
+                    <div className="flex items-center gap-1 mb-1">
                       <span className="px-2 py-0.5 text-sm font-black rounded-full border bg-gray-700 text-gray-300 border-gray-600">기타</span>
-                      <span className="text-gray-600 text-sm">{ungroupedQueue.length}명</span>
+                      <span className="text-gray-600 text-sm">{allUngrouped.length}</span>
                     </div>
-                    <div className="space-y-1 pl-1">
-                      {ungroupedQueue.map(p => (
-                        <div key={p.id} className="flex items-center gap-2 p-1.5 rounded-lg bg-gray-900/60">
-                          {p.photo ? <img src={p.photo} alt={p.name} className="w-6 h-6 rounded-full object-cover flex-shrink-0" /> : <span className="text-base flex-shrink-0">👤</span>}
-                          <p className="text-base font-bold text-white truncate">{p.name}</p>
-                        </div>
-                      ))}
+                    <div className="grid grid-cols-2 gap-0.5">
+                      {allUngrouped.map(p => {
+                        const soldCap = p.soldTo ? captains[p.soldTo] : null;
+                        return (
+                          <div key={p.id} className={`flex items-center gap-1.5 py-1 px-1 rounded-lg ${p.soldTo ? 'bg-green-950/40' : !p.soldTo && passedPlayers.some(pp => pp.id === p.id) ? 'bg-gray-800/60' : 'bg-gray-900/60'}`}>
+                            {p.photo ? <img src={p.photo} alt={p.name} className="w-5 h-5 rounded-full object-cover flex-shrink-0" /> : <span className="text-sm flex-shrink-0">👤</span>}
+                            {soldCap ? (
+                              <p className="text-sm font-bold text-green-400 truncate flex-1">{p.name} → {soldCap.name} {p.soldPrice}pt</p>
+                            ) : !p.soldTo && passedPlayers.some(pp => pp.id === p.id) ? (
+                              <p className="text-sm font-bold text-gray-500 truncate flex-1 line-through">{p.name} → 유찰</p>
+                            ) : (
+                              <p className="text-sm font-bold text-white truncate flex-1">{p.name}</p>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
               </div>
             ) : (
-              <p className="text-gray-600 text-base">대기 선수 없음</p>
+              <p className="text-gray-600 text-base">선수 없음</p>
             )}
           </div>
-
-          {/* 낙찰 내역 */}
-          <div>
-            <h2 className="text-base font-bold text-gray-500 uppercase tracking-widest pb-2">낙찰 내역</h2>
-            {historyList.length > 0
-              ? <div className="space-y-2">
-                  {historyList.map((h) => {
-                    const p = players[h.playerId];
-                    const cap = captains[h.captainId];
-                    if (!p || !cap) return null;
-                    return (
-                      <div key={`${h.playerId}-${h.timestamp}`} className="space-y-0.5">
-                        <div className="flex items-center justify-between gap-1">
-                          <span className="text-white font-bold text-base truncate">{p.name}</span>
-                          <span className="text-orange-400 font-bold text-base flex-shrink-0">{h.price}P</span>
-                        </div>
-                        <span className="text-green-400 text-sm">{cap.name} 팀</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              : <p className="text-gray-700 text-base">없음</p>
-            }
-          </div>
-
-          {/* 유찰 내역 */}
-          {passedPlayers.length > 0 && (
-            <div>
-              <h2 className="text-base font-bold text-gray-500 uppercase tracking-widest pb-2">유찰 내역</h2>
-              <div className="space-y-1.5">
-                {passedPlayers.map(p => (
-                  <div key={p.id} className="flex items-center gap-2">
-                    <span className="text-gray-400 text-base font-bold truncate min-w-0">{p.name}</span>
-                    {(p.tierType || p.position) && (
-                      <span className="px-1.5 py-0.5 bg-gray-800 text-gray-500 text-sm font-bold rounded flex-shrink-0">
-                        {[p.tierType, p.position].filter(Boolean).join(' ')}
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </aside>
 
       </div>
