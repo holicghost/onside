@@ -1076,22 +1076,6 @@ export default function AuctionPage() {
                       </div>
                     );
                   })}
-                  {captainsList.filter(c => c.position === '힐러').length > 0 && (
-                    <div>
-                      <div className="flex items-center gap-1 mb-1">
-                        <span className="px-2 py-0.5 text-sm font-black rounded-full border bg-green-900/60 text-green-300 border-green-700/60">팀장 힐러</span>
-                        <span className="text-gray-600 text-sm">{captainsList.filter(c => c.position === '힐러').length}</span>
-                      </div>
-                      <div className="space-y-0.5">
-                        {captainsList.filter(c => c.position === '힐러').map(c => (
-                          <div key={c.id} className="flex items-center gap-1.5 py-1 px-1 rounded-lg bg-gray-900/60">
-                            {c.photo ? <img src={c.photo} alt={c.name} className="w-5 h-5 rounded-full object-cover flex-shrink-0" /> : <span className="text-sm flex-shrink-0">👤</span>}
-                            <p className="text-sm font-bold text-white truncate flex-1">{c.name}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
                 {/* Right column: 저티어딜러, 저티어탱커 */}
                 <div className="space-y-3">
