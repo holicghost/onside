@@ -331,16 +331,7 @@ export default function AuctionPage() {
     finalizeSale();
   }, [timeLeft]);
 
-  // Auto-advance 2s after sold/passed (admin only)
-  useEffect(() => {
-    if (!['sold', 'passed'].includes(auction?.status) || roleRef.current !== 'admin') return;
-    const timer = setTimeout(() => {
-      if (['sold', 'passed'].includes(auctionRef.current?.status)) {
-        goToNextPlayerRef.current?.();
-      }
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, [auction?.status]);
+  // No auto-advance — admin manually clicks "다음 경매로 넘어가기"
 
   const buildPlayerOrder = (playerMap) => {
     const ids = Object.keys(playerMap);
@@ -408,11 +399,11 @@ export default function AuctionPage() {
           [`rooms/${code}/auction/playerOrder`]: ordered,
           [`rooms/${code}/auction/currentIndex`]: 0,
           [`rooms/${code}/auction/currentPlayerId`]: ordered[0],
-          [`rooms/${code}/auction/status`]: 'countdown',
+          [`rooms/${code}/auction/status`]: 'bidding',
           [`rooms/${code}/auction/currentBid`]: 0,
           [`rooms/${code}/auction/currentBidCaptainId`]: null,
-          [`rooms/${code}/auction/countdownEnd`]: Date.now() + 10000,
-          [`rooms/${code}/auction/timerEnd`]: null,
+          [`rooms/${code}/auction/countdownEnd`]: null,
+          [`rooms/${code}/auction/timerEnd`]: Date.now() + 10000,
           [`rooms/${code}/auction/isReAuction`]: true,
           [`rooms/${code}/auction/roundStartUnsoldCount`]: unsoldEntries.length,
           [`rooms/${code}/info/status`]: 'auction',
@@ -429,11 +420,11 @@ export default function AuctionPage() {
     await update(ref(db), {
       [`rooms/${code}/auction/currentIndex`]: nextIndex,
       [`rooms/${code}/auction/currentPlayerId`]: order[nextIndex],
-      [`rooms/${code}/auction/status`]: 'countdown',
+      [`rooms/${code}/auction/status`]: 'bidding',
       [`rooms/${code}/auction/currentBid`]: 0,
       [`rooms/${code}/auction/currentBidCaptainId`]: null,
-      [`rooms/${code}/auction/countdownEnd`]: Date.now() + 10000,
-      [`rooms/${code}/auction/timerEnd`]: null,
+      [`rooms/${code}/auction/countdownEnd`]: null,
+      [`rooms/${code}/auction/timerEnd`]: Date.now() + 10000,
     });
   }, [code]);
 
@@ -513,11 +504,13 @@ export default function AuctionPage() {
       const hasLine = Object.values(players).some(p => p.soldTo === captainId && `${p.tierType} ${p.position}` === playerLine);
       if (hasLine) { setBidError('이미 해당 라인의 선수를 보유하고 있습니다.'); return; }
     }
+    const prevCaptainId = a.currentBidCaptainId || null;
     const newTimerEnd = Math.max(a.timerEnd || Date.now(), Date.now()) + 5000;
     await update(ref(db), {
       [`rooms/${code}/auction/currentBid`]: amt,
       [`rooms/${code}/auction/currentBidCaptainId`]: captainId,
       [`rooms/${code}/auction/timerEnd`]: newTimerEnd,
+      [`rooms/${code}/auction/bidLog/${Date.now()}`]: { captainId, prevCaptainId, amount: amt, timestamp: Date.now() },
     });
   };
 
@@ -561,6 +554,7 @@ export default function AuctionPage() {
     .map(key => ({ key, players: allPlayersList.filter(p => `${p.tierType} ${p.position}` === key) }))
     .filter(g => g.players.length > 0), [allPlayersList]);
   const allUngrouped = useMemo(() => allPlayersList.filter(p => !QUEUE_GROUPS.includes(`${p.tierType} ${p.position}`)), [allPlayersList]);
+  const bidLogList = useMemo(() => auction?.bidLog ? Object.values(auction.bidLog).sort((a, b) => b.timestamp - a.timestamp).slice(0, 10) : [], [auction?.bidLog]);
   const quickBids = useMemo(() => [
     { label: '+10',  val: curBid + 10 },
     { label: '+20',  val: curBid + 20 },
@@ -830,13 +824,16 @@ export default function AuctionPage() {
             </div>
           )}
 
-          {/* Auto-advance notice */}
-          {['sold', 'passed'].includes(auction?.status) && role === 'admin' && (
-            <div className="bg-gray-800/50 rounded-xl p-3 text-center">
-              <p className="text-gray-400 text-sm">2초 후 다음 선수로 이동...</p>
-              <button onClick={goToNextPlayer} className="mt-2 px-5 py-1.5 text-sm font-bold bg-blue-600 hover:bg-blue-500 rounded-xl transition-all">
-                ▶ 지금 이동
-              </button>
+          {/* Post-auction: admin advances, others wait */}
+          {['sold', 'passed'].includes(auction?.status) && (
+            <div className="bg-gray-800/50 rounded-xl p-4 text-center space-y-2">
+              {role === 'admin' ? (
+                <button onClick={goToNextPlayer} className="px-8 py-3 text-lg font-bold bg-blue-600 hover:bg-blue-500 rounded-xl transition-all animate-modal-in">
+                  ▶ 다음 경매로 넘어가기
+                </button>
+              ) : (
+                <p className="text-gray-400 text-base animate-pulse">다음 경매 준비 중...</p>
+              )}
             </div>
           )}
 
@@ -897,6 +894,29 @@ export default function AuctionPage() {
                   🏆 결과 보기
                 </button>
               )}
+            </div>
+          )}
+
+          {/* Bid history log */}
+          {['bidding', 'paused', 'sold', 'passed'].includes(auction?.status) && bidLogList.length > 0 && (
+            <div className="bg-gray-900/60 rounded-xl p-3 space-y-1.5 max-h-48 overflow-y-auto">
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">입찰 내역</p>
+              {bidLogList.map((b, i) => {
+                const cap = captains[b.captainId];
+                const prevCap = b.prevCaptainId ? captains[b.prevCaptainId] : null;
+                return (
+                  <div key={b.timestamp} className="animate-modal-in" style={{ animationDelay: `${i * 0.03}s` }}>
+                    <p className="text-gray-500 text-sm leading-tight">
+                      {prevCap ? prevCap.name : '시작'}
+                    </p>
+                    <p className="text-base font-bold leading-tight">
+                      <span className="text-gray-400">→ </span>
+                      <span className="text-orange-400">{cap?.name || '?'}</span>
+                      <span className="text-white ml-1">{b.amount}pt</span>
+                    </p>
+                  </div>
+                );
+              })}
             </div>
           )}
 

@@ -243,6 +243,7 @@ export default function CaptainPage() {
     { label: '최대', val: Math.floor(myBudget / 10) * 10 },
   ].filter(q => q.val > curBid && q.val <= myBudget), [curBid, myBudget]);
   const bidderCap = auction?.currentBidCaptainId ? captains[auction.currentBidCaptainId] : null;
+  const bidLogList = useMemo(() => auction?.bidLog ? Object.values(auction.bidLog).sort((a, b) => b.timestamp - a.timestamp).slice(0, 10) : [], [auction?.bidLog]);
   const displayTime = (timeLeft / 1000).toFixed(1);
   const displayCountdown = Math.min(10, Math.ceil(countdownLeft / 1000));
 
@@ -385,11 +386,13 @@ export default function CaptainPage() {
       const hasLine = Object.values(players).some(p => p.soldTo === captainId && `${p.tierType} ${p.position}` === playerLine);
       if (hasLine) { setBidError('이미 해당 라인의 선수를 보유하고 있습니다.'); return; }
     }
+    const prevCaptainId = a.currentBidCaptainId || null;
     const newTimerEnd = Math.max(a.timerEnd || Date.now(), Date.now()) + 5000;
     await update(ref(db), {
       [`rooms/${code}/auction/currentBid`]: amt,
       [`rooms/${code}/auction/currentBidCaptainId`]: captainId,
       [`rooms/${code}/auction/timerEnd`]: newTimerEnd,
+      [`rooms/${code}/auction/bidLog/${Date.now()}`]: { captainId, prevCaptainId, amount: amt, timestamp: Date.now() },
     });
   };
 
@@ -721,6 +724,13 @@ export default function CaptainPage() {
             </div>
           )}
 
+          {/* Post-auction waiting message */}
+          {['sold', 'passed'].includes(auction?.status) && (
+            <div className="bg-gray-800/50 rounded-xl p-4 text-center">
+              <p className="text-gray-400 text-base animate-pulse">다음 경매 준비 중...</p>
+            </div>
+          )}
+
           {/* Bid UI — captain only */}
           {auction?.status === 'bidding' && (
             <div className="space-y-3">
@@ -747,6 +757,29 @@ export default function CaptainPage() {
                   </div>
                 </>
               )}
+            </div>
+          )}
+
+          {/* Bid history log */}
+          {['bidding', 'paused', 'sold', 'passed'].includes(auction?.status) && bidLogList.length > 0 && (
+            <div className="bg-gray-900/60 rounded-xl p-3 space-y-1.5 max-h-48 overflow-y-auto">
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">입찰 내역</p>
+              {bidLogList.map((b, i) => {
+                const cap = captains[b.captainId];
+                const prevCap = b.prevCaptainId ? captains[b.prevCaptainId] : null;
+                return (
+                  <div key={b.timestamp} className="animate-modal-in" style={{ animationDelay: `${i * 0.03}s` }}>
+                    <p className="text-gray-500 text-sm leading-tight">
+                      {prevCap ? prevCap.name : '시작'}
+                    </p>
+                    <p className="text-base font-bold leading-tight">
+                      <span className="text-gray-400">→ </span>
+                      <span className="text-orange-400">{cap?.name || '?'}</span>
+                      <span className="text-white ml-1">{b.amount}pt</span>
+                    </p>
+                  </div>
+                );
+              })}
             </div>
           )}
 
