@@ -113,6 +113,8 @@ export default function AdminRoomPage() {
   const [roomTeamSize, setRoomTeamSize] = useState(6);
 
   const [saving, setSaving] = useState('');
+  const [saveError, setSaveError] = useState('');
+  const [savedMsg, setSavedMsg] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [chatClearConfirm, setChatClearConfirm] = useState(false);
   const [chatClearDone, setChatClearDone] = useState(false);
@@ -177,14 +179,25 @@ export default function AdminRoomPage() {
   const saveNewCaptain = async () => {
     if (!capName.trim()) return;
     setSaving('newcaptain');
-    let photoUrl = '';
-    if (capPhotoFile) photoUrl = await uploadImage(capPhotoFile);
-    const newId = `captain_${Date.now()}`;
-    await update(ref(db), {
-      [`rooms/${code}/captains/${newId}`]: { id: newId, name: capName.trim(), photo: photoUrl, budget: roomInfo?.budget || 100, position: capPosition },
-      [`rooms/${code}/info/captainCount`]: Object.keys(captains).length + 1,
-    });
-    setAddingCaptain(false);
+    setSaveError('');
+    try {
+      let photoUrl = '';
+      if (capPhotoFile) {
+        setSaving('newcaptain-upload');
+        photoUrl = await uploadImage(capPhotoFile);
+      }
+      setSaving('newcaptain');
+      const newId = `captain_${Date.now()}`;
+      await update(ref(db), {
+        [`rooms/${code}/captains/${newId}`]: { id: newId, name: capName.trim(), photo: photoUrl, budget: roomInfo?.budget || 100, position: capPosition },
+        [`rooms/${code}/info/captainCount`]: Object.keys(captains).length + 1,
+      });
+      setAddingCaptain(false);
+      setSavedMsg('팀장이 추가되었습니다');
+      setTimeout(() => setSavedMsg(''), 3000);
+    } catch (e) {
+      setSaveError(e.message || '저장 중 오류가 발생했습니다.');
+    }
     setSaving('');
   };
   const handleCapPhoto = (e) => {
@@ -196,10 +209,21 @@ export default function AdminRoomPage() {
   };
   const saveCaptain = async (cid) => {
     setSaving('captain');
-    let photoUrl = captains[cid]?.photo || '';
-    if (capPhotoFile) photoUrl = await uploadImage(capPhotoFile);
-    await update(ref(db, `rooms/${code}/captains/${cid}`), { name: capName, photo: photoUrl, position: capPosition });
-    setEditingCaptain(null);
+    setSaveError('');
+    try {
+      let photoUrl = captains[cid]?.photo || '';
+      if (capPhotoFile) {
+        setSaving('captain-upload');
+        photoUrl = await uploadImage(capPhotoFile);
+      }
+      setSaving('captain');
+      await update(ref(db, `rooms/${code}/captains/${cid}`), { name: capName, photo: photoUrl, position: capPosition });
+      setEditingCaptain(null);
+      setSavedMsg('저장됨');
+      setTimeout(() => setSavedMsg(''), 3000);
+    } catch (e) {
+      setSaveError(e.message || '저장 중 오류가 발생했습니다.');
+    }
     setSaving('');
   };
 
@@ -244,25 +268,36 @@ export default function AdminRoomPage() {
   const saveNewPlayer = async () => {
     if (!pName.trim()) return;
     setSaving('newplayer');
-    let photoUrl = '';
-    if (pPhotoFile) photoUrl = await uploadImage(pPhotoFile);
-    const primaryHero = ALL_HEROES.find(h => h.id === pHeroIds[0]);
-    const newId = `player_${Date.now()}`;
-    await update(ref(db), {
-      [`rooms/${code}/players/${newId}`]: {
-        id: newId, name: pName.trim(), photo: photoUrl,
-        heroIds: pHeroIds,
-        hero: primaryHero?.name || '',
-        heroId: pHeroIds[0] || '',
-        heroRole: primaryHero?.role || '',
-        tierCurrent: pTierCurrent, tierPrevious: pTierPrevious, tierBest: pTierBest,
-        tier: pTierCurrent,
-        tierType: pTierType, position: pPosition,
-        style: pStyle, comment: pComment,
-        soldTo: null, soldPrice: null,
-      },
-    });
-    setAddingPlayer(false);
+    setSaveError('');
+    try {
+      let photoUrl = '';
+      if (pPhotoFile) {
+        setSaving('newplayer-upload');
+        photoUrl = await uploadImage(pPhotoFile);
+      }
+      setSaving('newplayer');
+      const primaryHero = ALL_HEROES.find(h => h.id === pHeroIds[0]);
+      const newId = `player_${Date.now()}`;
+      await update(ref(db), {
+        [`rooms/${code}/players/${newId}`]: {
+          id: newId, name: pName.trim(), photo: photoUrl,
+          heroIds: pHeroIds,
+          hero: primaryHero?.name || '',
+          heroId: pHeroIds[0] || '',
+          heroRole: primaryHero?.role || '',
+          tierCurrent: pTierCurrent, tierPrevious: pTierPrevious, tierBest: pTierBest,
+          tier: pTierCurrent,
+          tierType: pTierType, position: pPosition,
+          style: pStyle, comment: pComment,
+          soldTo: null, soldPrice: null,
+        },
+      });
+      setAddingPlayer(false);
+      setSavedMsg('선수가 추가되었습니다');
+      setTimeout(() => setSavedMsg(''), 3000);
+    } catch (e) {
+      setSaveError(e.message || '저장 중 오류가 발생했습니다.');
+    }
     setSaving('');
   };
   const handlePPhoto = (e) => {
@@ -274,21 +309,32 @@ export default function AdminRoomPage() {
   };
   const savePlayer = async (pid) => {
     setSaving('player');
-    let photoUrl = players[pid]?.photo || '';
-    if (pPhotoFile) photoUrl = await uploadImage(pPhotoFile);
-    const primaryHero = ALL_HEROES.find(h => h.id === pHeroIds[0]);
-    await update(ref(db, `rooms/${code}/players/${pid}`), {
-      name: pName, photo: photoUrl,
-      heroIds: pHeroIds,
-      hero: primaryHero?.name || players[pid]?.hero || '',
-      heroId: pHeroIds[0] || '',
-      heroRole: primaryHero?.role || players[pid]?.heroRole || '',
-      tierCurrent: pTierCurrent, tierPrevious: pTierPrevious, tierBest: pTierBest,
-      tier: pTierCurrent,
-      tierType: pTierType, position: pPosition,
-      style: pStyle, comment: pComment,
-    });
-    setEditingPlayer(null);
+    setSaveError('');
+    try {
+      let photoUrl = players[pid]?.photo || '';
+      if (pPhotoFile) {
+        setSaving('player-upload');
+        photoUrl = await uploadImage(pPhotoFile);
+      }
+      setSaving('player');
+      const primaryHero = ALL_HEROES.find(h => h.id === pHeroIds[0]);
+      await update(ref(db, `rooms/${code}/players/${pid}`), {
+        name: pName, photo: photoUrl,
+        heroIds: pHeroIds,
+        hero: primaryHero?.name || players[pid]?.hero || '',
+        heroId: pHeroIds[0] || '',
+        heroRole: primaryHero?.role || players[pid]?.heroRole || '',
+        tierCurrent: pTierCurrent, tierPrevious: pTierPrevious, tierBest: pTierBest,
+        tier: pTierCurrent,
+        tierType: pTierType, position: pPosition,
+        style: pStyle, comment: pComment,
+      });
+      setEditingPlayer(null);
+      setSavedMsg('저장됨');
+      setTimeout(() => setSavedMsg(''), 3000);
+    } catch (e) {
+      setSaveError(e.message || '저장 중 오류가 발생했습니다.');
+    }
     setSaving('');
   };
 
