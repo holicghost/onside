@@ -17,6 +17,17 @@ const TIER_POS_STYLES = {
   '저티어 힐러': 'bg-green-900/70 text-green-200 border-green-700/60',
 };
 
+const STATUS_LABEL = { idle: '⏳ 대기 중', countdown: '⏱ 경매 준비', bidding: '🔨 경매 중', paused: '⏸ 일시정지', sold: '✅ 낙찰', passed: '⏭ 유찰', done: '🏆 완료' };
+const STATUS_COLOR = {
+  idle: 'bg-gray-800 text-gray-400',
+  countdown: 'bg-yellow-900/60 text-yellow-300 border border-yellow-700',
+  bidding: 'bg-green-900/60 text-green-300 border border-green-700',
+  paused: 'bg-orange-900/60 text-orange-300 border border-orange-700',
+  sold: 'bg-blue-900/60 text-blue-300 border border-blue-700',
+  passed: 'bg-gray-700/60 text-gray-400',
+  done: 'bg-purple-900/60 text-purple-300 border border-purple-700',
+};
+
 function CopyButton({ text }) {
   const [copied, setCopied] = useState(false);
   const copy = () => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); };
@@ -49,11 +60,135 @@ function BlurCode({ text, className = '' }) {
   );
 }
 
+function PlayerCard({ player, curBid, auction, bidderCap, captainId }) {
+  if (!player) return null;
+  const heroIdsList = toArr(player.heroIds).filter(Boolean);
+  return (
+    <div className="relative w-full bg-gray-900 rounded-2xl border border-gray-700 overflow-hidden">
+      <div className="flex gap-4 p-5">
+        <div className="w-48 h-64 rounded-xl overflow-hidden bg-gray-800 flex-shrink-0 flex items-center justify-center">
+          {player.photo
+            ? <img src={player.photo} alt={player.name} className="w-full h-full object-cover object-top" />
+            : <span className="text-6xl">👤</span>
+          }
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex gap-1.5 flex-wrap mb-1.5">
+            {(player.tierType || player.position) && (
+              <span className={`px-3 py-0.5 text-sm font-bold rounded-full border ${
+                TIER_POS_STYLES[`${player.tierType} ${player.position}`] || 'bg-gray-700 text-gray-300 border-gray-600'
+              }`}>
+                {[player.tierType, player.position].filter(Boolean).join(' ')}
+              </span>
+            )}
+            {curBid > 0 && auction?.status === 'bidding' && (
+              <span className="px-3 py-0.5 bg-orange-500/80 text-white text-sm font-bold rounded-full animate-pulse">입찰 중</span>
+            )}
+          </div>
+          <h2 className="font-black text-white leading-tight" style={{ fontSize: '40px' }}>{player.name}</h2>
+          <div className="grid grid-cols-3 gap-1.5 mt-2">
+            {[
+              { label: '현재 티어', val: player.tierCurrent, color: 'text-purple-400' },
+              { label: '이전 시즌 티어', val: player.tierPrevious, color: 'text-gray-300' },
+              { label: '역대 최고 티어', val: player.tierBest, color: 'text-yellow-400' },
+            ].map(({ label, val, color }) => (
+              <div key={label} className="bg-gray-800/80 rounded-lg px-2 py-1.5">
+                <p className="text-xs text-gray-500 mb-0.5 leading-tight">{label}</p>
+                <p className={`text-lg font-bold ${color} leading-tight`}>{val || '—'}</p>
+              </div>
+            ))}
+          </div>
+          {player.style && (
+            <div className="mt-2.5">
+              <p className="text-xs text-gray-500 mb-0.5">플레이 스타일</p>
+              <p className="text-sm text-gray-300 leading-snug">{player.style}</p>
+            </div>
+          )}
+          {player.comment && (
+            <div className="mt-2.5">
+              <p className="text-xs text-gray-500 mb-0.5">한마디</p>
+              <p className="text-sm text-gray-300 leading-snug">{player.comment}</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {heroIdsList.length > 0 && (
+        <div className="px-5 pb-4 flex gap-3">
+          {heroIdsList.map((hid, i) => {
+            const url = getHeroPortraitUrl(hid);
+            const hero = ALL_HEROES.find(h => h.id === hid);
+            const roleKey = hero?.role;
+            const roleName = ROLE_LABEL[roleKey] || '';
+            const roleColor = { tank: 'text-yellow-300', damage: 'text-red-300', support: 'text-green-300' }[roleKey] || 'text-gray-400';
+            return (
+              <div key={i} className="flex flex-col items-center gap-1">
+                <div className="relative w-14 h-14 rounded-lg overflow-hidden bg-gray-700 border border-gray-600 flex items-center justify-center flex-shrink-0">
+                  {url ? (
+                    <img src={url} alt={hero?.name || hid} className="absolute inset-0 w-full h-full object-cover"
+                      onError={e => { e.currentTarget.style.display = 'none'; }} />
+                  ) : (
+                    <span className="text-gray-500 text-xl">?</span>
+                  )}
+                  {roleName && (
+                    <span className={`absolute bottom-0 left-0 right-0 text-center text-[8px] font-bold py-0.5 ${roleColor}`}
+                      style={{ background: 'rgba(0,0,0,0.7)' }}>
+                      {roleName}
+                    </span>
+                  )}
+                </div>
+                <span className="text-gray-400 text-[9px] text-center leading-tight w-14 truncate">{hero?.name || hid}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="px-5 pb-5">
+        <p className="text-gray-500 text-sm mb-0.5">현재 입찰</p>
+        <p key={curBid} className="font-black text-orange-400 leading-none tabular-nums animate-bid-pop" style={{ fontSize: '48px' }}>
+          {curBid > 0 ? `${curBid} pt` : '—'}
+        </p>
+        {bidderCap && (
+          <p className="text-white text-base font-bold mt-1">
+            👑 {bidderCap.name} 입찰 중
+            {auction?.currentBidCaptainId === captainId && <span className="text-green-400 ml-1">(나)</span>}
+          </p>
+        )}
+      </div>
+
+      {auction?.status === 'sold' && (
+        <div
+          key={`sold-${auction.currentPlayerId}`}
+          className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none animate-result-in"
+          style={{ background: 'rgba(37,99,235,0.82)', borderRadius: 'inherit' }}
+        >
+          <p className="text-white text-6xl font-black drop-shadow-lg">낙찰!</p>
+          {bidderCap && <p className="text-blue-100 text-xl font-bold mt-2">{bidderCap.name} 팀</p>}
+        </div>
+      )}
+      {auction?.status === 'passed' && (
+        <div
+          key={`passed-${auction.currentPlayerId}`}
+          className="absolute inset-0 flex items-center justify-center pointer-events-none animate-result-in"
+          style={{ background: 'rgba(75,85,99,0.82)', borderRadius: 'inherit' }}
+        >
+          <p className="text-white text-6xl font-black drop-shadow-lg">유찰</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function CaptainPage() {
   const { code, captainId } = useParams();
   const router = useRouter();
 
-  // authStep: 'loading' | 'verify' | 'denied' | 'password' | 'authed'
+  // ══════════════════════════════════════════
+  // ALL HOOKS — no conditional returns above
+  // ══════════════════════════════════════════
+
+  // ── useState ──
   const [authStep, setAuthStep] = useState('loading');
   const [captainInfo, setCaptainInfo] = useState(null);
   const [passwordInput, setPasswordInput] = useState('');
@@ -69,183 +204,20 @@ export default function CaptainPage() {
   const [origin, setOrigin] = useState('');
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
+  const [, setPortraitsReady] = useState(false);
 
+  // ── useRef ──
   const auctionRef = useRef(null);
   const lastTimerEndRef = useRef(null);
   const barRef = useRef(null);
   const maxDurationRef = useRef(10000);
   const chatScrollRef = useRef(null);
-  useEffect(() => { auctionRef.current = auction; }, [auction]);
-  useEffect(() => { setOrigin(window.location.origin); }, []);
-
-  // 영웅 포트레이트 프리로드
-  const [, setPortraitsReady] = useState(false);
-  useEffect(() => { loadHeroPortraits().then(() => setPortraitsReady(true)); }, []);
-
-  // Check auth on mount
-  useEffect(() => {
-    if (!code || !captainId) return;
-    // Already authed via localStorage — skip all screens
-    if (localStorage.getItem('ow_room') === code &&
-        localStorage.getItem('ow_captain_id') === captainId &&
-        localStorage.getItem('ow_role') === 'captain') {
-      setAuthStep('authed');
-      return;
-    }
-    // Fetch room info + this captain's info for the verification screen
-    Promise.all([
-      get(ref(db, `rooms/${code}/info`)),
-      get(ref(db, `rooms/${code}/captains/${captainId}`)),
-    ]).then(([infoSnap, capSnap]) => {
-      setRoomInfo(infoSnap.val());
-      setCaptainInfo(capSnap.val());
-      setAuthStep('verify');
-    }).catch(() => setAuthStep('verify'));
-  }, [code, captainId]);
-
-  const handleConfirmIdentity = () => {
-    if (roomInfo?.password) {
-      setAuthStep('password');
-    } else {
-      localStorage.setItem('ow_room', code);
-      localStorage.setItem('ow_role', 'captain');
-      localStorage.setItem('ow_captain_id', captainId);
-      setAuthStep('authed');
-    }
-  };
-
-  // Firebase listeners once authed — consolidated into one root listener
-  useEffect(() => {
-    if (authStep !== 'authed' || !code) return;
-    const rootUnsub = onValue(ref(db, `rooms/${code}`), snap => {
-      const val = snap.val() || {};
-      setRoomInfo(val.info || null);
-      setCaptains(val.captains || {});
-      setPlayers(val.players || {});
-      setAuction(val.auction || null);
-    });
-    const chatUnsub = onValue(query(ref(db, `rooms/${code}/chat`), orderByKey(), limitToLast(50)), snap => {
-      const val = snap.val();
-      if (!val) { setChatMessages([]); return; }
-      setChatMessages(Object.entries(val).map(([k, v]) => ({ id: k, ...v })));
-    });
-    return () => { rootUnsub(); chatUnsub(); };
-  }, [authStep, code]);
-
-  // Auto-redirect when room status becomes 'result'
-  useEffect(() => {
-    if (authStep !== 'authed' || !code) return;
-    if (roomInfo?.status === 'result') router.push(`/room/${code}/result`);
-  }, [roomInfo?.status, authStep]);
-
-  // Bidding timer
-  useEffect(() => {
-    if (!auction?.timerEnd || auction?.status !== 'bidding') { setTimeLeft(0); return; }
-    const tick = () => setTimeLeft(Math.max(0, auction.timerEnd - Date.now()));
-    tick();
-    const id = setInterval(tick, 100);
-    return () => clearInterval(id);
-  }, [auction?.timerEnd, auction?.status]);
-
-  // Smooth CSS bar animation — one imperative write per new timerEnd
-  useEffect(() => {
-    const bar = barRef.current;
-    if (!bar) return;
-    if (auction?.status !== 'bidding' || !auction?.timerEnd) {
-      bar.style.transition = 'none';
-      bar.style.width = '0%';
-      return;
-    }
-    if (auction.timerEnd === lastTimerEndRef.current) return;
-    lastTimerEndRef.current = auction.timerEnd;
-    const remaining = Math.max(0, auction.timerEnd - Date.now());
-    maxDurationRef.current = Math.max(1000, remaining);
-    const pct = Math.min(100, (remaining / maxDurationRef.current) * 100);
-    bar.style.transition = 'none';
-    bar.style.width = `${pct}%`;
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      bar.style.transition = `width ${remaining}ms linear`;
-      bar.style.width = '0%';
-    }));
-  }, [auction?.timerEnd, auction?.status]);
-
-  // Pre-player countdown
-  useEffect(() => {
-    if (!auction?.countdownEnd || auction?.status !== 'countdown') { setCountdownLeft(0); return; }
-    const tick = () => setCountdownLeft(Math.max(0, auction.countdownEnd - Date.now()));
-    tick();
-    const id = setInterval(tick, 100);
-    return () => clearInterval(id);
-  }, [auction?.countdownEnd, auction?.status]);
-
-  // Captain online presence
-  useEffect(() => {
-    if (authStep !== 'authed' || !code || !captainId) return;
-    const presenceRef = ref(db, `rooms/${code}/captains/${captainId}/online`);
-    set(presenceRef, true);
-    onDisconnect(presenceRef).set(false);
-    return () => { set(presenceRef, false); };
-  }, [authStep, code, captainId]);
-
-  // Chat auto-scroll
-  useEffect(() => {
-    if (chatScrollRef.current) {
-      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
-    }
-  }, [chatMessages]);
-
-  const handlePasswordJoin = () => {
-    if (roomInfo?.password && passwordInput !== roomInfo.password) {
-      setPasswordError('비밀번호가 틀렸습니다.');
-      return;
-    }
-    localStorage.setItem('ow_room', code);
-    localStorage.setItem('ow_role', 'captain');
-    localStorage.setItem('ow_captain_id', captainId);
-    setAuthStep('authed');
-    setPasswordError('');
-  };
-
-  const placeBid = async (amount) => {
-    setBidError('');
-    const a = auctionRef.current;
-    if (!a || a.status !== 'bidding') return;
-    const amt = Math.floor(Number(amount) / 10) * 10;
-    if (amt < 10) { setBidError('최소 입찰가는 10포인트입니다.'); return; }
-    if (amt <= (a.currentBid || 0)) { setBidError('현재 입찰가보다 높아야 합니다.'); return; }
-    const myCap = captains[captainId];
-    if (!myCap || amt > myCap.budget) { setBidError('예산이 부족합니다.'); return; }
-    // Duplicate line restriction
-    const cp = players[a.currentPlayerId];
-    if (cp?.tierType && cp?.position) {
-      const playerLine = `${cp.tierType} ${cp.position}`;
-      const hasLine = Object.values(players).some(p => p.soldTo === captainId && `${p.tierType} ${p.position}` === playerLine);
-      if (hasLine) { setBidError('이미 해당 라인의 선수를 보유하고 있습니다.'); return; }
-    }
-    const newTimerEnd = Math.max(a.timerEnd || Date.now(), Date.now()) + 5000;
-    await update(ref(db), {
-      [`rooms/${code}/auction/currentBid`]: amt,
-      [`rooms/${code}/auction/currentBidCaptainId`]: captainId,
-      [`rooms/${code}/auction/timerEnd`]: newTimerEnd,
-    });
-  };
-
   const sendingRef = useRef(false);
-  const sendChat = async () => {
-    const msg = chatInput.trim();
-    if (!msg || !code || sendingRef.current) return;
-    sendingRef.current = true;
-    setChatInput('');
-    const senderName = captains[captainId]?.name || '팀장';
-    await set(ref(db, `rooms/${code}/chat/${Date.now()}`), { senderName, message: msg, timestamp: Date.now() });
-    sendingRef.current = false;
-  };
 
-  // ── Derived state — useMemo prevents recompute on every 100ms timer tick ──
+  // ── useMemo (derived state) ──
   const myCaptain = captains[captainId];
   const captainsList = useMemo(() => Object.entries(captains).map(([id, c]) => ({ id, ...c })), [captains]);
   const currentPlayer = auction?.currentPlayerId ? players[auction.currentPlayerId] : null;
-  // Duplicate line restriction: is this captain already holding the current player's line?
   const myLineDuplicate = useMemo(() => {
     if (!captainId || !currentPlayer?.tierType || !currentPlayer?.position) return false;
     const playerLine = `${currentPlayer.tierType} ${currentPlayer.position}`;
@@ -276,18 +248,166 @@ export default function CaptainPage() {
   const displayTime = (timeLeft / 1000).toFixed(1);
   const displayCountdown = Math.ceil(countdownLeft / 1000);
 
-  const statusLabel = { idle: '⏳ 대기 중', countdown: '⏱ 경매 준비', bidding: '🔨 경매 중', paused: '⏸ 일시정지', sold: '✅ 낙찰', passed: '⏭ 유찰', done: '🏆 완료' };
-  const statusColor = {
-    idle: 'bg-gray-800 text-gray-400',
-    countdown: 'bg-yellow-900/60 text-yellow-300 border border-yellow-700',
-    bidding: 'bg-green-900/60 text-green-300 border border-green-700',
-    paused: 'bg-orange-900/60 text-orange-300 border border-orange-700',
-    sold: 'bg-blue-900/60 text-blue-300 border border-blue-700',
-    passed: 'bg-gray-700/60 text-gray-400',
-    done: 'bg-purple-900/60 text-purple-300 border border-purple-700',
+  // ── useEffect ──
+  useEffect(() => { auctionRef.current = auction; }, [auction]);
+  useEffect(() => { setOrigin(window.location.origin); }, []);
+  useEffect(() => { loadHeroPortraits().then(() => setPortraitsReady(true)); }, []);
+
+  useEffect(() => {
+    if (!code || !captainId) return;
+    if (localStorage.getItem('ow_room') === code &&
+        localStorage.getItem('ow_captain_id') === captainId &&
+        localStorage.getItem('ow_role') === 'captain') {
+      setAuthStep('authed');
+      return;
+    }
+    Promise.all([
+      get(ref(db, `rooms/${code}/info`)),
+      get(ref(db, `rooms/${code}/captains/${captainId}`)),
+    ]).then(([infoSnap, capSnap]) => {
+      setRoomInfo(infoSnap.val());
+      setCaptainInfo(capSnap.val());
+      setAuthStep('verify');
+    }).catch(() => setAuthStep('verify'));
+  }, [code, captainId]);
+
+  useEffect(() => {
+    if (authStep !== 'authed' || !code) return;
+    const rootUnsub = onValue(ref(db, `rooms/${code}`), snap => {
+      const val = snap.val() || {};
+      setRoomInfo(val.info || null);
+      setCaptains(val.captains || {});
+      setPlayers(val.players || {});
+      setAuction(val.auction || null);
+    });
+    const chatUnsub = onValue(query(ref(db, `rooms/${code}/chat`), orderByKey(), limitToLast(50)), snap => {
+      const val = snap.val();
+      if (!val) { setChatMessages([]); return; }
+      setChatMessages(Object.entries(val).map(([k, v]) => ({ id: k, ...v })));
+    });
+    return () => { rootUnsub(); chatUnsub(); };
+  }, [authStep, code]);
+
+  useEffect(() => {
+    if (authStep !== 'authed' || !code) return;
+    if (roomInfo?.status === 'result') router.push(`/room/${code}/result`);
+  }, [roomInfo?.status, authStep, code, router]);
+
+  useEffect(() => {
+    if (!auction?.timerEnd || auction?.status !== 'bidding') { setTimeLeft(0); return; }
+    const tick = () => setTimeLeft(Math.max(0, auction.timerEnd - Date.now()));
+    tick();
+    const id = setInterval(tick, 100);
+    return () => clearInterval(id);
+  }, [auction?.timerEnd, auction?.status]);
+
+  useEffect(() => {
+    const bar = barRef.current;
+    if (!bar) return;
+    if (auction?.status !== 'bidding' || !auction?.timerEnd) {
+      bar.style.transition = 'none';
+      bar.style.width = '0%';
+      return;
+    }
+    if (auction.timerEnd === lastTimerEndRef.current) return;
+    lastTimerEndRef.current = auction.timerEnd;
+    const remaining = Math.max(0, auction.timerEnd - Date.now());
+    maxDurationRef.current = Math.max(1000, remaining);
+    const pct = Math.min(100, (remaining / maxDurationRef.current) * 100);
+    bar.style.transition = 'none';
+    bar.style.width = `${pct}%`;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      bar.style.transition = `width ${remaining}ms linear`;
+      bar.style.width = '0%';
+    }));
+  }, [auction?.timerEnd, auction?.status]);
+
+  useEffect(() => {
+    if (!auction?.countdownEnd || auction?.status !== 'countdown') { setCountdownLeft(0); return; }
+    const tick = () => setCountdownLeft(Math.max(0, auction.countdownEnd - Date.now()));
+    tick();
+    const id = setInterval(tick, 100);
+    return () => clearInterval(id);
+  }, [auction?.countdownEnd, auction?.status]);
+
+  useEffect(() => {
+    if (authStep !== 'authed' || !code || !captainId) return;
+    const presenceRef = ref(db, `rooms/${code}/captains/${captainId}/online`);
+    set(presenceRef, true);
+    onDisconnect(presenceRef).set(false);
+    return () => { set(presenceRef, false); };
+  }, [authStep, code, captainId]);
+
+  useEffect(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
+  }, [chatMessages]);
+
+  // ══════════════════════════════════════════
+  // HANDLERS (not hooks — safe after hooks)
+  // ══════════════════════════════════════════
+
+  const handleConfirmIdentity = () => {
+    if (roomInfo?.password) {
+      setAuthStep('password');
+    } else {
+      localStorage.setItem('ow_room', code);
+      localStorage.setItem('ow_role', 'captain');
+      localStorage.setItem('ow_captain_id', captainId);
+      setAuthStep('authed');
+    }
   };
 
-  // ── Auth gates ──
+  const handlePasswordJoin = () => {
+    if (roomInfo?.password && passwordInput !== roomInfo.password) {
+      setPasswordError('비밀번호가 틀렸습니다.');
+      return;
+    }
+    localStorage.setItem('ow_room', code);
+    localStorage.setItem('ow_role', 'captain');
+    localStorage.setItem('ow_captain_id', captainId);
+    setAuthStep('authed');
+    setPasswordError('');
+  };
+
+  const placeBid = async (amount) => {
+    setBidError('');
+    const a = auctionRef.current;
+    if (!a || a.status !== 'bidding') return;
+    const amt = Math.floor(Number(amount) / 10) * 10;
+    if (amt < 10) { setBidError('최소 입찰가는 10포인트입니다.'); return; }
+    if (amt <= (a.currentBid || 0)) { setBidError('현재 입찰가보다 높아야 합니다.'); return; }
+    const myCap = captains[captainId];
+    if (!myCap || amt > myCap.budget) { setBidError('예산이 부족합니다.'); return; }
+    const cp = players[a.currentPlayerId];
+    if (cp?.tierType && cp?.position) {
+      const playerLine = `${cp.tierType} ${cp.position}`;
+      const hasLine = Object.values(players).some(p => p.soldTo === captainId && `${p.tierType} ${p.position}` === playerLine);
+      if (hasLine) { setBidError('이미 해당 라인의 선수를 보유하고 있습니다.'); return; }
+    }
+    const newTimerEnd = Math.max(a.timerEnd || Date.now(), Date.now()) + 5000;
+    await update(ref(db), {
+      [`rooms/${code}/auction/currentBid`]: amt,
+      [`rooms/${code}/auction/currentBidCaptainId`]: captainId,
+      [`rooms/${code}/auction/timerEnd`]: newTimerEnd,
+    });
+  };
+
+  const sendChat = async () => {
+    const msg = chatInput.trim();
+    if (!msg || !code || sendingRef.current) return;
+    sendingRef.current = true;
+    setChatInput('');
+    const senderName = captains[captainId]?.name || '팀장';
+    await set(ref(db, `rooms/${code}/chat/${Date.now()}`), { senderName, message: msg, timestamp: Date.now() });
+    sendingRef.current = false;
+  };
+
+  // ══════════════════════════════════════════
+  // CONDITIONAL RENDERS — all hooks above
+  // ══════════════════════════════════════════
+
   if (authStep === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#0f0f1a' }}>
@@ -301,13 +421,11 @@ export default function CaptainPage() {
       <div className="min-h-screen flex items-center justify-center px-4"
         style={{ background: 'linear-gradient(135deg, #0f0f1a 0%, #1a1a3e 50%, #0f0f1a 100%)' }}>
         <div className="w-full max-w-sm space-y-4">
-          {/* Broadcasting warning */}
           <div className="bg-red-900/40 border border-red-600 rounded-xl px-4 py-3">
             <p className="text-red-400 text-sm font-bold leading-snug">
               ⚠️ 방송 중이라면 이 화면의 링크와 비밀번호가 노출되지 않도록 주의하세요!
             </p>
           </div>
-
           <div className="bg-gray-900/90 border border-gray-700 rounded-2xl p-6 space-y-5">
             <div className="text-center">
               <p className="text-gray-400 text-sm mb-1">{roomInfo?.name || '경매 방'}</p>
@@ -384,128 +502,9 @@ export default function CaptainPage() {
     );
   }
 
-  // ── PlayerCard (identical to auction page) ──
-  const PlayerCard = ({ player }) => {
-    if (!player) return null;
-    const heroIdsList = toArr(player.heroIds).filter(Boolean);
-    return (
-      <div className="relative w-full bg-gray-900 rounded-2xl border border-gray-700 overflow-hidden">
-        <div className="flex gap-4 p-5">
-          <div className="w-48 h-64 rounded-xl overflow-hidden bg-gray-800 flex-shrink-0 flex items-center justify-center">
-            {player.photo
-              ? <img src={player.photo} alt={player.name} className="w-full h-full object-cover object-top" />
-              : <span className="text-6xl">👤</span>
-            }
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex gap-1.5 flex-wrap mb-1.5">
-              {(player.tierType || player.position) && (
-                <span className={`px-3 py-0.5 text-sm font-bold rounded-full border ${
-                  TIER_POS_STYLES[`${player.tierType} ${player.position}`] || 'bg-gray-700 text-gray-300 border-gray-600'
-                }`}>
-                  {[player.tierType, player.position].filter(Boolean).join(' ')}
-                </span>
-              )}
-              {curBid > 0 && auction?.status === 'bidding' && (
-                <span className="px-3 py-0.5 bg-orange-500/80 text-white text-sm font-bold rounded-full animate-pulse">입찰 중</span>
-              )}
-            </div>
-            <h2 className="font-black text-white leading-tight" style={{ fontSize: '40px' }}>{player.name}</h2>
-            <div className="grid grid-cols-3 gap-1.5 mt-2">
-              {[
-                { label: '현재 티어', val: player.tierCurrent, color: 'text-purple-400' },
-                { label: '이전 시즌 티어', val: player.tierPrevious, color: 'text-gray-300' },
-                { label: '역대 최고 티어', val: player.tierBest, color: 'text-yellow-400' },
-              ].map(({ label, val, color }) => (
-                <div key={label} className="bg-gray-800/80 rounded-lg px-2 py-1.5">
-                  <p className="text-xs text-gray-500 mb-0.5 leading-tight">{label}</p>
-                  <p className={`text-lg font-bold ${color} leading-tight`}>{val || '—'}</p>
-                </div>
-              ))}
-            </div>
-            {player.style && (
-              <div className="mt-2.5">
-                <p className="text-xs text-gray-500 mb-0.5">플레이 스타일</p>
-                <p className="text-sm text-gray-300 leading-snug">{player.style}</p>
-              </div>
-            )}
-            {player.comment && (
-              <div className="mt-2.5">
-                <p className="text-xs text-gray-500 mb-0.5">한마디</p>
-                <p className="text-sm text-gray-300 leading-snug">{player.comment}</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Hero portraits with role badge overlay */}
-        {heroIdsList.length > 0 && (
-          <div className="px-5 pb-4 flex gap-3">
-            {heroIdsList.map((hid, i) => {
-              const url = getHeroPortraitUrl(hid);
-              const hero = ALL_HEROES.find(h => h.id === hid);
-              const roleKey = hero?.role;
-              const roleName = ROLE_LABEL[roleKey] || '';
-              const roleColor = { tank: 'text-yellow-300', damage: 'text-red-300', support: 'text-green-300' }[roleKey] || 'text-gray-400';
-              return (
-                <div key={i} className="flex flex-col items-center gap-1">
-                  <div className="relative w-14 h-14 rounded-lg overflow-hidden bg-gray-700 border border-gray-600 flex items-center justify-center flex-shrink-0">
-                    {url ? (
-                      <img src={url} alt={hero?.name || hid} className="absolute inset-0 w-full h-full object-cover"
-                        onError={e => { e.currentTarget.style.display = 'none'; }} />
-                    ) : (
-                      <span className="text-gray-500 text-xl">?</span>
-                    )}
-                    {roleName && (
-                      <span className={`absolute bottom-0 left-0 right-0 text-center text-[8px] font-bold py-0.5 ${roleColor}`}
-                        style={{ background: 'rgba(0,0,0,0.7)' }}>
-                        {roleName}
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-gray-400 text-[9px] text-center leading-tight w-14 truncate">{hero?.name || hid}</span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        <div className="px-5 pb-5">
-          <p className="text-gray-500 text-sm mb-0.5">현재 입찰</p>
-          <p key={curBid} className="font-black text-orange-400 leading-none tabular-nums animate-bid-pop" style={{ fontSize: '48px' }}>
-            {curBid > 0 ? `${curBid} pt` : '—'}
-          </p>
-          {bidderCap && (
-            <p className="text-white text-base font-bold mt-1">
-              👑 {bidderCap.name} 입찰 중
-              {auction?.currentBidCaptainId === captainId && <span className="text-green-400 ml-1">(나)</span>}
-            </p>
-          )}
-        </div>
-
-        {/* Result overlay */}
-        {auction?.status === 'sold' && (
-          <div
-            key={`sold-${auction.currentPlayerId}`}
-            className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none animate-result-in"
-            style={{ background: 'rgba(37,99,235,0.82)', borderRadius: 'inherit' }}
-          >
-            <p className="text-white text-6xl font-black drop-shadow-lg">낙찰!</p>
-            {bidderCap && <p className="text-blue-100 text-xl font-bold mt-2">{bidderCap.name} 팀</p>}
-          </div>
-        )}
-        {auction?.status === 'passed' && (
-          <div
-            key={`passed-${auction.currentPlayerId}`}
-            className="absolute inset-0 flex items-center justify-center pointer-events-none animate-result-in"
-            style={{ background: 'rgba(75,85,99,0.82)', borderRadius: 'inherit' }}
-          >
-            <p className="text-white text-6xl font-black drop-shadow-lg">유찰</p>
-          </div>
-        )}
-      </div>
-    );
-  };
+  // ══════════════════════════════════════════
+  // MAIN AUCTION VIEW (authStep === 'authed')
+  // ══════════════════════════════════════════
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: '#0f0f1a' }}>
@@ -656,15 +655,15 @@ export default function CaptainPage() {
         <main className="overflow-y-auto p-5 flex flex-col gap-4">
 
           {/* Status pill */}
-          <div className={`px-5 py-2 rounded-full text-base font-bold self-center ${statusColor[auction?.status] || 'bg-gray-800 text-gray-400'}`}>
-            {statusLabel[auction?.status] || '⏳ 대기 중'}
+          <div className={`px-5 py-2 rounded-full text-base font-bold self-center ${STATUS_COLOR[auction?.status] || 'bg-gray-800 text-gray-400'}`}>
+            {STATUS_LABEL[auction?.status] || '⏳ 대기 중'}
           </div>
 
           {/* Pre-player countdown */}
           {auction?.status === 'countdown' && currentPlayer && (
             <div className="flex flex-col items-center gap-3">
               <p className="text-yellow-400 text-sm font-bold">다음 선수 경매 준비</p>
-              <PlayerCard player={currentPlayer} />
+              <PlayerCard player={currentPlayer} curBid={curBid} auction={auction} bidderCap={bidderCap} captainId={captainId} />
               <div key={displayCountdown} className="text-7xl font-black text-yellow-400 animate-count-down">{displayCountdown}</div>
               <p className="text-gray-500 text-sm">초 후 경매 시작</p>
               <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
@@ -678,7 +677,7 @@ export default function CaptainPage() {
 
           {/* Active / resolved player */}
           {['bidding', 'paused', 'sold', 'passed'].includes(auction?.status) && (
-            <PlayerCard player={currentPlayer} />
+            <PlayerCard player={currentPlayer} curBid={curBid} auction={auction} bidderCap={bidderCap} captainId={captainId} />
           )}
 
           {/* Timer + progress bar */}
