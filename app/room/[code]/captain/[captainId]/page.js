@@ -63,7 +63,7 @@ function BlurCode({ text, className = '' }) {
 
 function PlayerCard({ player, curBid, auction, bidderCap, captainId }) {
   if (!player) return null;
-  const heroIdsList = toArr(player.heroIds).filter(Boolean).slice(0, 2);
+  const heroIdsList = toArr(player.heroIds).filter(Boolean).slice(0, 3);
   return (
     <div className="relative w-full bg-gray-900 rounded-2xl border border-gray-700 overflow-hidden">
       <div className="flex gap-4 p-5">
@@ -100,11 +100,10 @@ function PlayerCard({ player, curBid, auction, bidderCap, captainId }) {
               )}
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-2 mt-3">
+          <div className="grid grid-cols-2 gap-2 mt-3">
             {[
-              { label: '현재 티어', val: player.tierCurrent, color: 'text-purple-400' },
-              { label: '이전 시즌 티어', val: player.tierPrevious, color: 'text-gray-300' },
-              { label: '역대 최고 티어', val: player.tierBest, color: 'text-yellow-400' },
+              { label: '현 시즌 티어', val: player.tierCurrent, color: 'text-purple-400' },
+              { label: '최고 티어', val: player.tierBest, color: 'text-yellow-400' },
             ].map(({ label, val, color }) => (
               <div key={label} className="bg-gray-800/80 rounded-lg px-3 py-2">
                 <p className="text-sm text-gray-500 mb-0.5 leading-tight">{label}</p>
@@ -112,16 +111,10 @@ function PlayerCard({ player, curBid, auction, bidderCap, captainId }) {
               </div>
             ))}
           </div>
-          {(player.style || player.comment) && (
-            <div className="grid grid-cols-2 gap-4 mt-3">
-              <div>
-                <p className="text-sm text-gray-500 mb-0.5">플레이 스타일</p>
-                <p className="text-base text-gray-300 leading-snug">{player.style || '—'}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 mb-0.5">한마디</p>
-                <p className="text-base text-gray-300 leading-snug">{player.comment || '—'}</p>
-              </div>
+          {player.style && (
+            <div className="mt-3">
+              <p className="text-sm text-gray-500 mb-0.5">플레이 스타일</p>
+              <p className="text-base text-gray-300 leading-snug">{player.style}</p>
             </div>
           )}
         </div>

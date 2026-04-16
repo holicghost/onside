@@ -32,14 +32,14 @@ function PhotoInput({ value, onChange }) {
 
 function HeroPicker({ heroIds, onChange }) {
   const handleChange = (hi, val) => {
-    const next = [...(heroIds || ['', ''])];
+    const next = [...(heroIds || ['', '', ''])];
     next[hi] = val;
     onChange(next);
   };
   return (
     <div className="flex gap-2">
-      {[0, 1].map(hi => {
-        const hid = (heroIds || ['', ''])[hi] || '';
+      {[0, 1, 2].map(hi => {
+        const hid = (heroIds || ['', '', ''])[hi] || '';
         const portraitUrl = hid ? getHeroPortraitUrl(hid) : null;
         const hero = ALL_HEROES.find(h => h.id === hid);
         return (
@@ -98,14 +98,12 @@ export default function AdminRoomPage() {
   const [pName, setPName] = useState('');
   const [pPhotoFile, setPPhotoFile] = useState(null);
   const [pPhotoPreview, setPPhotoPreview] = useState('');
-  const [pHeroIds, setPHeroIds] = useState(['', '']);
+  const [pHeroIds, setPHeroIds] = useState(['', '', '']);
   const [pTierCurrent, setPTierCurrent] = useState('');
-  const [pTierPrevious, setPTierPrevious] = useState('');
   const [pTierBest, setPTierBest] = useState('');
   const [pTierType, setPTierType] = useState('');
   const [pPosition, setPPosition] = useState('');
   const [pStyle, setPStyle] = useState('');
-  const [pComment, setPComment] = useState('');
 
   // 방 설정 편집 폼
   const [roomName, setRoomName] = useState('');
@@ -237,14 +235,12 @@ export default function AdminRoomPage() {
     setPName(p.name || '');
     setPPhotoPreview(p.photo || '');
     setPPhotoFile(null);
-    setPHeroIds(p.heroIds || [p.heroId || '', '']);
+    setPHeroIds(p.heroIds || [p.heroId || '', '', '']);
     setPTierCurrent(p.tierCurrent || p.tier || '');
-    setPTierPrevious(p.tierPrevious || '');
     setPTierBest(p.tierBest || '');
     setPTierType(p.tierType || '');
     setPPosition(p.position || '');
     setPStyle(p.style || '');
-    setPComment(p.comment || '');
     setEditingCaptain(null);
     setEditingRoom(false);
     setAddingCaptain(false);
@@ -255,7 +251,7 @@ export default function AdminRoomPage() {
     setPName('');
     setPPhotoFile(null);
     setPPhotoPreview('');
-    setPHeroIds(['', '']);
+    setPHeroIds(['', '', '']);
     setPTierCurrent('');
     setPTierPrevious('');
     setPTierBest('');
@@ -288,10 +284,10 @@ export default function AdminRoomPage() {
           hero: primaryHero?.name || '',
           heroId: pHeroIds[0] || '',
           heroRole: primaryHero?.role || '',
-          tierCurrent: pTierCurrent, tierPrevious: pTierPrevious, tierBest: pTierBest,
+          tierCurrent: pTierCurrent, tierBest: pTierBest,
           tier: pTierCurrent,
           tierType: pTierType, position: pPosition,
-          style: pStyle, comment: pComment,
+          style: pStyle,
           soldTo: null, soldPrice: null,
         },
       });
@@ -327,10 +323,10 @@ export default function AdminRoomPage() {
         hero: primaryHero?.name || players[pid]?.hero || '',
         heroId: pHeroIds[0] || '',
         heroRole: primaryHero?.role || players[pid]?.heroRole || '',
-        tierCurrent: pTierCurrent, tierPrevious: pTierPrevious, tierBest: pTierBest,
+        tierCurrent: pTierCurrent, tierBest: pTierBest,
         tier: pTierCurrent,
         tierType: pTierType, position: pPosition,
-        style: pStyle, comment: pComment,
+        style: pStyle,
       });
       setEditingPlayer(null);
       setSavedMsg('저장됨');
@@ -752,17 +748,34 @@ export default function AdminRoomPage() {
                           <label className="text-xs text-gray-400 mb-1 block">주요 영웅 (3개)</label>
                           <HeroPicker heroIds={pHeroIds} onChange={setPHeroIds} />
                         </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          {[['이번 시즌', pTierCurrent, setPTierCurrent], ['저번 시즌', pTierPrevious, setPTierPrevious], ['최고 티어', pTierBest, setPTierBest]].map(([label, val, setter]) => (
-                            <div key={label}>
-                              <label className="text-xs text-gray-500 mb-1 block">{label}</label>
-                              <select value={val} onChange={e => setter(e.target.value)}
-                                className="w-full px-2 py-2 text-sm bg-gray-800 border border-gray-600 rounded-lg focus:outline-none">
-                                <option value="">선택</option>
-                                {TIERS_DETAILED.map(t => <option key={t} value={t}>{t}</option>)}
-                              </select>
-                            </div>
-                          ))}
+                        <div className="grid grid-cols-2 gap-2">
+                          {[['현 시즌 티어', pTierCurrent, setPTierCurrent], ['최고 티어', pTierBest, setPTierBest]].map(([label, val, setter]) => {
+                            const isCustom = val === '__custom__' || (val && !TIERS_DETAILED.includes(val) && val !== '');
+                            return (
+                              <div key={label}>
+                                <label className="text-xs text-gray-500 mb-1 block">{label}</label>
+                                {isCustom ? (
+                                  <div className="flex gap-1">
+                                    <input
+                                      className="flex-1 px-2 py-2 text-sm bg-gray-800 border border-gray-600 rounded-lg focus:border-orange-400 focus:outline-none"
+                                      placeholder="티어 직접 입력"
+                                      value={val === '__custom__' ? '' : val}
+                                      onChange={e => setter(e.target.value || '__custom__')}
+                                    />
+                                    <button type="button" onClick={() => setter('')}
+                                      className="px-2 py-1 text-xs text-gray-400 hover:text-white bg-gray-700 rounded-lg flex-shrink-0">← 목록</button>
+                                  </div>
+                                ) : (
+                                  <select value={val} onChange={e => setter(e.target.value)}
+                                    className="w-full px-2 py-2 text-sm bg-gray-800 border border-gray-600 rounded-lg focus:outline-none">
+                                    <option value="">선택</option>
+                                    {TIERS_DETAILED.map(t => <option key={t} value={t}>{t}</option>)}
+                                    <option value="__custom__">직접 입력</option>
+                                  </select>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
@@ -788,15 +801,9 @@ export default function AdminRoomPage() {
                             </div>
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="text-xs text-gray-400 mb-1 block">플레이 성향</label>
-                            <input className={inputCls} value={pStyle} onChange={e => setPStyle(e.target.value)} placeholder="예: 공격적 플레이" />
-                          </div>
-                          <div>
-                            <label className="text-xs text-gray-400 mb-1 block">대회 포부 한마디</label>
-                            <input className={inputCls} value={pComment} onChange={e => setPComment(e.target.value)} placeholder="이번 대회에서..." />
-                          </div>
+                        <div>
+                          <label className="text-xs text-gray-400 mb-1 block">플레이 성향</label>
+                          <input className={inputCls} value={pStyle} onChange={e => setPStyle(e.target.value)} placeholder="예: 공격적 플레이" />
                         </div>
                       </div>
                     </div>
@@ -849,7 +856,7 @@ export default function AdminRoomPage() {
                       <HeroPicker heroIds={pHeroIds} onChange={setPHeroIds} />
                     </div>
                     <div className="grid grid-cols-3 gap-2">
-                      {[['이번 시즌', pTierCurrent, setPTierCurrent], ['저번 시즌', pTierPrevious, setPTierPrevious], ['최고 티어', pTierBest, setPTierBest]].map(([label, val, setter]) => (
+                      {[['현 시즌 티어', pTierCurrent, setPTierCurrent], ['최고 티어', pTierBest, setPTierBest]].map(([label, val, setter]) => (
                         <div key={label}>
                           <label className="text-xs text-gray-500 mb-1 block">{label}</label>
                           <select value={val} onChange={e => setter(e.target.value)}
@@ -884,15 +891,9 @@ export default function AdminRoomPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-xs text-gray-400 mb-1 block">플레이 성향</label>
-                        <input className={inputCls} value={pStyle} onChange={e => setPStyle(e.target.value)} placeholder="예: 공격적 플레이" />
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-400 mb-1 block">대회 포부 한마디</label>
-                        <input className={inputCls} value={pComment} onChange={e => setPComment(e.target.value)} placeholder="이번 대회에서..." />
-                      </div>
+                    <div>
+                      <label className="text-xs text-gray-400 mb-1 block">플레이 성향</label>
+                      <input className={inputCls} value={pStyle} onChange={e => setPStyle(e.target.value)} placeholder="예: 공격적 플레이" />
                     </div>
                   </div>
                 </div>

@@ -82,8 +82,8 @@ function HeroSlot({ hi, hid, heroIds, onChange }) {
 
 function HeroPicker({ heroIds, onChange }) {
   return (
-    <div className="grid grid-cols-2 gap-2">
-      {[0, 1].map(hi => (
+    <div className="grid grid-cols-3 gap-2">
+      {[0, 1, 2].map(hi => (
         <HeroSlot key={hi} hi={hi} hid={heroIds[hi] || ''} heroIds={heroIds} onChange={onChange} />
       ))}
     </div>
@@ -169,7 +169,7 @@ export default function CreateRoom() {
     setPlayerForms(prev => {
       const next = [...prev];
       while (next.length < totalPlayers)
-        next.push({ name: '', photoFile: null, photoPreview: '', heroIds: ['', ''], tierCurrent: '', tierPrevious: '', tierBest: '', tierType: '', position: '', style: '', comment: '' });
+        next.push({ name: '', photoFile: null, photoPreview: '', heroIds: ['', '', ''], tierCurrent: '', tierBest: '', tierType: '', position: '', style: '' });
       return next.slice(0, totalPlayers);
     });
   }, [totalPlayers]);
@@ -207,9 +207,9 @@ export default function CreateRoom() {
           captainForms: captainForms.map(c => ({ name: c.name, photo: '', budget: c.budget || 1000 })),
           playerForms: playerForms.map(p => ({
             name: p.name, photo: '', heroIds: p.heroIds,
-            tierCurrent: p.tierCurrent, tierPrevious: p.tierPrevious, tierBest: p.tierBest,
+            tierCurrent: p.tierCurrent, tierBest: p.tierBest,
             tierType: p.tierType, position: p.position,
-            style: p.style, comment: p.comment,
+            style: p.style,
           })),
           updatedAt: Date.now(),
           createdAt: draftId ? null : Date.now(),
@@ -303,7 +303,7 @@ export default function CreateRoom() {
     for (let i = 0; i < playerForms.length; i++) {
       if (!playerForms[i].name.trim()) { setError(`선수 ${i + 1}의 닉네임을 입력해주세요.`); return; }
       if (!playerForms[i].heroIds[0]) { setError(`선수 ${i + 1}의 주 영웅을 선택해주세요.`); return; }
-      if (!playerForms[i].tierCurrent) { setError(`선수 ${i + 1}의 이번 시즌 티어를 선택해주세요.`); return; }
+      if (!playerForms[i].tierCurrent) { setError(`선수 ${i + 1}의 현 시즌 티어를 선택해주세요.`); return; }
       if (!playerForms[i].tierType) { setError(`선수 ${i + 1}의 티어 구분을 선택해주세요.`); return; }
       if (!playerForms[i].position) { setError(`선수 ${i + 1}의 포지션을 선택해주세요.`); return; }
     }
@@ -334,10 +334,10 @@ export default function CreateRoom() {
           hero: primaryHero?.name || '',
           heroId: p.heroIds[0] || '',
           heroRole: primaryHero?.role || '',
-          tierCurrent: p.tierCurrent, tierPrevious: p.tierPrevious, tierBest: p.tierBest,
+          tierCurrent: p.tierCurrent, tierBest: p.tierBest,
           tier: p.tierCurrent,
           tierType: p.tierType || '', position: p.position || '',
-          style: p.style || '', comment: p.comment || '',
+          style: p.style || '',
           soldTo: null, soldPrice: null,
         };
       }
@@ -569,24 +569,41 @@ export default function CreateRoom() {
                   {/* 티어 (3종) */}
                   <div>
                     <label className="text-base text-gray-400 mb-2 block font-semibold">티어</label>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                       {[
-                        { field: 'tierCurrent', label: '이번 시즌' },
-                        { field: 'tierPrevious', label: '저번 시즌' },
+                        { field: 'tierCurrent', label: '현 시즌 티어' },
                         { field: 'tierBest', label: '최고 티어' },
-                      ].map(({ field, label }) => (
-                        <div key={field}>
-                          <p className="text-sm text-gray-500 mb-1">{label}</p>
-                          <select
-                            value={p[field]}
-                            onChange={e => updatePlayer(i, field, e.target.value)}
-                            className="w-full px-2 py-2 text-sm bg-gray-800 border border-gray-600 rounded-lg focus:outline-none"
-                          >
-                            <option value="">선택</option>
-                            {TIERS_DETAILED.map(t => <option key={t} value={t}>{t}</option>)}
-                          </select>
-                        </div>
-                      ))}
+                      ].map(({ field, label }) => {
+                        const val = p[field] || '';
+                        const isCustom = val === '__custom__' || (val && !TIERS_DETAILED.includes(val) && val !== '');
+                        return (
+                          <div key={field}>
+                            <p className="text-sm text-gray-500 mb-1">{label}</p>
+                            {isCustom ? (
+                              <div className="flex gap-1">
+                                <input
+                                  className="flex-1 px-2 py-2 text-sm bg-gray-800 border border-gray-600 rounded-lg focus:border-orange-400 focus:outline-none"
+                                  placeholder="티어 직접 입력"
+                                  value={val === '__custom__' ? '' : val}
+                                  onChange={e => updatePlayer(i, field, e.target.value || '__custom__')}
+                                />
+                                <button type="button" onClick={() => updatePlayer(i, field, '')}
+                                  className="px-2 py-1 text-xs text-gray-400 hover:text-white bg-gray-700 rounded-lg flex-shrink-0">← 목록</button>
+                              </div>
+                            ) : (
+                              <select
+                                value={val}
+                                onChange={e => updatePlayer(i, field, e.target.value)}
+                                className="w-full px-2 py-2 text-sm bg-gray-800 border border-gray-600 rounded-lg focus:outline-none"
+                              >
+                                <option value="">선택</option>
+                                {TIERS_DETAILED.map(t => <option key={t} value={t}>{t}</option>)}
+                                <option value="__custom__">직접 입력</option>
+                              </select>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -629,26 +646,15 @@ export default function CreateRoom() {
                     </div>
                   </div>
 
-                  {/* 성향 + 포부 */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-base text-gray-400 mb-1 block">플레이 성향</label>
-                      <input
-                        className="w-full px-3 py-2 text-lg bg-gray-800 border border-gray-600 rounded-xl focus:border-blue-400 focus:outline-none"
-                        placeholder="예: 공격적 플레이"
-                        value={p.style}
-                        onChange={e => updatePlayer(i, 'style', e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-base text-gray-400 mb-1 block">대회 포부 한마디</label>
-                      <input
-                        className="w-full px-3 py-2 text-lg bg-gray-800 border border-gray-600 rounded-xl focus:border-blue-400 focus:outline-none"
-                        placeholder="이번 대회에서 꼭 우승하겠습니다!"
-                        value={p.comment}
-                        onChange={e => updatePlayer(i, 'comment', e.target.value)}
-                      />
-                    </div>
+                  {/* 성향 */}
+                  <div>
+                    <label className="text-base text-gray-400 mb-1 block">플레이 성향</label>
+                    <input
+                      className="w-full px-3 py-2 text-lg bg-gray-800 border border-gray-600 rounded-xl focus:border-blue-400 focus:outline-none"
+                      placeholder="예: 공격적 플레이"
+                      value={p.style}
+                      onChange={e => updatePlayer(i, 'style', e.target.value)}
+                    />
                   </div>
                 </div>
               </div>
