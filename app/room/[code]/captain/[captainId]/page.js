@@ -206,7 +206,7 @@ export default function CaptainPage() {
   const auctionRef = useRef(null);
   const lastTimerEndRef = useRef(null);
   const barRef = useRef(null);
-  const maxDurationRef = useRef(10000);
+  const maxDurationRef = useRef(15000);
   const chatScrollRef = useRef(null);
   const sendingRef = useRef(false);
 
@@ -245,7 +245,7 @@ export default function CaptainPage() {
   const bidderCap = auction?.currentBidCaptainId ? captains[auction.currentBidCaptainId] : null;
   const bidLogList = useMemo(() => auction?.bidLog ? Object.values(auction.bidLog).sort((a, b) => b.timestamp - a.timestamp).slice(0, 10) : [], [auction?.bidLog]);
   const displayTime = (timeLeft / 1000).toFixed(1);
-  const displayCountdown = Math.min(10, Math.ceil(countdownLeft / 1000));
+  const displayCountdown = Math.min(15, Math.ceil(countdownLeft / 1000));
 
   // ── useEffect ──
   useEffect(() => { auctionRef.current = auction; }, [auction]);
@@ -387,7 +387,7 @@ export default function CaptainPage() {
       if (hasLine) { setBidError('이미 해당 라인의 선수를 보유하고 있습니다.'); return; }
     }
     const prevCaptainId = a.currentBidCaptainId || null;
-    const newTimerEnd = Math.max(a.timerEnd || Date.now(), Date.now()) + 5000;
+    const newTimerEnd = Math.max(a.timerEnd || Date.now(), Date.now()) + 10000;
     await update(ref(db), {
       [`rooms/${code}/auction/currentBid`]: amt,
       [`rooms/${code}/auction/currentBidCaptainId`]: captainId,
@@ -667,7 +667,7 @@ export default function CaptainPage() {
               <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-yellow-400 rounded-full transition-none"
-                  style={{ width: `${Math.max(0, Math.min(100, (countdownLeft / 10000) * 100))}%` }}
+                  style={{ width: `${Math.max(0, Math.min(100, (countdownLeft / 15000) * 100))}%` }}
                 />
               </div>
             </div>

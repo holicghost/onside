@@ -34,6 +34,7 @@ export default function LobbyPage() {
   const [roomInfo, setRoomInfo] = useState(null);
   const [captains, setCaptains] = useState({});
   const [countdownStartedAt, setCountdownStartedAt] = useState(null);
+  const [countdownPausedRemaining, setCountdownPausedRemaining] = useState(null);
   const [countdown, setCountdown] = useState(null);
 
   const roleRef = useRef('spectator');
@@ -55,16 +56,17 @@ export default function LobbyPage() {
       }),
       onValue(ref(db, `rooms/${code}/captains`), snap => setCaptains(snap.val() || {})),
       onValue(ref(db, `rooms/${code}/lobby/countdownStartedAt`), snap => setCountdownStartedAt(snap.val())),
+      onValue(ref(db, `rooms/${code}/lobby/countdownPausedRemaining`), snap => setCountdownPausedRemaining(snap.val())),
     ];
     return () => unsubs.forEach(u => u());
   }, [code, router]);
 
   // Countdown tick — all clients sync to Firebase timestamp
   useEffect(() => {
-    if (!countdownStartedAt) { setCountdown(null); return; }
-    const DURATION = 10000;
+    if (!countdownStartedAt || countdownPausedRemaining !== null) { if (!countdownStartedAt) setCountdown(null); return; }
+    const DURATION = 15000;
     const tick = () => {
-      const remaining = Math.min(10, Math.ceil((countdownStartedAt + DURATION - Date.now()) / 1000));
+      const remaining = Math.min(15, Math.ceil((countdownStartedAt + DURATION - Date.now()) / 1000));
       if (remaining <= 0) {
         setCountdown(0);
         if (roleRef.current === 'admin') {
@@ -77,7 +79,32 @@ export default function LobbyPage() {
     tick();
     const id = setInterval(tick, 100);
     return () => clearInterval(id);
-  }, [countdownStartedAt, code]);
+  }, [countdownStartedAt, countdownPausedRemaining, code]);
+
+  // Show frozen countdown when paused
+  useEffect(() => {
+    if (countdownPausedRemaining !== null) {
+      setCountdown(Math.min(15, Math.ceil(countdownPausedRemaining / 1000)));
+    }
+  }, [countdownPausedRemaining]);
+
+  const pauseLobbyCountdown = async () => {
+    if (!countdownStartedAt) return;
+    const DURATION = 15000;
+    const remaining = Math.max(1000, countdownStartedAt + DURATION - Date.now());
+    await update(ref(db), {
+      [`rooms/${code}/lobby/countdownPausedRemaining`]: remaining,
+      [`rooms/${code}/lobby/countdownStartedAt`]: null,
+    });
+  };
+
+  const resumeLobbyCountdown = async () => {
+    if (countdownPausedRemaining === null) return;
+    await update(ref(db), {
+      [`rooms/${code}/lobby/countdownStartedAt`]: Date.now() - (10000 - countdownPausedRemaining),
+      [`rooms/${code}/lobby/countdownPausedRemaining`]: null,
+    });
+  };
 
   const handleStartAuction = async () => {
     const captainsList = Object.entries(captains);
@@ -96,7 +123,8 @@ export default function LobbyPage() {
   };
 
   const captainsList = Object.entries(captains).map(([id, c]) => ({ id, ...c }));
-  const counting = countdownStartedAt !== null;
+  const counting = countdownStartedAt !== null || countdownPausedRemaining !== null;
+  const paused = countdownPausedRemaining !== null;
 
   return (
     <div
@@ -148,10 +176,27 @@ export default function LobbyPage() {
       <div className="text-center">
         {counting ? (
           <>
-            <p className="text-gray-400 text-xl mb-2">잠시 뒤 경매가 시작됩니다</p>
-            <div key={countdown} className="font-black text-orange-400 leading-none animate-count-down" style={{ fontSize: '96px' }}>
+            <p className="text-gray-400 text-xl mb-2">
+              {paused ? '일시정지됨' : '잠시 뒤 경매가 시작됩니다'}
+            </p>
+            <div key={paused ? 'paused' : countdown} className={`font-black leading-none ${paused ? 'text-orange-400/50' : 'text-orange-400 animate-count-down'}`} style={{ fontSize: '96px' }}>
               {countdown > 0 ? countdown : '🔨'}
             </div>
+            {role === 'admin' && (
+              <div className="mt-4">
+                {paused ? (
+                  <button onClick={resumeLobbyCountdown}
+                    className="px-8 py-3 text-xl font-bold bg-green-600 hover:bg-green-500 text-white rounded-xl transition-all">
+                    ▶ 재개
+                  </button>
+                ) : countdown > 0 && (
+                  <button onClick={pauseLobbyCountdown}
+                    className="px-8 py-3 text-xl font-bold bg-orange-700 hover:bg-orange-600 text-white rounded-xl transition-all">
+                    ⏸ 일시정지
+                  </button>
+                )}
+              </div>
+            )}
           </>
         ) : (
           <>

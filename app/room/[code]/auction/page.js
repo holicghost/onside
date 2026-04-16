@@ -183,7 +183,7 @@ export default function AuctionPage() {
   const [auction, setAuction] = useState(null);
   const [timeLeft, setTimeLeft] = useState(0);
   const [countdownLeft, setCountdownLeft] = useState(0);
-  const [maxDuration, setMaxDuration] = useState(10000);
+  const [maxDuration, setMaxDuration] = useState(15000);
   const [bidError, setBidError] = useState('');
   const [showLinks, setShowLinks] = useState(false);
   const [origin, setOrigin] = useState('');
@@ -197,7 +197,7 @@ export default function AuctionPage() {
   const lastTimerEndRef = useRef(null);
   const goToNextPlayerRef = useRef(null);
   const barRef = useRef(null);
-  const maxDurationRef = useRef(10000);
+  const maxDurationRef = useRef(15000);
   const chatScrollRef = useRef(null);
 
   useEffect(() => { auctionRef.current = auction; }, [auction]);
@@ -286,7 +286,7 @@ export default function AuctionPage() {
     if (!a || a.status !== 'countdown') return;
     await update(ref(db), {
       [`rooms/${code}/auction/status`]: 'bidding',
-      [`rooms/${code}/auction/timerEnd`]: Date.now() + 10000,
+      [`rooms/${code}/auction/timerEnd`]: Date.now() + 15000,
       [`rooms/${code}/auction/countdownEnd`]: null,
     });
   }, [code]);
@@ -351,7 +351,7 @@ export default function AuctionPage() {
       [`rooms/${code}/auction/status`]: 'countdown',
       [`rooms/${code}/auction/currentBid`]: 0,
       [`rooms/${code}/auction/currentBidCaptainId`]: null,
-      [`rooms/${code}/auction/countdownEnd`]: Date.now() + 10000,
+      [`rooms/${code}/auction/countdownEnd`]: Date.now() + 15000,
       [`rooms/${code}/auction/timerEnd`]: null,
       [`rooms/${code}/auction/bidLog`]: null,
       [`rooms/${code}/auction/roundStartUnsoldCount`]: Object.keys(players).length,
@@ -404,7 +404,7 @@ export default function AuctionPage() {
           [`rooms/${code}/auction/currentBid`]: 0,
           [`rooms/${code}/auction/currentBidCaptainId`]: null,
           [`rooms/${code}/auction/countdownEnd`]: null,
-          [`rooms/${code}/auction/timerEnd`]: Date.now() + 10000,
+          [`rooms/${code}/auction/timerEnd`]: Date.now() + 15000,
           [`rooms/${code}/auction/bidLog`]: null,
           [`rooms/${code}/auction/isReAuction`]: true,
           [`rooms/${code}/auction/roundStartUnsoldCount`]: unsoldEntries.length,
@@ -426,7 +426,7 @@ export default function AuctionPage() {
       [`rooms/${code}/auction/currentBid`]: 0,
       [`rooms/${code}/auction/currentBidCaptainId`]: null,
       [`rooms/${code}/auction/countdownEnd`]: null,
-      [`rooms/${code}/auction/timerEnd`]: Date.now() + 10000,
+      [`rooms/${code}/auction/timerEnd`]: Date.now() + 15000,
       [`rooms/${code}/auction/bidLog`]: null,
     });
   }, [code]);
@@ -462,7 +462,7 @@ export default function AuctionPage() {
   const resumeAuction = async () => {
     await update(ref(db), {
       [`rooms/${code}/auction/status`]: 'bidding',
-      [`rooms/${code}/auction/timerEnd`]: Date.now() + (auction?.pausedTimeLeft || 10000),
+      [`rooms/${code}/auction/timerEnd`]: Date.now() + (auction?.pausedTimeLeft || 15000),
       [`rooms/${code}/auction/pausedTimeLeft`]: null,
     });
   };
@@ -479,7 +479,7 @@ export default function AuctionPage() {
   const resumeCountdown = async () => {
     await update(ref(db), {
       [`rooms/${code}/auction/status`]: 'countdown',
-      [`rooms/${code}/auction/countdownEnd`]: Date.now() + (auction?.pausedCountdownLeft || 10000),
+      [`rooms/${code}/auction/countdownEnd`]: Date.now() + (auction?.pausedCountdownLeft || 15000),
       [`rooms/${code}/auction/pausedCountdownLeft`]: null,
     });
   };
@@ -508,7 +508,7 @@ export default function AuctionPage() {
       if (hasLine) { setBidError('이미 해당 라인의 선수를 보유하고 있습니다.'); return; }
     }
     const prevCaptainId = a.currentBidCaptainId || null;
-    const newTimerEnd = Math.max(a.timerEnd || Date.now(), Date.now()) + 5000;
+    const newTimerEnd = Math.max(a.timerEnd || Date.now(), Date.now()) + 10000;
     await update(ref(db), {
       [`rooms/${code}/auction/currentBid`]: amt,
       [`rooms/${code}/auction/currentBidCaptainId`]: captainId,
@@ -566,7 +566,7 @@ export default function AuctionPage() {
   ].filter(q => q.val > curBid && q.val <= myBudget), [curBid, myBudget]);
 
   const displayTime = (timeLeft / 1000).toFixed(1);
-  const displayCountdown = Math.min(10, Math.ceil(countdownLeft / 1000));
+  const displayCountdown = Math.min(15, Math.ceil(countdownLeft / 1000));
   const progressPct = maxDuration > 0 ? Math.max(0, (timeLeft / maxDuration) * 100) : 0;
 
 
@@ -746,7 +746,7 @@ export default function AuctionPage() {
               <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-yellow-400 rounded-full transition-none"
-                  style={{ width: `${Math.max(0, Math.min(100, (countdownLeft / 10000) * 100))}%` }}
+                  style={{ width: `${Math.max(0, Math.min(100, (countdownLeft / 15000) * 100))}%` }}
                 />
               </div>
               {role === 'admin' && (
