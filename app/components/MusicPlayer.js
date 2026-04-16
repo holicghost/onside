@@ -6,25 +6,64 @@ export default function MusicPlayer() {
   const [volume, setVolume] = useState(50);
   const [muted, setMuted] = useState(false);
   const [showVolume, setShowVolume] = useState(false);
+  const [waitingUnmute, setWaitingUnmute] = useState(true);
   const audioRef = useRef(null);
   const hideTimer = useRef(null);
+  const unmutedRef = useRef(false);
 
+  // Init: restore volume, autoplay muted
   useEffect(() => {
     const saved = localStorage.getItem('bgm_volume');
     const savedMute = localStorage.getItem('bgm_muted');
     const vol = saved !== null ? Number(saved) : 50;
     setVolume(vol);
     setMuted(savedMute === 'true');
+
     const audio = audioRef.current;
     if (!audio) return;
     audio.volume = savedMute === 'true' ? 0 : vol / 100;
-    audio.loop = true;
+
+    // Autoplay muted to get playback started
+    audio.muted = true;
+    audio.play().then(() => setPlaying(true)).catch(() => {});
   }, []);
 
+  // On ANY user interaction, unmute the audio
+  useEffect(() => {
+    const unmute = () => {
+      if (unmutedRef.current) return;
+      unmutedRef.current = true;
+      setWaitingUnmute(false);
+      const audio = audioRef.current;
+      if (!audio) return;
+      audio.muted = false;
+      const savedMute = localStorage.getItem('bgm_muted');
+      const saved = localStorage.getItem('bgm_volume');
+      const vol = saved !== null ? Number(saved) : 50;
+      audio.volume = savedMute === 'true' ? 0 : vol / 100;
+      audio.play().then(() => setPlaying(true)).catch(() => {});
+    };
+    window.addEventListener('click', unmute, { once: true });
+    window.addEventListener('touchstart', unmute, { once: true });
+    window.addEventListener('keydown', unmute, { once: true });
+    return () => {
+      window.removeEventListener('click', unmute);
+      window.removeEventListener('touchstart', unmute);
+      window.removeEventListener('keydown', unmute);
+    };
+  }, []);
+
+  // Listen for startBGM / stopBGM custom events
   useEffect(() => {
     const handleStart = () => {
       const audio = audioRef.current;
       if (!audio) return;
+      unmutedRef.current = true;
+      setWaitingUnmute(false);
+      audio.muted = false;
+      const saved = localStorage.getItem('bgm_volume');
+      const vol = saved !== null ? Number(saved) : 50;
+      audio.volume = localStorage.getItem('bgm_muted') === 'true' ? 0 : vol / 100;
       audio.play().then(() => setPlaying(true)).catch(() => {});
     };
     const handleStop = () => {
@@ -69,6 +108,9 @@ export default function MusicPlayer() {
       audio.pause();
       setPlaying(false);
     } else {
+      audio.muted = false;
+      unmutedRef.current = true;
+      setWaitingUnmute(false);
       audio.play().then(() => setPlaying(true)).catch(() => {});
     }
   };
@@ -84,6 +126,27 @@ export default function MusicPlayer() {
   return (
     <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-1"
       onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
+
+      {/* Unmute hint */}
+      {waitingUnmute && (
+        <button
+          onClick={() => {
+            const audio = audioRef.current;
+            if (!audio) return;
+            unmutedRef.current = true;
+            setWaitingUnmute(false);
+            audio.muted = false;
+            audio.volume = volume / 100;
+            audio.play().then(() => setPlaying(true)).catch(() => {});
+          }}
+          className="px-3 py-1.5 rounded-full text-[11px] font-bold text-gray-400 hover:text-orange-400 transition-all animate-pulse"
+          style={{ background: 'rgba(15,15,26,0.9)', border: '1px solid rgba(255,255,255,0.08)' }}
+        >
+          🔇 클릭하여 소리 켜기
+        </button>
+      )}
+
+      {/* Main player pill */}
       <div
         className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full transition-all"
         style={{ background: 'rgba(15,15,26,0.9)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(8px)' }}
@@ -110,6 +173,7 @@ export default function MusicPlayer() {
         </span>
       </div>
 
+      {/* Volume slider (hover) */}
       {showVolume && (
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full animate-modal-in"
           style={{ background: 'rgba(15,15,26,0.9)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(8px)' }}>
@@ -123,7 +187,7 @@ export default function MusicPlayer() {
         </div>
       )}
 
-      <audio ref={audioRef} src="/bgm.mp3" preload="none" />
+      <audio ref={audioRef} src="/bgm.mp3" autoPlay muted loop playsInline preload="auto" />
     </div>
   );
 }

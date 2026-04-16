@@ -342,33 +342,12 @@ export default function AuctionPage() {
   }, [auction?.status]);
 
   const buildPlayerOrder = (playerMap) => {
-    const shuffle = arr => {
-      const a = [...arr];
-      for (let i = a.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [a[i], a[j]] = [a[j], a[i]];
-      }
-      return a;
-    };
-    const GROUPS = [
-      { tierType: '고티어', position: '딜러' },
-      { tierType: '저티어', position: '딜러' },
-      { tierType: '고티어', position: '탱커' },
-      { tierType: '저티어', position: '탱커' },
-      { tierType: '고티어', position: '힐러' },
-      { tierType: '저티어', position: '힐러' },
-    ];
-    const ordered = [];
-    for (const g of GROUPS) {
-      const group = Object.entries(playerMap)
-        .filter(([, p]) => p.tierType === g.tierType && p.position === g.position)
-        .map(([id]) => id);
-      ordered.push(...shuffle(group));
+    const ids = Object.keys(playerMap);
+    for (let i = ids.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [ids[i], ids[j]] = [ids[j], ids[i]];
     }
-    const assigned = new Set(ordered);
-    const rest = Object.keys(playerMap).filter(id => !assigned.has(id));
-    ordered.push(...shuffle(rest));
-    return ordered;
+    return ids;
   };
 
   const startAuction = async () => {
