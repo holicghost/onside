@@ -934,7 +934,7 @@ export default function AuctionPage() {
           {/* NEXT preview card */}
           {nextQueuePlayer && (
             <div>
-              <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2">다음 선수</h2>
+              <h2 className="text-xl font-bold text-gray-300 mb-2">다음 선수</h2>
               <div key={nextQueuePlayer.id} className="flex items-center gap-2 text-base">
                 {nextQueuePlayer.photo ? <img src={nextQueuePlayer.photo} alt={nextQueuePlayer.name} className="w-6 h-6 rounded-full object-cover flex-shrink-0" /> : <span className="flex-shrink-0">👤</span>}
                 <div className="flex-1 min-w-0">
