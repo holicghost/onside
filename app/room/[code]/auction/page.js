@@ -75,39 +75,39 @@ function AuctionPlayerCard({ player, curBid, auction, bidderCap }) {
         <div className="flex-1 min-w-0">
           <div className="flex gap-1.5 flex-wrap mb-1.5">
             {(player.tierType || player.position) && (
-              <span className={`px-3 py-0.5 text-sm font-bold rounded-full border ${
+              <span className={`px-3 py-1 text-base font-bold rounded-full border ${
                 TIER_POS_STYLES[`${player.tierType} ${player.position}`] || 'bg-gray-700 text-gray-300 border-gray-600'
               }`}>
                 {[player.tierType, player.position].filter(Boolean).join(' ')}
               </span>
             )}
             {curBid > 0 && auction?.status === 'bidding' && (
-              <span className="px-3 py-0.5 bg-orange-500/80 text-white text-sm font-bold rounded-full animate-pulse">입찰 중</span>
+              <span className="px-3 py-1 bg-orange-500/80 text-white text-base font-bold rounded-full animate-pulse">입찰 중</span>
             )}
           </div>
-          <h2 className="font-black text-white leading-tight" style={{ fontSize: '40px' }}>{player.name}</h2>
-          <div className="grid grid-cols-3 gap-1.5 mt-2">
+          <h2 className="font-black text-white leading-tight" style={{ fontSize: '56px' }}>{player.name}</h2>
+          <div className="grid grid-cols-3 gap-2 mt-3">
             {[
               { label: '현재 티어', val: player.tierCurrent, color: 'text-purple-400' },
               { label: '이전 시즌 티어', val: player.tierPrevious, color: 'text-gray-300' },
               { label: '역대 최고 티어', val: player.tierBest, color: 'text-yellow-400' },
             ].map(({ label, val, color }) => (
-              <div key={label} className="bg-gray-800/80 rounded-lg px-2 py-1.5">
-                <p className="text-xs text-gray-500 mb-0.5 leading-tight">{label}</p>
-                <p className={`text-lg font-bold ${color} leading-tight`}>{val || '—'}</p>
+              <div key={label} className="bg-gray-800/80 rounded-lg px-3 py-2">
+                <p className="text-sm text-gray-500 mb-0.5 leading-tight">{label}</p>
+                <p className={`text-xl font-bold ${color} leading-tight`}>{val || '—'}</p>
               </div>
             ))}
           </div>
           {player.style && (
-            <div className="mt-2.5">
-              <p className="text-xs text-gray-500 mb-0.5">플레이 스타일</p>
-              <p className="text-sm text-gray-300 leading-snug">{player.style}</p>
+            <div className="mt-3">
+              <p className="text-sm text-gray-500 mb-0.5">플레이 스타일</p>
+              <p className="text-base text-gray-300 leading-snug">{player.style}</p>
             </div>
           )}
           {player.comment && (
-            <div className="mt-2.5">
-              <p className="text-xs text-gray-500 mb-0.5">한마디</p>
-              <p className="text-sm text-gray-300 leading-snug">{player.comment}</p>
+            <div className="mt-3">
+              <p className="text-sm text-gray-500 mb-0.5">한마디</p>
+              <p className="text-base text-gray-300 leading-snug">{player.comment}</p>
             </div>
           )}
         </div>
@@ -130,25 +130,25 @@ function AuctionPlayerCard({ player, curBid, auction, bidderCap }) {
                     <span className="text-gray-500 text-xl">?</span>
                   )}
                   {roleName && (
-                    <span className={`absolute bottom-0 left-0 right-0 text-center text-[8px] font-bold py-0.5 ${roleColor}`}
+                    <span className={`absolute bottom-0 left-0 right-0 text-center text-[10px] font-bold py-0.5 ${roleColor}`}
                       style={{ background: 'rgba(0,0,0,0.7)' }}>
                       {roleName}
                     </span>
                   )}
                 </div>
-                <span className="text-gray-400 text-[9px] text-center leading-tight w-14 truncate">{hero?.name || hid}</span>
+                <span className="text-gray-400 text-[11px] text-center leading-tight w-14 truncate">{hero?.name || hid}</span>
               </div>
             );
           })}
         </div>
       )}
       <div className="px-5 pb-5">
-        <p className="text-gray-500 text-sm mb-0.5">현재 입찰</p>
-        <p key={curBid} className="font-black text-orange-400 leading-none tabular-nums animate-bid-pop" style={{ fontSize: '48px' }}>
+        <p className="text-gray-500 text-base mb-0.5">현재 입찰</p>
+        <p key={curBid} className="font-black text-orange-400 leading-none tabular-nums animate-bid-pop" style={{ fontSize: '64px' }}>
           {curBid > 0 ? `${curBid} pt` : '—'}
         </p>
         {bidderCap && (
-          <p className="text-white text-base font-bold mt-1">👑 {bidderCap.name} 입찰 중</p>
+          <p className="text-white text-lg font-bold mt-1">👑 {bidderCap.name} 입찰 중</p>
         )}
       </div>
       {auction?.status === 'sold' && (
@@ -599,7 +599,7 @@ export default function AuctionPage() {
 
         {/* LEFT: Team Rosters */}
         <aside className="border-r border-gray-800 overflow-y-auto p-4 space-y-3">
-          <h2 className="text-lg font-bold text-gray-300 sticky top-0 bg-[#0f0f1a] pb-2">팀 로스터</h2>
+          <h2 className="text-xl font-bold text-gray-300 sticky top-0 bg-[#0f0f1a] pb-2">팀 로스터</h2>
           {captainsList.map(cap => {
             const teamPlayers = Object.values(players).filter(p => p.soldTo === cap.id);
             const isLeader = cap.id === auction?.currentBidCaptainId;
@@ -610,27 +610,27 @@ export default function AuctionPage() {
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${cap.online ? 'bg-green-400 animate-pulse' : 'bg-gray-600'}`} />
-                      <p className="font-bold text-white text-lg truncate">{cap.name}</p>
+                      <p className="font-bold text-white text-xl truncate">{cap.name}</p>
                       {cap.position && (
-                        <span className={`px-2 py-0.5 text-xs font-bold rounded-full flex-shrink-0 ${
+                        <span className={`px-2 py-0.5 text-sm font-bold rounded-full flex-shrink-0 ${
                           cap.position === '탱커' ? 'bg-yellow-900/60 text-yellow-300' :
                           cap.position === '딜러' ? 'bg-red-900/60 text-red-300' :
                           'bg-green-900/60 text-green-300'
                         }`}>{cap.position}</span>
                       )}
                     </div>
-                    <p className="text-sm text-gray-400">예산 <span className="text-green-400 font-bold">{cap.budget}</span><span className="text-gray-600">/{roomInfo?.budget}</span>P</p>
+                    <p className="text-base text-gray-400">예산 <span className="text-green-400 font-bold">{cap.budget}</span><span className="text-gray-600">/{roomInfo?.budget}</span>P</p>
                   </div>
                 </div>
                 {teamPlayers.length > 0
                   ? <div className="space-y-1.5 border-t border-gray-700 pt-2">
                       {teamPlayers.map(p => (
-                        <div key={p.id} className="flex items-center gap-2 text-sm">
-                          {p.photo ? <img src={p.photo} alt={p.name} className="w-5 h-5 rounded-full object-cover flex-shrink-0" /> : <span className="flex-shrink-0">👤</span>}
+                        <div key={p.id} className="flex items-center gap-2 text-base">
+                          {p.photo ? <img src={p.photo} alt={p.name} className="w-6 h-6 rounded-full object-cover flex-shrink-0" /> : <span className="flex-shrink-0">👤</span>}
                           <div className="flex-1 min-w-0">
                             <p className="text-gray-300 truncate leading-tight">{p.name}</p>
                             {(p.tierType || p.position) && (
-                              <span className="text-xs text-gray-600 font-bold">{[p.tierType, p.position].filter(Boolean).join(' ')}</span>
+                              <span className="text-sm text-gray-600 font-bold">{[p.tierType, p.position].filter(Boolean).join(' ')}</span>
                             )}
                           </div>
                           <span className="text-orange-400 font-bold flex-shrink-0">{p.soldPrice}P</span>
