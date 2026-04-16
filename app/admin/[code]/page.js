@@ -439,6 +439,19 @@ export default function AdminRoomPage() {
           </div>
         </div>
 
+        {/* Save error/success toast */}
+        {saveError && (
+          <div className="px-4 py-3 bg-red-950/60 border border-red-800 rounded-xl text-red-400 text-sm flex items-center justify-between">
+            <span>{saveError}</span>
+            <button onClick={() => setSaveError('')} className="text-red-500 hover:text-red-300 ml-3 flex-shrink-0">✕</button>
+          </div>
+        )}
+        {savedMsg && (
+          <div className="px-4 py-3 bg-green-950/60 border border-green-800 rounded-xl text-green-400 text-sm font-bold">
+            ✓ {savedMsg}
+          </div>
+        )}
+
         {/* ── 링크 공유 ── */}
         <section className="bg-gray-900/70 border border-gray-700 rounded-2xl p-5">
           <button onClick={() => setShowLinks(v => !v)} className="flex items-center gap-2 text-base font-bold text-gray-300 hover:text-white transition-all">
@@ -631,9 +644,9 @@ export default function AdminRoomPage() {
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <button onClick={() => saveCaptain(cap.id)} disabled={saving === 'captain'}
+                      <button onClick={() => saveCaptain(cap.id)} disabled={saving.startsWith('captain')}
                         className="px-4 py-2 text-sm font-bold bg-orange-500 hover:bg-orange-400 disabled:opacity-50 rounded-xl transition-all">
-                        {saving === 'captain' ? '저장 중...' : '저장'}
+                        {saving === 'captain-upload' ? '사진 업로드 중...' : saving === 'captain' ? '저장 중...' : '저장'}
                       </button>
                       <button onClick={() => setEditingCaptain(null)} className="px-4 py-2 text-sm bg-gray-700 hover:bg-gray-600 rounded-xl transition-all">취소</button>
                     </div>
@@ -688,9 +701,9 @@ export default function AdminRoomPage() {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={saveNewCaptain} disabled={saving === 'newcaptain' || !capName.trim()}
+                  <button onClick={saveNewCaptain} disabled={saving.startsWith('newcaptain') || !capName.trim()}
                     className="px-4 py-2 text-sm font-bold bg-orange-500 hover:bg-orange-400 disabled:opacity-50 rounded-xl transition-all">
-                    {saving === 'newcaptain' ? '저장 중...' : '추가'}
+                    {saving === 'newcaptain-upload' ? '사진 업로드 중...' : saving === 'newcaptain' ? '저장 중...' : '추가'}
                   </button>
                   <button onClick={() => setAddingCaptain(false)} className="px-4 py-2 text-sm bg-gray-700 hover:bg-gray-600 rounded-xl transition-all">취소</button>
                 </div>
@@ -770,9 +783,9 @@ export default function AdminRoomPage() {
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <button onClick={() => savePlayer(p.id)} disabled={saving === 'player'}
+                      <button onClick={() => savePlayer(p.id)} disabled={saving.startsWith('player')}
                         className="px-4 py-2 text-sm font-bold bg-blue-500 hover:bg-blue-400 disabled:opacity-50 rounded-xl transition-all">
-                        {saving === 'player' ? '저장 중...' : '저장'}
+                        {saving === 'player-upload' ? '사진 업로드 중...' : saving === 'player' ? '저장 중...' : '저장'}
                       </button>
                       <button onClick={() => setEditingPlayer(null)} className="px-4 py-2 text-sm bg-gray-700 hover:bg-gray-600 rounded-xl transition-all">취소</button>
                     </div>
@@ -866,9 +879,9 @@ export default function AdminRoomPage() {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={saveNewPlayer} disabled={saving === 'newplayer' || !pName.trim()}
+                  <button onClick={saveNewPlayer} disabled={saving.startsWith('newplayer') || !pName.trim()}
                     className="px-4 py-2 text-sm font-bold bg-blue-500 hover:bg-blue-400 disabled:opacity-50 rounded-xl transition-all">
-                    {saving === 'newplayer' ? '저장 중...' : '추가'}
+                    {saving === 'newplayer-upload' ? '사진 업로드 중...' : saving === 'newplayer' ? '저장 중...' : '추가'}
                   </button>
                   <button onClick={() => setAddingPlayer(false)} className="px-4 py-2 text-sm bg-gray-700 hover:bg-gray-600 rounded-xl transition-all">취소</button>
                 </div>
