@@ -74,19 +74,29 @@ function AuctionPlayerCard({ player, curBid, auction, bidderCap }) {
           }
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex gap-1.5 flex-wrap mb-1.5">
-            {(player.tierType || player.position) && (
-              <span className={`px-3 py-1 text-base font-bold rounded-full border ${
-                TIER_POS_STYLES[`${player.tierType} ${player.position}`] || 'bg-gray-700 text-gray-300 border-gray-600'
-              }`}>
-                {[player.tierType, player.position].filter(Boolean).join(' ')}
-              </span>
-            )}
-            {curBid > 0 && auction?.status === 'bidding' && (
-              <span className="px-3 py-1 bg-orange-500/80 text-white text-base font-bold rounded-full animate-pulse">입찰 중</span>
-            )}
+          <div className="flex items-start justify-between gap-3 mb-1">
+            <div className="min-w-0">
+              <div className="flex gap-1.5 flex-wrap mb-1.5">
+                {(player.tierType || player.position) && (
+                  <span className={`px-3 py-1 text-base font-bold rounded-full border ${
+                    TIER_POS_STYLES[`${player.tierType} ${player.position}`] || 'bg-gray-700 text-gray-300 border-gray-600'
+                  }`}>
+                    {[player.tierType, player.position].filter(Boolean).join(' ')}
+                  </span>
+                )}
+              </div>
+              <h2 className="font-black text-white leading-tight" style={{ fontSize: '56px' }}>{player.name}</h2>
+            </div>
+            <div className="text-right flex-shrink-0 pt-1">
+              <p className="text-gray-500 text-sm">현재 입찰</p>
+              <p key={curBid} className="font-black text-orange-400 leading-none tabular-nums animate-bid-pop" style={{ fontSize: '48px' }}>
+                {curBid > 0 ? `${curBid}pt` : '—'}
+              </p>
+              {bidderCap && (
+                <p className="text-white text-base font-bold mt-1">👑 {bidderCap.name}</p>
+              )}
+            </div>
           </div>
-          <h2 className="font-black text-white leading-tight" style={{ fontSize: '56px' }}>{player.name}</h2>
           <div className="grid grid-cols-3 gap-2 mt-3">
             {[
               { label: '현재 티어', val: player.tierCurrent, color: 'text-purple-400' },
@@ -99,16 +109,16 @@ function AuctionPlayerCard({ player, curBid, auction, bidderCap }) {
               </div>
             ))}
           </div>
-          {player.style && (
-            <div className="mt-3">
-              <p className="text-sm text-gray-500 mb-0.5">플레이 스타일</p>
-              <p className="text-base text-gray-300 leading-snug">{player.style}</p>
-            </div>
-          )}
-          {player.comment && (
-            <div className="mt-3">
-              <p className="text-sm text-gray-500 mb-0.5">한마디</p>
-              <p className="text-base text-gray-300 leading-snug">{player.comment}</p>
+          {(player.style || player.comment) && (
+            <div className="grid grid-cols-2 gap-4 mt-3">
+              <div>
+                <p className="text-sm text-gray-500 mb-0.5">플레이 스타일</p>
+                <p className="text-base text-gray-300 leading-snug">{player.style || '—'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 mb-0.5">한마디</p>
+                <p className="text-base text-gray-300 leading-snug">{player.comment || '—'}</p>
+              </div>
             </div>
           )}
         </div>
@@ -143,15 +153,6 @@ function AuctionPlayerCard({ player, curBid, auction, bidderCap }) {
           })}
         </div>
       )}
-      <div className="px-5 pb-5">
-        <p className="text-gray-500 text-base mb-0.5">현재 입찰</p>
-        <p key={curBid} className="font-black text-orange-400 leading-none tabular-nums animate-bid-pop" style={{ fontSize: '64px' }}>
-          {curBid > 0 ? `${curBid} pt` : '—'}
-        </p>
-        {bidderCap && (
-          <p className="text-white text-lg font-bold mt-1">👑 {bidderCap.name} 입찰 중</p>
-        )}
-      </div>
       {auction?.status === 'sold' && (
         <div key={`sold-${auction.currentPlayerId}`}
           className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none animate-result-in"
@@ -573,7 +574,7 @@ export default function AuctionPage() {
   const bidderCap = auction?.currentBidCaptainId ? captains[auction.currentBidCaptainId] : null;
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#0f0f1a' }}>
+    <div className="min-h-screen flex flex-col" style={{ background: '#0f0f1a', ...(role !== 'admin' ? { userSelect: 'none', WebkitUserSelect: 'none' } : {}) }} onContextMenu={role !== 'admin' ? e => e.preventDefault() : undefined}>
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-3 border-b border-gray-800 flex-shrink-0 gap-3">
         <div className="flex items-center gap-4 min-w-0">
@@ -640,17 +641,16 @@ export default function AuctionPage() {
                   </div>
                 </div>
                 {teamPlayers.length > 0
-                  ? <div className="space-y-1.5 border-t border-gray-700 pt-2">
+                  ? <div className="grid grid-cols-2 gap-2 border-t border-gray-700 pt-2">
                       {teamPlayers.map(p => (
-                        <div key={p.id} className="flex items-center gap-2 text-base">
-                          {p.photo ? <img src={p.photo} alt={p.name} className="w-6 h-6 rounded-full object-cover flex-shrink-0" /> : <span className="flex-shrink-0">👤</span>}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-gray-300 truncate leading-tight">{p.name}</p>
+                        <div key={p.id} className="flex items-center gap-1.5">
+                          {p.photo ? <img src={p.photo} alt={p.name} className="w-5 h-5 rounded-full object-cover flex-shrink-0" /> : <span className="text-sm flex-shrink-0">👤</span>}
+                          <div className="min-w-0">
+                            <p className="text-sm text-gray-300 truncate leading-tight">{p.name}</p>
                             {(p.tierType || p.position) && (
-                              <span className="text-sm text-gray-600 font-bold">{[p.tierType, p.position].filter(Boolean).join(' ')}</span>
+                              <span className="text-xs text-gray-600 font-bold">{[p.tierType, p.position].filter(Boolean).join(' ')}</span>
                             )}
                           </div>
-                          <span className="text-orange-400 font-bold flex-shrink-0">{p.soldPrice}P</span>
                         </div>
                       ))}
                     </div>
@@ -828,15 +828,19 @@ export default function AuctionPage() {
           )}
 
           {/* Post-auction: admin advances, others wait */}
-          {['sold', 'passed'].includes(auction?.status) && (
-            <div className="bg-gray-800/50 rounded-xl p-4 text-center space-y-2">
-              {role === 'admin' ? (
-                <button onClick={goToNextPlayer} className="px-8 py-3 text-lg font-bold bg-blue-600 hover:bg-blue-500 rounded-xl transition-all animate-modal-in">
-                  ▶ 다음 경매로 넘어가기
-                </button>
-              ) : (
-                <p className="text-gray-400 text-base animate-pulse">다음 경매 준비 중...</p>
-              )}
+          {['sold', 'passed'].includes(auction?.status) && role === 'admin' && (
+            <div className="bg-gray-800/50 rounded-xl p-4 text-center">
+              <button onClick={goToNextPlayer} className="px-8 py-3 text-lg font-bold bg-blue-600 hover:bg-blue-500 rounded-xl transition-all animate-modal-in">
+                ▶ 다음 경매로 넘어가기
+              </button>
+            </div>
+          )}
+          {['sold', 'passed'].includes(auction?.status) && role !== 'admin' && (
+            <div className="fixed inset-0 z-30 flex items-center justify-center pointer-events-none" style={{ background: 'rgba(0,0,0,0.4)' }}>
+              <div className="text-center bg-gray-900/95 border border-gray-700 rounded-2xl px-10 py-8 shadow-2xl animate-modal-in">
+                <p className="text-gray-400 text-2xl font-bold">대기 중 입니다.</p>
+                <p className="text-gray-600 text-base mt-2">관리자가 다음 경매를 시작할 때까지 기다려주세요</p>
+              </div>
             </div>
           )}
 
@@ -906,18 +910,11 @@ export default function AuctionPage() {
               <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">입찰 내역</p>
               {bidLogList.map((b, i) => {
                 const cap = captains[b.captainId];
-                const prevCap = b.prevCaptainId ? captains[b.prevCaptainId] : null;
                 return (
-                  <div key={b.timestamp} className="animate-modal-in" style={{ animationDelay: `${i * 0.03}s` }}>
-                    {prevCap && (
-                      <p className="text-gray-500 text-sm leading-tight">{prevCap.name}</p>
-                    )}
-                    <p className="text-base font-bold leading-tight">
-                      <span className="text-gray-400">→ </span>
-                      <span className="text-orange-400">{cap?.name || '?'}</span>
-                      <span className="text-white ml-1">{b.amount}pt</span>
-                    </p>
-                  </div>
+                  <p key={b.timestamp} className="text-base leading-tight animate-modal-in" style={{ animationDelay: `${i * 0.03}s` }}>
+                    <span className="text-orange-400 font-bold">{cap?.name || '?'}</span>
+                    <span className="text-white">: {b.amount}pt 입찰</span>
+                  </p>
                 );
               })}
             </div>
@@ -935,7 +932,7 @@ export default function AuctionPage() {
           {nextQueuePlayer && (
             <div>
               <h2 className="text-xl font-bold text-gray-300 mb-2">다음 선수</h2>
-              <div key={nextQueuePlayer.id} className="flex items-center gap-2 text-base">
+              <div key={nextQueuePlayer.id} className="flex items-center gap-2 text-base border border-gray-600 bg-gray-800/50 rounded-xl p-3">
                 {nextQueuePlayer.photo ? <img src={nextQueuePlayer.photo} alt={nextQueuePlayer.name} className="w-6 h-6 rounded-full object-cover flex-shrink-0" /> : <span className="flex-shrink-0">👤</span>}
                 <div className="flex-1 min-w-0">
                   <p className="text-gray-300 truncate leading-tight">{nextQueuePlayer.name}</p>

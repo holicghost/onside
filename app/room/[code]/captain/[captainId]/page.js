@@ -73,19 +73,32 @@ function PlayerCard({ player, curBid, auction, bidderCap, captainId }) {
           }
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex gap-1.5 flex-wrap mb-1.5">
-            {(player.tierType || player.position) && (
-              <span className={`px-3 py-1 text-base font-bold rounded-full border ${
-                TIER_POS_STYLES[`${player.tierType} ${player.position}`] || 'bg-gray-700 text-gray-300 border-gray-600'
-              }`}>
-                {[player.tierType, player.position].filter(Boolean).join(' ')}
-              </span>
-            )}
-            {curBid > 0 && auction?.status === 'bidding' && (
-              <span className="px-3 py-1 bg-orange-500/80 text-white text-base font-bold rounded-full animate-pulse">입찰 중</span>
-            )}
+          <div className="flex items-start justify-between gap-3 mb-1">
+            <div className="min-w-0">
+              <div className="flex gap-1.5 flex-wrap mb-1.5">
+                {(player.tierType || player.position) && (
+                  <span className={`px-3 py-1 text-base font-bold rounded-full border ${
+                    TIER_POS_STYLES[`${player.tierType} ${player.position}`] || 'bg-gray-700 text-gray-300 border-gray-600'
+                  }`}>
+                    {[player.tierType, player.position].filter(Boolean).join(' ')}
+                  </span>
+                )}
+              </div>
+              <h2 className="font-black text-white leading-tight" style={{ fontSize: '56px' }}>{player.name}</h2>
+            </div>
+            <div className="text-right flex-shrink-0 pt-1">
+              <p className="text-gray-500 text-sm">현재 입찰</p>
+              <p key={curBid} className="font-black text-orange-400 leading-none tabular-nums animate-bid-pop" style={{ fontSize: '48px' }}>
+                {curBid > 0 ? `${curBid}pt` : '—'}
+              </p>
+              {bidderCap && (
+                <p className="text-white text-base font-bold mt-1">
+                  👑 {bidderCap.name}
+                  {auction?.currentBidCaptainId === captainId && <span className="text-green-400 ml-1">(나)</span>}
+                </p>
+              )}
+            </div>
           </div>
-          <h2 className="font-black text-white leading-tight" style={{ fontSize: '56px' }}>{player.name}</h2>
           <div className="grid grid-cols-3 gap-2 mt-3">
             {[
               { label: '현재 티어', val: player.tierCurrent, color: 'text-purple-400' },
@@ -98,16 +111,16 @@ function PlayerCard({ player, curBid, auction, bidderCap, captainId }) {
               </div>
             ))}
           </div>
-          {player.style && (
-            <div className="mt-3">
-              <p className="text-sm text-gray-500 mb-0.5">플레이 스타일</p>
-              <p className="text-base text-gray-300 leading-snug">{player.style}</p>
-            </div>
-          )}
-          {player.comment && (
-            <div className="mt-3">
-              <p className="text-sm text-gray-500 mb-0.5">한마디</p>
-              <p className="text-base text-gray-300 leading-snug">{player.comment}</p>
+          {(player.style || player.comment) && (
+            <div className="grid grid-cols-2 gap-4 mt-3">
+              <div>
+                <p className="text-sm text-gray-500 mb-0.5">플레이 스타일</p>
+                <p className="text-base text-gray-300 leading-snug">{player.style || '—'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 mb-0.5">한마디</p>
+                <p className="text-base text-gray-300 leading-snug">{player.comment || '—'}</p>
+              </div>
             </div>
           )}
         </div>
@@ -144,18 +157,6 @@ function PlayerCard({ player, curBid, auction, bidderCap, captainId }) {
         </div>
       )}
 
-      <div className="px-5 pb-5">
-        <p className="text-gray-500 text-base mb-0.5">현재 입찰</p>
-        <p key={curBid} className="font-black text-orange-400 leading-none tabular-nums animate-bid-pop" style={{ fontSize: '64px' }}>
-          {curBid > 0 ? `${curBid} pt` : '—'}
-        </p>
-        {bidderCap && (
-          <p className="text-white text-lg font-bold mt-1">
-            👑 {bidderCap.name} 입찰 중
-            {auction?.currentBidCaptainId === captainId && <span className="text-green-400 ml-1">(나)</span>}
-          </p>
-        )}
-      </div>
 
       {auction?.status === 'sold' && (
         <div key={`sold-${auction.currentPlayerId}`}
@@ -511,7 +512,7 @@ export default function CaptainPage() {
   // ══════════════════════════════════════════
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#0f0f1a' }}>
+    <div className="min-h-screen flex flex-col" style={{ background: '#0f0f1a', userSelect: 'none', WebkitUserSelect: 'none' }} onContextMenu={e => e.preventDefault()}>
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-3 border-b border-gray-800 flex-shrink-0 gap-3">
         <div className="flex items-center gap-4 min-w-0">
@@ -724,10 +725,13 @@ export default function CaptainPage() {
             </div>
           )}
 
-          {/* Post-auction waiting message */}
+          {/* Post-auction waiting overlay */}
           {['sold', 'passed'].includes(auction?.status) && (
-            <div className="bg-gray-800/50 rounded-xl p-4 text-center">
-              <p className="text-gray-400 text-base animate-pulse">다음 경매 준비 중...</p>
+            <div className="fixed inset-0 z-30 flex items-center justify-center pointer-events-none" style={{ background: 'rgba(0,0,0,0.4)' }}>
+              <div className="text-center bg-gray-900/95 border border-gray-700 rounded-2xl px-10 py-8 shadow-2xl animate-modal-in">
+                <p className="text-gray-400 text-2xl font-bold">대기 중 입니다.</p>
+                <p className="text-gray-600 text-base mt-2">관리자가 다음 경매를 시작할 때까지 기다려주세요</p>
+              </div>
             </div>
           )}
 
@@ -766,18 +770,11 @@ export default function CaptainPage() {
               <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">입찰 내역</p>
               {bidLogList.map((b, i) => {
                 const cap = captains[b.captainId];
-                const prevCap = b.prevCaptainId ? captains[b.prevCaptainId] : null;
                 return (
-                  <div key={b.timestamp} className="animate-modal-in" style={{ animationDelay: `${i * 0.03}s` }}>
-                    {prevCap && (
-                      <p className="text-gray-500 text-sm leading-tight">{prevCap.name}</p>
-                    )}
-                    <p className="text-base font-bold leading-tight">
-                      <span className="text-gray-400">→ </span>
-                      <span className="text-orange-400">{cap?.name || '?'}</span>
-                      <span className="text-white ml-1">{b.amount}pt</span>
-                    </p>
-                  </div>
+                  <p key={b.timestamp} className="text-base leading-tight animate-modal-in" style={{ animationDelay: `${i * 0.03}s` }}>
+                    <span className="text-orange-400 font-bold">{cap?.name || '?'}</span>
+                    <span className="text-white">: {b.amount}pt 입찰</span>
+                  </p>
                 );
               })}
             </div>

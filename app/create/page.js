@@ -82,8 +82,8 @@ function HeroSlot({ hi, hid, heroIds, onChange }) {
 
 function HeroPicker({ heroIds, onChange }) {
   return (
-    <div className="grid grid-cols-3 gap-2">
-      {[0, 1, 2].map(hi => (
+    <div className="grid grid-cols-2 gap-2">
+      {[0, 1].map(hi => (
         <HeroSlot key={hi} hi={hi} hid={heroIds[hi] || ''} heroIds={heroIds} onChange={onChange} />
       ))}
     </div>
@@ -169,7 +169,7 @@ export default function CreateRoom() {
     setPlayerForms(prev => {
       const next = [...prev];
       while (next.length < totalPlayers)
-        next.push({ name: '', photoFile: null, photoPreview: '', heroIds: ['', '', ''], tierCurrent: '', tierPrevious: '', tierBest: '', tierType: '', position: '', style: '', comment: '' });
+        next.push({ name: '', photoFile: null, photoPreview: '', heroIds: ['', ''], tierCurrent: '', tierPrevious: '', tierBest: '', tierType: '', position: '', style: '', comment: '' });
       return next.slice(0, totalPlayers);
     });
   }, [totalPlayers]);
@@ -245,7 +245,7 @@ export default function CreateRoom() {
     setBudget(draft.budget || 1000);
     setPassword(draft.password || '');
     if (draft.captainForms) setCaptainForms(draft.captainForms.map(c => ({ ...c, photoFile: null, photoPreview: c.photo || '' })));
-    if (draft.playerForms) setPlayerForms(draft.playerForms.map(p => ({ ...p, photoFile: null, photoPreview: p.photo || '', heroIds: p.heroIds || ['', '', ''] })));
+    if (draft.playerForms) setPlayerForms(draft.playerForms.map(p => ({ ...p, photoFile: null, photoPreview: p.photo || '', heroIds: p.heroIds || ['', ''] })));
     setDraftId(draft.id);
     localStorage.setItem('ow_draft_id', draft.id);
     setShowDraftModal(false);

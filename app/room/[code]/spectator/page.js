@@ -68,7 +68,8 @@ export default function SpectatorPage() {
   if (roomInfo?.password) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4"
-        style={{ background: 'linear-gradient(135deg, #0f0f1a 0%, #1a1a3e 50%, #0f0f1a 100%)' }}>
+        style={{ background: 'linear-gradient(135deg, #0f0f1a 0%, #1a1a3e 50%, #0f0f1a 100%)', userSelect: 'none', WebkitUserSelect: 'none' }}
+        onContextMenu={e => e.preventDefault()}>
         <div className="w-full max-w-sm bg-gray-900/80 border border-gray-700 rounded-2xl p-6 space-y-4">
           <div className="text-center">
             <h2 className="text-2xl font-black text-white">{roomInfo?.name || '경매 방'}</h2>

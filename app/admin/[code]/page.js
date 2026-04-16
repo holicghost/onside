@@ -32,14 +32,14 @@ function PhotoInput({ value, onChange }) {
 
 function HeroPicker({ heroIds, onChange }) {
   const handleChange = (hi, val) => {
-    const next = [...(heroIds || ['', '', ''])];
+    const next = [...(heroIds || ['', ''])];
     next[hi] = val;
     onChange(next);
   };
   return (
     <div className="flex gap-2">
-      {[0, 1, 2].map(hi => {
-        const hid = (heroIds || ['', '', ''])[hi] || '';
+      {[0, 1].map(hi => {
+        const hid = (heroIds || ['', ''])[hi] || '';
         const portraitUrl = hid ? getHeroPortraitUrl(hid) : null;
         const hero = ALL_HEROES.find(h => h.id === hid);
         return (
@@ -97,7 +97,7 @@ export default function AdminRoomPage() {
   const [pName, setPName] = useState('');
   const [pPhotoFile, setPPhotoFile] = useState(null);
   const [pPhotoPreview, setPPhotoPreview] = useState('');
-  const [pHeroIds, setPHeroIds] = useState(['', '', '']);
+  const [pHeroIds, setPHeroIds] = useState(['', '']);
   const [pTierCurrent, setPTierCurrent] = useState('');
   const [pTierPrevious, setPTierPrevious] = useState('');
   const [pTierBest, setPTierBest] = useState('');
@@ -234,7 +234,7 @@ export default function AdminRoomPage() {
     setPName(p.name || '');
     setPPhotoPreview(p.photo || '');
     setPPhotoFile(null);
-    setPHeroIds(p.heroIds || [p.heroId || '', '', '']);
+    setPHeroIds(p.heroIds || [p.heroId || '', '']);
     setPTierCurrent(p.tierCurrent || p.tier || '');
     setPTierPrevious(p.tierPrevious || '');
     setPTierBest(p.tierBest || '');
@@ -252,7 +252,7 @@ export default function AdminRoomPage() {
     setPName('');
     setPPhotoFile(null);
     setPPhotoPreview('');
-    setPHeroIds(['', '', '']);
+    setPHeroIds(['', '']);
     setPTierCurrent('');
     setPTierPrevious('');
     setPTierBest('');
