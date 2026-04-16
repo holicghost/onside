@@ -192,7 +192,7 @@ export default function AdminRoomPage() {
       setSaving('newcaptain');
       const newId = `captain_${Date.now()}`;
       await update(ref(db), {
-        [`rooms/${code}/captains/${newId}`]: { id: newId, name: capName.trim(), photo: photoUrl, budget: capBudget, position: capPosition },
+        [`rooms/${code}/captains/${newId}`]: { id: newId, name: capName.trim(), photo: photoUrl, budget: capBudget, originalBudget: capBudget, position: capPosition },
         [`rooms/${code}/info/captainCount`]: Object.keys(captains).length + 1,
       });
       setAddingCaptain(false);
@@ -375,14 +375,13 @@ export default function AdminRoomPage() {
   };
 
   const resetAuction = async () => {
-    const budget = roomInfo?.budget || 100;
     const updates = {};
     Object.keys(players).forEach(pid => {
       updates[`rooms/${code}/players/${pid}/soldTo`] = null;
       updates[`rooms/${code}/players/${pid}/soldPrice`] = null;
     });
-    Object.keys(captains).forEach(cid => {
-      updates[`rooms/${code}/captains/${cid}/budget`] = budget;
+    Object.entries(captains).forEach(([cid, cap]) => {
+      updates[`rooms/${code}/captains/${cid}/budget`] = cap.originalBudget || cap.budget || roomInfo?.budget || 1000;
     });
     updates[`rooms/${code}/auction`] = {
       status: 'idle', currentPlayerId: null, currentBid: 0, currentBidCaptainId: null,
@@ -633,15 +632,23 @@ export default function AdminRoomPage() {
                           <label className="text-sm text-gray-400 mb-1 block">닉네임</label>
                           <input className={inputCls} value={capName} onChange={e => setCapName(e.target.value)} placeholder="닉네임" />
                         </div>
-                        <div>
-                          <label className="text-xs text-gray-400 mb-2 block font-semibold">포지션</label>
-                          <div className="flex gap-2">
-                            {[{ val: '탱커', active: 'bg-yellow-600 border-yellow-500 text-white' }, { val: '딜러', active: 'bg-red-600 border-red-500 text-white' }, { val: '힐러', active: 'bg-green-600 border-green-500 text-white' }].map(({ val, active }) => (
-                              <button key={val} type="button" onClick={() => setCapPosition(val)}
-                                className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${capPosition === val ? active : 'bg-gray-800 border-gray-600 text-gray-400 hover:border-gray-500'}`}>
-                                {val}
-                              </button>
-                            ))}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-xs text-gray-400 mb-2 block font-semibold">포지션</label>
+                            <div className="flex gap-2">
+                              {[{ val: '탱커', active: 'bg-yellow-600 border-yellow-500 text-white' }, { val: '딜러', active: 'bg-red-600 border-red-500 text-white' }, { val: '힐러', active: 'bg-green-600 border-green-500 text-white' }].map(({ val, active }) => (
+                                <button key={val} type="button" onClick={() => setCapPosition(val)}
+                                  className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${capPosition === val ? active : 'bg-gray-800 border-gray-600 text-gray-400 hover:border-gray-500'}`}>
+                                  {val}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-400 mb-2 block font-semibold">예산 포인트</label>
+                            <input type="number" min={10} max={9999} value={capBudget}
+                              onChange={e => setCapBudget(Number(e.target.value))}
+                              className={inputCls} />
                           </div>
                         </div>
                       </div>
@@ -690,15 +697,23 @@ export default function AdminRoomPage() {
                       <label className="text-sm text-gray-400 mb-1 block">닉네임</label>
                       <input className={inputCls} value={capName} onChange={e => setCapName(e.target.value)} placeholder="닉네임" autoFocus />
                     </div>
-                    <div>
-                      <label className="text-xs text-gray-400 mb-2 block font-semibold">포지션</label>
-                      <div className="flex gap-2">
-                        {[{ val: '탱커', active: 'bg-yellow-600 border-yellow-500 text-white' }, { val: '딜러', active: 'bg-red-600 border-red-500 text-white' }, { val: '힐러', active: 'bg-green-600 border-green-500 text-white' }].map(({ val, active }) => (
-                          <button key={val} type="button" onClick={() => setCapPosition(val)}
-                            className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${capPosition === val ? active : 'bg-gray-800 border-gray-600 text-gray-400 hover:border-gray-500'}`}>
-                            {val}
-                          </button>
-                        ))}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs text-gray-400 mb-2 block font-semibold">포지션</label>
+                        <div className="flex gap-2">
+                          {[{ val: '탱커', active: 'bg-yellow-600 border-yellow-500 text-white' }, { val: '딜러', active: 'bg-red-600 border-red-500 text-white' }, { val: '힐러', active: 'bg-green-600 border-green-500 text-white' }].map(({ val, active }) => (
+                            <button key={val} type="button" onClick={() => setCapPosition(val)}
+                              className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${capPosition === val ? active : 'bg-gray-800 border-gray-600 text-gray-400 hover:border-gray-500'}`}>
+                              {val}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-400 mb-2 block font-semibold">예산 포인트</label>
+                        <input type="number" min={10} max={9999} value={capBudget}
+                          onChange={e => setCapBudget(Number(e.target.value))}
+                          className={inputCls} />
                       </div>
                     </div>
                   </div>

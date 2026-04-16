@@ -317,7 +317,8 @@ export default function CreateRoom() {
         let photoUrl = '';
         if (c.photoFile) { setUploadStatus(`팀장 사진 업로드 (${i + 1}/${captainForms.length})`); photoUrl = await uploadImage(c.photoFile); }
         const cid = `captain_${i}`;
-        captainData[cid] = { id: cid, name: c.name, photo: photoUrl, budget: c.budget || budget, position: c.position || '' };
+        const capBudget = c.budget || budget;
+        captainData[cid] = { id: cid, name: c.name, photo: photoUrl, budget: capBudget, originalBudget: capBudget, position: c.position || '' };
       }
 
       const playerData = {};

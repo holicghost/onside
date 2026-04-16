@@ -59,7 +59,7 @@ export default function ResultPage() {
         <div className="grid gap-6" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
           {captainsList.map((cap, idx) => {
             const teamPlayers = Object.entries(players).filter(([, p]) => p.soldTo === cap.id).map(([id, p]) => ({ id, ...p }));
-            const originalBudget = roomInfo?.budget || 100;
+            const originalBudget = cap.originalBudget || cap.budget || roomInfo?.budget || 1000;
             const spent = originalBudget - (cap.budget || 0);
             return (
               <div key={cap.id}
