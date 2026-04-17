@@ -564,7 +564,7 @@ export default function CaptainPage() {
                         }`}>{cap.position}</span>
                       )}
                     </div>
-                    <p className="text-base text-gray-400">예산 <span className="text-green-400 font-bold">{cap.budget}</span><span className="text-gray-600">/{cap.originalBudget || cap.budget}</span>P</p>
+                    <p className="text-base text-gray-400">예산 <span className="text-green-400 font-bold">{cap.budget}</span><span className="text-gray-600">/{cap.originalBudget || roomInfo?.budget || 1000}</span>P</p>
                   </div>
                 </div>
                 {teamPlayers.length > 0

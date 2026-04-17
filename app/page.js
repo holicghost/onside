@@ -72,7 +72,7 @@ export default function Home() {
       <div className="text-center mb-10">
         <img src="https://media.discordapp.net/attachments/1421469155227598892/1494037277070852227/805dd936effdaf71.png?ex=69e12624&is=69dfd4a4&hm=a6ffa51914a5c25f2fc085857d5ab7791d65ff5ace3cf048ccb4f5e38c4598d1&=&format=webp&quality=lossless&width=865&height=544" alt="로고" className="mx-auto mb-4" style={{ width: '120px', height: 'auto', objectFit: 'contain' }} />
         <p className="text-gray-500 font-semibold tracking-wide" style={{ fontSize: '18px' }}>RØDE와 함께하는</p>
-        <h1 className="font-black text-white tracking-tight leading-tight" style={{ fontSize: '48px' }}>도현 배 유인원 컵</h1>
+        <h1 className="font-black text-white tracking-tight leading-tight" style={{ fontSize: '48px' }}>도현컵</h1>
         <p className="text-gray-500 mt-2" style={{ fontSize: '18px' }}>팀원 선발 경매 홈페이지</p>
       </div>
 

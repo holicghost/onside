@@ -56,7 +56,7 @@ export default function ResultPage() {
         </div>
 
         {/* Team cards */}
-        <div className="grid gap-6" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
+        <div className="grid grid-cols-4 gap-6">
           {captainsList.map((cap, idx) => {
             const teamPlayers = Object.entries(players).filter(([, p]) => p.soldTo === cap.id).map(([id, p]) => ({ id, ...p }));
             const originalBudget = cap.originalBudget || cap.budget || roomInfo?.budget || 1000;

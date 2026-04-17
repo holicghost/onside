@@ -2,10 +2,10 @@ import "./globals.css";
 import MusicPlayer from "./components/MusicPlayer";
 
 export const metadata = {
-  title: "RØDE 유인원 컵 경매",
+  title: "RØDE와 함께하는 도현컵",
   description: "By. ONSIDE COMPANY",
   openGraph: {
-    title: "RØDE 유인원 컵 경매",
+    title: "RØDE와 함께하는 도현컵",
     description: "By. ONSIDE COMPANY",
     images: [
       {

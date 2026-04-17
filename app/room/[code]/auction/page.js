@@ -351,7 +351,7 @@ export default function AuctionPage() {
 
   const startAuction = async () => {
     const ordered = buildPlayerOrder(players);
-    await update(ref(db), {
+    const updates = {
       [`rooms/${code}/auction/playerOrder`]: ordered,
       [`rooms/${code}/auction/currentIndex`]: 0,
       [`rooms/${code}/auction/currentPlayerId`]: ordered[0],
@@ -363,7 +363,14 @@ export default function AuctionPage() {
       [`rooms/${code}/auction/bidLog`]: null,
       [`rooms/${code}/auction/roundStartUnsoldCount`]: Object.keys(players).length,
       [`rooms/${code}/auction/isReAuction`]: false,
+    };
+    // Save initialBudget for each captain if not already set
+    Object.entries(captains).forEach(([cid, cap]) => {
+      if (!cap.originalBudget) {
+        updates[`rooms/${code}/captains/${cid}/originalBudget`] = cap.budget || 1000;
+      }
     });
+    await update(ref(db), updates);
   };
 
   // Returns true if any captain can viably bid on any unsold player
@@ -795,7 +802,7 @@ export default function AuctionPage() {
                         }`}>{cap.position}</span>
                       )}
                     </div>
-                    <p className="text-base text-gray-400">예산 <span className="text-green-400 font-bold">{cap.budget}</span><span className="text-gray-600">/{cap.originalBudget || cap.budget}</span>P</p>
+                    <p className="text-base text-gray-400">예산 <span className="text-green-400 font-bold">{cap.budget}</span><span className="text-gray-600">/{cap.originalBudget || roomInfo?.budget || 1000}</span>P</p>
                   </div>
                 </div>
                 {teamPlayers.length > 0
