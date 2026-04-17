@@ -372,20 +372,23 @@ export default function AdminRoomPage() {
 
   const resetAuction = async () => {
     const updates = {};
+    // 1. Reset all players
     Object.keys(players).forEach(pid => {
       updates[`rooms/${code}/players/${pid}/soldTo`] = null;
       updates[`rooms/${code}/players/${pid}/soldPrice`] = null;
     });
+    // 2. Reset all captain budgets
     const fixedBudgets = { '항상#킴성태': 1000, '이지상:)': 1000, '바밍_': 1000, '한남맛종욱': 900 };
     Object.entries(captains).forEach(([cid, cap]) => {
-      updates[`rooms/${code}/captains/${cid}/budget`] = fixedBudgets[cap.name] ?? (cap.originalBudget || cap.budget || roomInfo?.budget || 1000);
+      const resetValue = fixedBudgets[cap.name] ?? (cap.originalBudget || roomInfo?.budget || 1000);
+      updates[`rooms/${code}/captains/${cid}/budget`] = resetValue;
+      updates[`rooms/${code}/captains/${cid}/originalBudget`] = resetValue;
     });
-    updates[`rooms/${code}/auction`] = {
-      status: 'idle', currentPlayerId: null, currentBid: 0, currentBidCaptainId: null,
-      timerEnd: null, countdownEnd: null, playerOrder: null, currentIndex: 0, history: null,
-    };
+    // 3. Reset auction state (clears history, bidLog, playerOrder, all auction fields)
+    updates[`rooms/${code}/auction`] = null;
+    // 4. Reset room status and lobby
     updates[`rooms/${code}/info/status`] = 'lobby';
-    updates[`rooms/${code}/lobby`] = { captainOrder: null };
+    updates[`rooms/${code}/lobby`] = { captainOrder: null, countdownStartedAt: null, countdownPausedRemaining: null };
     await update(ref(db), updates);
   };
 
