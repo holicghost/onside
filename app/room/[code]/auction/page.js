@@ -176,6 +176,7 @@ export default function AuctionPage() {
 
   const [role, setRole] = useState('spectator');
   const [captainId, setCaptainId] = useState(null);
+  const [serverTimeOffset, setServerTimeOffset] = useState(0);
   const [roomInfo, setRoomInfo] = useState(null);
   const [captains, setCaptains] = useState({});
   const [players, setPlayers] = useState({});
@@ -220,6 +221,13 @@ export default function AuctionPage() {
     setCaptainId(cid);
   }, []);
 
+  // Sync server time offset for accurate timer display
+  useEffect(() => {
+    const offsetRef = ref(db, '.info/serverTimeOffset');
+    const unsub = onValue(offsetRef, snap => { setServerTimeOffset(snap.val() || 0); });
+    return () => unsub();
+  }, []);
+
   useEffect(() => {
     if (!code) return;
     const rootUnsub = onValue(ref(db, `rooms/${code}`), snap => {
@@ -243,10 +251,11 @@ export default function AuctionPage() {
     if (roomInfo?.status === 'result') router.push(`/room/${code}/result`);
   }, [roomInfo?.status]);
 
-  // Bidding timer (100ms for decimal)
+  // Bidding timer (100ms for decimal) — uses server time offset for sync
   useEffect(() => {
     if (!auction?.timerEnd || auction?.status !== 'bidding') { setTimeLeft(0); return; }
-    const tick = () => setTimeLeft(Math.max(0, auction.timerEnd - Date.now()));
+    const serverNow = () => Date.now() + serverTimeOffset;
+    const tick = () => setTimeLeft(Math.max(0, auction.timerEnd - serverNow()));
     tick();
     const id = setInterval(tick, 100);
     return () => clearInterval(id);

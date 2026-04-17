@@ -193,6 +193,7 @@ export default function CaptainPage() {
   const [auction, setAuction] = useState(null);
   const [simMode, setSimMode] = useState(false);
   const [simState, setSimState] = useState(null);
+  const [serverTimeOffset, setServerTimeOffset] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [countdownLeft, setCountdownLeft] = useState(0);
   const [bidError, setBidError] = useState('');
@@ -252,6 +253,13 @@ export default function CaptainPage() {
   useEffect(() => { setOrigin(window.location.origin); }, []);
   useEffect(() => { loadHeroPortraits().then((cache) => { setPortraitsReady(true); precacheHeroPortraits(cache); }); }, []);
 
+  // Sync server time offset for accurate timer display
+  useEffect(() => {
+    const offsetRef = ref(db, '.info/serverTimeOffset');
+    const unsub = onValue(offsetRef, snap => { setServerTimeOffset(snap.val() || 0); });
+    return () => unsub();
+  }, []);
+
   useEffect(() => {
     if (!code || !captainId) return;
     if (localStorage.getItem('ow_room') === code &&
@@ -295,7 +303,8 @@ export default function CaptainPage() {
 
   useEffect(() => {
     if (!auction?.timerEnd || auction?.status !== 'bidding') { setTimeLeft(0); return; }
-    const tick = () => setTimeLeft(Math.max(0, auction.timerEnd - Date.now()));
+    const serverNow = () => Date.now() + serverTimeOffset;
+    const tick = () => setTimeLeft(Math.max(0, auction.timerEnd - serverNow()));
     tick();
     const id = setInterval(tick, 100);
     return () => clearInterval(id);
