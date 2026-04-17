@@ -804,7 +804,7 @@ export default function AuctionPage() {
                         }`}>{cap.position}</span>
                       )}
                     </div>
-                    <p className="text-base text-gray-400">예산 <span className="text-gray-300">{cap.originalBudget || roomInfo?.budget || 1000}P</span> | 잔여 <span className="text-green-400 font-bold">{cap.budget}P</span></p>
+                    <p className="text-base text-gray-400">예산 <span className="text-gray-300">{cap.originalBudget || roomInfo?.budget || 1000}P</span> | 잔여 <span className="text-green-400 font-bold">{cap.budget}P</span>{(cap.originalBudget || roomInfo?.budget || 1000) - (cap.budget || 0) > 0 && <span className="text-xs text-orange-400 ml-1">(-{(cap.originalBudget || roomInfo?.budget || 1000) - (cap.budget || 0)}P)</span>}</p>
                   </div>
                 </div>
                 {teamPlayers.length > 0

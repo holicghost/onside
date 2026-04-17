@@ -367,7 +367,7 @@ export default function AdminRoomPage() {
       [`rooms/${code}/info/status`]: 'lobby',
     });
     localStorage.setItem('ow_room', code);
-    router.push(`/room/${code}/lobby`);
+    window.open(`/room/${code}/lobby`, '_blank');
   };
 
   const resetAuction = async () => {
@@ -411,7 +411,7 @@ export default function AdminRoomPage() {
       });
     }
     localStorage.setItem('ow_room', code);
-    router.push(`/room/${code}/auction`);
+    window.open(`/room/${code}/auction`, '_blank');
   };
 
   const deleteRoom = async () => {
