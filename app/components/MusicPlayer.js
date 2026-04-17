@@ -28,6 +28,9 @@ export default function MusicPlayer() {
     audio.play().then(() => setPlaying(true)).catch(() => {});
   }, []);
 
+  // Cleanup hideTimer on unmount
+  useEffect(() => () => clearTimeout(hideTimer.current), []);
+
   // On ANY user interaction, unmute the audio
   useEffect(() => {
     const unmute = () => {

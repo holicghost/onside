@@ -188,6 +188,7 @@ export default function AuctionPage() {
   const [origin, setOrigin] = useState('');
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
+  const [redoConfirm, setRedoConfirm] = useState(false);
 
   const auctionRef = useRef(null);
   const captainsRef = useRef({});
@@ -537,7 +538,6 @@ export default function AuctionPage() {
     });
   };
 
-  const [redoConfirm, setRedoConfirm] = useState(false);
   const redoPreviousAuction = async () => {
     const a = auctionRef.current;
     if (!a) return;

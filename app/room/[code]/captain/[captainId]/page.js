@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ref, onValue, update, get, set, onDisconnect, query, orderByKey, limitToLast } from 'firebase/database';
 import { db } from '@/lib/firebase';
+const safeUpdate = async (...args) => { try { await update(...args); } catch { /* silent */ } };
 import { getHeroPortraitUrl, loadHeroPortraits, ALL_HEROES } from '@/lib/heroes';
 import { cacheRoomData, precacheHeroPortraits } from '@/lib/offlineCache';
 
@@ -385,7 +386,7 @@ export default function CaptainPage() {
     }
     const prevCaptainId = a.currentBidCaptainId || null;
     const newTimerEnd = Date.now() + 15000;
-    await update(ref(db), {
+    await safeUpdate(ref(db), {
       [`rooms/${code}/auction/currentBid`]: amt,
       [`rooms/${code}/auction/currentBidCaptainId`]: captainId,
       [`rooms/${code}/auction/timerEnd`]: newTimerEnd,

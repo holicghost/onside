@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ref, onValue, update } from 'firebase/database';
 import { db } from '@/lib/firebase';
+const safeUpdate = async (...args) => { try { await update(...args); } catch { /* silent */ } };
 
 function BlurCode({ text, className = '' }) {
   const [revealed, setRevealed] = useState(false);
@@ -92,7 +93,7 @@ export default function LobbyPage() {
     if (!countdownStartedAt) return;
     const DURATION = 15000;
     const remaining = Math.max(1000, countdownStartedAt + DURATION - Date.now());
-    await update(ref(db), {
+    await safeUpdate(ref(db), {
       [`rooms/${code}/lobby/countdownPausedRemaining`]: remaining,
       [`rooms/${code}/lobby/countdownStartedAt`]: null,
     });
@@ -100,7 +101,7 @@ export default function LobbyPage() {
 
   const resumeLobbyCountdown = async () => {
     if (countdownPausedRemaining === null) return;
-    await update(ref(db), {
+    await safeUpdate(ref(db), {
       [`rooms/${code}/lobby/countdownStartedAt`]: Date.now() - (15000 - countdownPausedRemaining),
       [`rooms/${code}/lobby/countdownPausedRemaining`]: null,
     });
@@ -116,7 +117,7 @@ export default function LobbyPage() {
       [ids[i], ids[j]] = [ids[j], ids[i]];
     }
     window.dispatchEvent(new Event('startBGM'));
-    await update(ref(db), {
+    await safeUpdate(ref(db), {
       [`rooms/${code}/captainOrder`]: ids,
       [`rooms/${code}/lobby/countdownStartedAt`]: Date.now(),
     });
@@ -180,7 +181,7 @@ export default function LobbyPage() {
               {paused ? '일시정지됨' : '잠시 뒤 경매가 시작됩니다'}
             </p>
             <div key={paused ? 'paused' : countdown} className={`font-black leading-none ${paused ? 'text-orange-400/50' : 'text-orange-400 animate-count-down'}`} style={{ fontSize: '96px' }}>
-              {countdown > 0 ? countdown : '🔨'}
+              {countdown === null ? '...' : countdown > 0 ? countdown : '🔨'}
             </div>
             {role === 'admin' && (
               <div className="mt-4 flex gap-3 justify-center">
