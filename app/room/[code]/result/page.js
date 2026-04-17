@@ -80,9 +80,9 @@ export default function ResultPage() {
                   <div>
                     <p className="text-2xl font-black text-white">{cap.name}</p>
                     <p className="text-sm text-gray-400">
-                      사용: <span className="text-orange-400 font-bold">{spent}P</span>
-                      <span className="text-gray-600"> / {originalBudget}P</span>
-                      &nbsp;·&nbsp; 잔여 <span className="text-green-400 font-bold">{cap.budget}P</span>
+                      사용 <span className="text-orange-400 font-bold">{spent}P</span>
+                      &nbsp;·&nbsp; 잔여 <span className="text-green-400 font-bold">{cap.budget || 0}P</span>
+                      &nbsp;·&nbsp; 전체 <span className="text-gray-300 font-bold">{originalBudget}P</span>
                     </p>
                   </div>
                 </div>
