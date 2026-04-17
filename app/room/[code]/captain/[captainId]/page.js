@@ -363,7 +363,10 @@ export default function CaptainPage() {
     if (roomInfo?.password) {
       setAuthStep('password');
     } else {
-      setAuthStep('mode_select');
+      localStorage.setItem('ow_room', code);
+      localStorage.setItem('ow_role', 'captain');
+      localStorage.setItem('ow_captain_id', captainId);
+      setAuthStep('authed');
     }
   };
 
@@ -372,15 +375,11 @@ export default function CaptainPage() {
       setPasswordError('비밀번호가 틀렸습니다.');
       return;
     }
-    setAuthStep('mode_select');
-    setPasswordError('');
-  };
-
-  const enterNormal = () => {
     localStorage.setItem('ow_room', code);
     localStorage.setItem('ow_role', 'captain');
     localStorage.setItem('ow_captain_id', captainId);
     setAuthStep('authed');
+    setPasswordError('');
   };
 
   const placeBid = async (amount) => {
@@ -522,70 +521,7 @@ export default function CaptainPage() {
     );
   }
 
-  if (authStep === 'mode_select') {
-    return (
-      <div className="min-h-screen flex items-center justify-center px-4"
-        style={{ background: 'linear-gradient(135deg, #0f0f1a 0%, #1a1a3e 50%, #0f0f1a 100%)' }}>
-        <div className="w-full max-w-sm bg-gray-900/90 border border-gray-700 rounded-2xl p-6 space-y-4">
-          <div className="text-center">
-            <h2 className="text-2xl font-black text-white">{roomInfo?.name || '경매 방'}</h2>
-            <p className="text-gray-400 mt-1">참가 모드를 선택하세요</p>
-          </div>
-          <div className="space-y-3">
-            <button onClick={enterNormal}
-              className="w-full py-4 text-xl font-bold bg-orange-500 hover:bg-orange-400 rounded-xl transition-all">
-              🔨 경매 참가
-            </button>
-            <button onClick={async () => {
-              // Fetch fresh data from Firebase
-              const snap = await get(ref(db, `rooms/${code}`));
-              const roomData = snap.val() || {};
-              const fbCaptains = roomData.captains || {};
-              const fbPlayers = roomData.players || {};
-              if (Object.keys(fbPlayers).length === 0) return;
-              const simCaptains = {};
-              Object.entries(fbCaptains).forEach(([cid, c]) => {
-                simCaptains[cid] = { ...c, budget: c.originalBudget || c.budget || 1000 };
-              });
-              const simPlayers = {};
-              Object.entries(fbPlayers).forEach(([pid, p]) => {
-                simPlayers[pid] = { ...p, soldTo: null, soldPrice: null };
-              });
-              const playerIds = Object.keys(simPlayers);
-              for (let i = playerIds.length - 1; i > 0; i--) {
-                const arr = new Uint32Array(1); crypto.getRandomValues(arr);
-                const j = arr[0] % (i + 1);
-                [playerIds[i], playerIds[j]] = [playerIds[j], playerIds[i]];
-              }
-              setSimState({
-                captains: simCaptains,
-                players: simPlayers,
-                playerOrder: playerIds,
-                currentIndex: 0,
-                currentPlayerId: playerIds[0],
-                status: 'bidding',
-                currentBid: 0,
-                currentBidCaptainId: null,
-                timerEnd: Date.now() + 15000,
-                history: [],
-                results: [],
-              });
-              setSimMode(true);
-              setAuthStep('simulation');
-            }}
-              className="w-full py-4 text-xl font-bold bg-purple-700 hover:bg-purple-600 rounded-xl transition-all">
-              🎮 모의 경매
-            </button>
-          </div>
-          <p className="text-gray-600 text-xs text-center">모의 경매는 저장되지 않습니다</p>
-        </div>
-      </div>
-    );
-  }
 
-  if (authStep === 'simulation' && simState) {
-    return <SimulationMode code={code} captainId={captainId} simState={simState} setSimState={setSimState} captainInfo={captains[captainId]} allPlayers={players} onExit={() => { setSimMode(false); setSimState(null); setAuthStep('mode_select'); }} />;
-  }
 
   // ══════════════════════════════════════════
   // MAIN AUCTION VIEW (authStep === 'authed')
