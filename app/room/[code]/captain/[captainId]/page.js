@@ -191,6 +191,8 @@ export default function CaptainPage() {
   const [captains, setCaptains] = useState({});
   const [players, setPlayers] = useState({});
   const [auction, setAuction] = useState(null);
+  const [simMode, setSimMode] = useState(false);
+  const [simState, setSimState] = useState(null);
   const [timeLeft, setTimeLeft] = useState(0);
   const [countdownLeft, setCountdownLeft] = useState(0);
   const [bidError, setBidError] = useState('');
@@ -361,10 +363,7 @@ export default function CaptainPage() {
     if (roomInfo?.password) {
       setAuthStep('password');
     } else {
-      localStorage.setItem('ow_room', code);
-      localStorage.setItem('ow_role', 'captain');
-      localStorage.setItem('ow_captain_id', captainId);
-      setAuthStep('authed');
+      setAuthStep('mode_select');
     }
   };
 
@@ -373,11 +372,15 @@ export default function CaptainPage() {
       setPasswordError('비밀번호가 틀렸습니다.');
       return;
     }
+    setAuthStep('mode_select');
+    setPasswordError('');
+  };
+
+  const enterNormal = () => {
     localStorage.setItem('ow_room', code);
     localStorage.setItem('ow_role', 'captain');
     localStorage.setItem('ow_captain_id', captainId);
     setAuthStep('authed');
-    setPasswordError('');
   };
 
   const placeBid = async (amount) => {
@@ -517,6 +520,71 @@ export default function CaptainPage() {
         </div>
       </div>
     );
+  }
+
+  if (authStep === 'mode_select') {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4"
+        style={{ background: 'linear-gradient(135deg, #0f0f1a 0%, #1a1a3e 50%, #0f0f1a 100%)' }}>
+        <div className="w-full max-w-sm bg-gray-900/90 border border-gray-700 rounded-2xl p-6 space-y-4">
+          <div className="text-center">
+            <h2 className="text-2xl font-black text-white">{roomInfo?.name || '경매 방'}</h2>
+            <p className="text-gray-400 mt-1">참가 모드를 선택하세요</p>
+          </div>
+          <div className="space-y-3">
+            <button onClick={enterNormal}
+              className="w-full py-4 text-xl font-bold bg-orange-500 hover:bg-orange-400 rounded-xl transition-all">
+              🔨 경매 참가
+            </button>
+            <button onClick={async () => {
+              // Fetch fresh data from Firebase
+              const snap = await get(ref(db, `rooms/${code}`));
+              const roomData = snap.val() || {};
+              const fbCaptains = roomData.captains || {};
+              const fbPlayers = roomData.players || {};
+              if (Object.keys(fbPlayers).length === 0) return;
+              const simCaptains = {};
+              Object.entries(fbCaptains).forEach(([cid, c]) => {
+                simCaptains[cid] = { ...c, budget: c.originalBudget || c.budget || 1000 };
+              });
+              const simPlayers = {};
+              Object.entries(fbPlayers).forEach(([pid, p]) => {
+                simPlayers[pid] = { ...p, soldTo: null, soldPrice: null };
+              });
+              const playerIds = Object.keys(simPlayers);
+              for (let i = playerIds.length - 1; i > 0; i--) {
+                const arr = new Uint32Array(1); crypto.getRandomValues(arr);
+                const j = arr[0] % (i + 1);
+                [playerIds[i], playerIds[j]] = [playerIds[j], playerIds[i]];
+              }
+              setSimState({
+                captains: simCaptains,
+                players: simPlayers,
+                playerOrder: playerIds,
+                currentIndex: 0,
+                currentPlayerId: playerIds[0],
+                status: 'bidding',
+                currentBid: 0,
+                currentBidCaptainId: null,
+                timerEnd: Date.now() + 15000,
+                history: [],
+                results: [],
+              });
+              setSimMode(true);
+              setAuthStep('simulation');
+            }}
+              className="w-full py-4 text-xl font-bold bg-purple-700 hover:bg-purple-600 rounded-xl transition-all">
+              🎮 모의 경매
+            </button>
+          </div>
+          <p className="text-gray-600 text-xs text-center">모의 경매는 저장되지 않습니다</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (authStep === 'simulation' && simState) {
+    return <SimulationMode code={code} captainId={captainId} simState={simState} setSimState={setSimState} captainInfo={captains[captainId]} allPlayers={players} onExit={() => { setSimMode(false); setSimState(null); setAuthStep('mode_select'); }} />;
   }
 
   // ══════════════════════════════════════════
@@ -950,6 +1018,211 @@ export default function CaptainPage() {
         </aside>
 
       </div>
+    </div>
+  );
+}
+
+function SimulationMode({ code, captainId, simState, setSimState, captainInfo, allPlayers, onExit }) {
+  const [timeLeft, setTimeLeft] = useState(0);
+  const simRef = useRef(simState);
+  useEffect(() => { simRef.current = simState; }, [simState]);
+
+  // Timer tick
+  useEffect(() => {
+    if (simState.status !== 'bidding' || !simState.timerEnd) { setTimeLeft(0); return; }
+    const tick = () => setTimeLeft(Math.max(0, simState.timerEnd - Date.now()));
+    tick();
+    const id = setInterval(tick, 100);
+    return () => clearInterval(id);
+  }, [simState.timerEnd, simState.status]);
+
+  // Auto-finalize when timer hits 0
+  useEffect(() => {
+    if (timeLeft !== 0 || simState.status !== 'bidding') return;
+    const s = simRef.current;
+    if (s.currentBidCaptainId && s.currentBid > 0) {
+      const capName = s.captains[s.currentBidCaptainId]?.name || '';
+      setSimState(prev => {
+        const caps = { ...prev.captains };
+        caps[prev.currentBidCaptainId] = { ...caps[prev.currentBidCaptainId], budget: Math.max(0, (caps[prev.currentBidCaptainId]?.budget || 0) - prev.currentBid) };
+        const pls = { ...prev.players };
+        pls[prev.currentPlayerId] = { ...pls[prev.currentPlayerId], soldTo: prev.currentBidCaptainId, soldPrice: prev.currentBid };
+        return { ...prev, captains: caps, players: pls, status: 'sold', results: [...prev.results, { playerId: prev.currentPlayerId, playerName: pls[prev.currentPlayerId]?.name, captainName: capName, price: prev.currentBid }] };
+      });
+    } else {
+      setSimState(prev => ({ ...prev, status: 'passed', results: [...prev.results, { playerId: prev.currentPlayerId, playerName: prev.players[prev.currentPlayerId]?.name, captainName: null, price: 0 }] }));
+    }
+  }, [timeLeft, simState.status]);
+
+  // Auto-advance 3s after sold/passed
+  useEffect(() => {
+    if (simState.status !== 'sold' && simState.status !== 'passed') return;
+    const timer = setTimeout(() => {
+      setSimState(prev => {
+        const nextIdx = prev.currentIndex + 1;
+        if (nextIdx >= prev.playerOrder.length) return { ...prev, status: 'done' };
+        return { ...prev, currentIndex: nextIdx, currentPlayerId: prev.playerOrder[nextIdx], status: 'bidding', currentBid: 0, currentBidCaptainId: null, timerEnd: Date.now() + 15000, history: [] };
+      });
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [simState.status]);
+
+  // Simulated captains bidding — setTimeout chain for random intervals
+  useEffect(() => {
+    if (simState.status !== 'bidding') return;
+    let cancelled = false;
+    const scheduleBot = () => {
+      if (cancelled) return;
+      const delay = 2000 + Math.random() * 4000;
+      setTimeout(() => {
+        if (cancelled) return;
+        const s = simRef.current;
+        if (s.status !== 'bidding') return;
+        const remaining = Math.max(0, (s.timerEnd || 0) - Date.now());
+        const bidChance = remaining < 5000 ? 0.5 : 0.4;
+        if (Math.random() < bidChance) {
+          const otherCaps = Object.entries(s.captains).filter(([cid, c]) => cid !== captainId && (c.budget || 0) >= (s.currentBid || 0) + 10);
+          if (otherCaps.length > 0) {
+            const [botId, botCap] = otherCaps[Math.floor(Math.random() * otherCaps.length)];
+            const minBid = (s.currentBid || 0) + 10;
+            const increment = [10, 10, 20, 20, 30, 50][Math.floor(Math.random() * 6)];
+            const bidAmt = Math.min(minBid + increment, botCap.budget);
+            const rounded = Math.floor(bidAmt / 10) * 10;
+            if (rounded > (s.currentBid || 0) && rounded <= botCap.budget) {
+              setSimState(prev => ({
+                ...prev,
+                currentBid: rounded,
+                currentBidCaptainId: botId,
+                timerEnd: Date.now() + 15000,
+                history: [...prev.history, { captainName: botCap.name, amount: rounded }],
+              }));
+            }
+          }
+        }
+        scheduleBot();
+      }, delay);
+    };
+    scheduleBot();
+    return () => { cancelled = true; };
+  }, [simState.status, simState.currentPlayerId, captainId]);
+
+  const placeBid = (amount) => {
+    const s = simRef.current;
+    if (s.status !== 'bidding') return;
+    const amt = Math.floor(Number(amount) / 10) * 10;
+    if (amt <= (s.currentBid || 0)) return;
+    const myCap = s.captains[captainId];
+    if (!myCap || amt > myCap.budget) return;
+    setSimState(prev => ({ ...prev, currentBid: amt, currentBidCaptainId: captainId, timerEnd: Date.now() + 15000, history: [...prev.history, { captainName: myCap.name, amount: amt }] }));
+  };
+
+  const player = simState.players[simState.currentPlayerId];
+  const myCap = simState.captains[captainId];
+  const myBudget = myCap?.budget || 0;
+  const curBid = simState.currentBid || 0;
+  const bidder = simState.currentBidCaptainId ? simState.captains[simState.currentBidCaptainId] : null;
+  const displayTime = (timeLeft / 1000).toFixed(1);
+  const quickBids = [
+    { label: '+10', val: curBid + 10 },
+    { label: '+20', val: curBid + 20 },
+    { label: '+50', val: curBid + 50 },
+  ].filter(q => q.val > curBid && q.val <= myBudget);
+
+  if (simState.status === 'done') {
+    return (
+      <div className="min-h-screen py-10 px-4" style={{ background: '#0f0f1a' }}>
+        <div className="max-w-3xl mx-auto space-y-6">
+          <div className="text-center space-y-2">
+            <p className="text-purple-400 text-sm font-bold">🎮 모의 경매 모드</p>
+            <h1 className="text-4xl font-black text-white">모의 경매 결과</h1>
+          </div>
+          {Object.entries(simState.captains).map(([cid, cap]) => {
+            const team = simState.results.filter(r => r.captainName === cap.name && r.price > 0);
+            return (
+              <div key={cid} className="bg-gray-900/70 border border-gray-700 rounded-xl p-4">
+                <p className="text-xl font-black text-white mb-2">{cap.name} {cid === captainId && <span className="text-blue-400 text-sm">(나)</span>}</p>
+                <p className="text-sm text-gray-400 mb-3">잔여 {cap.budget}P / 전체 {cap.originalBudget || 1000}P</p>
+                {team.length > 0 ? team.map((r, i) => (
+                  <div key={i} className="flex items-center justify-between py-1 text-sm">
+                    <span className="text-gray-300">{r.playerName}</span>
+                    <span className="text-orange-400 font-bold">{r.price}P</span>
+                  </div>
+                )) : <p className="text-gray-600 text-sm">팀원 없음</p>}
+              </div>
+            );
+          })}
+          <div className="text-center">
+            <button onClick={onExit} className="px-8 py-3 text-lg font-bold bg-purple-700 hover:bg-purple-600 rounded-xl transition-all">모의 경매 종료</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col" style={{ background: '#0f0f1a' }}>
+      <header className="flex items-center justify-between px-6 py-3 border-b border-gray-800 flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <span className="px-3 py-1 bg-purple-900 text-purple-300 text-sm font-bold rounded-full">🎮 모의 경매</span>
+          <span className="text-gray-400 text-sm">{simState.currentIndex + 1} / {simState.playerOrder.length}</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <p className="text-sm text-gray-400">내 예산: <span className="text-green-400 font-bold">{myBudget}P</span></p>
+          <button onClick={onExit} className="px-3 py-1 text-sm bg-gray-700 hover:bg-gray-600 rounded-lg">종료</button>
+        </div>
+      </header>
+
+      <main className="flex-1 flex flex-col items-center justify-center p-6 gap-4 max-w-2xl mx-auto w-full">
+        {player && simState.status === 'bidding' && (
+          <>
+            <div className="w-full bg-gray-900 rounded-2xl border border-gray-700 p-5">
+              <div className="flex gap-4">
+                <div className="w-32 h-40 rounded-xl bg-gray-800 flex-shrink-0 flex items-center justify-center overflow-hidden">
+                  {player.photo ? <img src={player.photo} alt={player.name} className="w-full h-full object-cover" /> : <span className="text-4xl">👤</span>}
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-3xl font-black text-white">{player.name}</h2>
+                  {(player.tierType || player.position) && <span className="text-sm text-gray-500">{[player.tierType, player.position].filter(Boolean).join(' ')}</span>}
+                  {player.tierCurrent && <p className="text-purple-400 text-sm mt-1">{player.tierCurrent}</p>}
+                  <div className="mt-3 flex items-center justify-between">
+                    <div>
+                      <p className="text-gray-500 text-sm">현재 입찰</p>
+                      <p className="text-3xl font-black text-orange-400">{curBid > 0 ? `${curBid}pt` : '—'}</p>
+                      {bidder && <p className="text-white text-sm font-bold">👑 {bidder.name}{simState.currentBidCaptainId === captainId && <span className="text-green-400 ml-1">(나)</span>}</p>}
+                    </div>
+                    <div className="text-right">
+                      <span className={`text-4xl font-black tabular-nums ${timeLeft <= 3000 ? 'text-red-500' : timeLeft <= 6000 ? 'text-yellow-400' : 'text-white'}`}>{displayTime}초</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="w-full grid grid-cols-3 gap-2">
+              {quickBids.map(q => (
+                <button key={q.label} onClick={() => placeBid(q.val)}
+                  className="py-3 text-center font-bold bg-orange-900/60 hover:bg-orange-800 border border-orange-700 rounded-xl text-orange-300 active:scale-95">
+                  <div className="text-sm">{q.label}</div>
+                  <div className="text-xs text-orange-400 mt-0.5">{q.val}pt</div>
+                </button>
+              ))}
+            </div>
+            {simState.history.length > 0 && (
+              <div className="w-full bg-gray-900/60 rounded-xl p-3 space-y-1 max-h-32 overflow-y-auto">
+                {[...simState.history].reverse().map((h, i) => (
+                  <p key={i} className="text-sm"><span className="text-orange-400 font-bold">{h.captainName}</span><span className="text-white">: {h.amount}pt 입찰</span></p>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+        {(simState.status === 'sold' || simState.status === 'passed') && (
+          <div className="text-center space-y-4">
+            <p className="text-4xl font-black">{simState.status === 'sold' ? <span className="text-blue-400">✅ 낙찰!</span> : <span className="text-gray-500">⏭ 유찰</span>}</p>
+            {simState.status === 'sold' && bidder && <p className="text-white text-xl">{bidder.name} 팀 — {curBid}P</p>}
+            <p className="text-gray-500 text-sm animate-pulse">3초 후 다음 선수로 이동...</p>
+          </div>
+        )}
+      </main>
     </div>
   );
 }
