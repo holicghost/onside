@@ -30,7 +30,7 @@ export default function Home() {
       setRoomInfo(data.info);
       const caps = data.captains ? Object.entries(data.captains).map(([id, val]) => ({ id, ...val })) : [];
       setCaptainList(caps);
-    } catch (e) {
+    } catch {
       setError('연결 오류가 발생했습니다.');
     }
     setLoading(false);
