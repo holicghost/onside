@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { ref, onValue, update, get, set, onDisconnect, query, orderByKey, limitToLast } from 'firebase/database';
 import { db } from '@/lib/firebase';
 import { getHeroPortraitUrl, loadHeroPortraits, ALL_HEROES } from '@/lib/heroes';
+import { cacheRoomData, precacheHeroPortraits } from '@/lib/offlineCache';
 
 const ROLE_LABEL = { tank: '탱커', damage: '딜러', support: '서포터' };
 const toArr = (val) => !val ? [] : Array.isArray(val) ? val : Object.values(val);
@@ -245,7 +246,7 @@ export default function CaptainPage() {
   // ── useEffect ──
   useEffect(() => { auctionRef.current = auction; }, [auction]);
   useEffect(() => { setOrigin(window.location.origin); }, []);
-  useEffect(() => { loadHeroPortraits().then(() => setPortraitsReady(true)); }, []);
+  useEffect(() => { loadHeroPortraits().then((cache) => { setPortraitsReady(true); precacheHeroPortraits(cache); }); }, []);
 
   useEffect(() => {
     if (!code || !captainId) return;

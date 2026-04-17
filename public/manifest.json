@@ -1,0 +1,11 @@
+{
+  "name": "RØDE와 함께하는 도현컵",
+  "short_name": "도현컵",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f0f1a",
+  "theme_color": "#0f0f1a",
+  "icons": [
+    { "src": "/logo.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

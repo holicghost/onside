@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { ref, onValue, update, set, onDisconnect, query, orderByKey, limitToLast } from 'firebase/database';
 import { db } from '@/lib/firebase';
 import { getHeroPortraitUrl, loadHeroPortraits, ALL_HEROES } from '@/lib/heroes';
+import { cacheRoomData, precacheHeroPortraits } from '@/lib/offlineCache';
 
 const ROLE_LABEL = { tank: '탱커', damage: '딜러', support: '서포터' };
 const toArr = (val) => !val ? [] : Array.isArray(val) ? val : Object.values(val);
@@ -205,7 +206,7 @@ export default function AuctionPage() {
   // 영웅 포트레이트 프리로드 (OverFast API)
   const [, setPortraitsReady] = useState(false);
   useEffect(() => {
-    loadHeroPortraits().then(() => setPortraitsReady(true));
+    loadHeroPortraits().then((cache) => { setPortraitsReady(true); precacheHeroPortraits(cache); });
   }, []);
 
   useEffect(() => {
@@ -223,6 +224,7 @@ export default function AuctionPage() {
       setCaptains(val.captains || {});
       setPlayers(val.players || {});
       setAuction(val.auction || null);
+      cacheRoomData(code, val);
     });
     const chatUnsub = onValue(query(ref(db, `rooms/${code}/chat`), orderByKey(), limitToLast(50)), snap => {
       const val = snap.val();
