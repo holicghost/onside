@@ -17,7 +17,7 @@ const TIER_POS_STYLES = {
   '저티어 힐러': 'bg-green-900/70 text-green-200 border-green-700/60',
 };
 
-const STATUS_LABEL = { idle: '⏳ 대기 중', countdown: '⏱ 경매 준비', bidding: '🔨 경매 중', paused: '⏸ 일시정지', sold: '✅ 낙찰', passed: '⏭ 유찰', pending_reauction: '🔄 유찰 경매 대기', done: '🏆 완료' };
+const STATUS_LABEL = { idle: '⏳ 대기 중', countdown: '⏱ 경매 준비', bidding: '🔨 경매 중', paused: '⏸ 일시정지', sold: '✅ 낙찰', passed: '⏭ 유찰', auto_assign: '🤖 자동 배정', pending_reauction: '🔄 유찰 경매 대기', done: '🏆 완료' };
 const STATUS_COLOR = {
   idle: 'bg-gray-800 text-gray-400',
   countdown: 'bg-yellow-900/60 text-yellow-300 border border-yellow-700',
@@ -25,6 +25,7 @@ const STATUS_COLOR = {
   paused: 'bg-orange-900/60 text-orange-300 border border-orange-700',
   sold: 'bg-blue-900/60 text-blue-300 border border-blue-700',
   passed: 'bg-gray-700/60 text-gray-400',
+  auto_assign: 'bg-cyan-900/60 text-cyan-300 border border-cyan-700',
   pending_reauction: 'bg-yellow-900/60 text-yellow-300 border border-yellow-700',
   done: 'bg-purple-900/60 text-purple-300 border border-purple-700',
 };
@@ -679,8 +680,22 @@ export default function CaptainPage() {
           )}
 
           {/* Active / resolved player */}
-          {['bidding', 'paused', 'sold', 'passed'].includes(auction?.status) && (
+          {['bidding', 'paused', 'sold', 'passed', 'auto_assign'].includes(auction?.status) && (
             <PlayerCard player={currentPlayer} curBid={curBid} auction={auction} bidderCap={bidderCap} captainId={captainId} />
+          )}
+
+          {/* Auto-assign overlay */}
+          {auction?.status === 'auto_assign' && currentPlayer && (
+            <div className="bg-cyan-900/20 border border-cyan-700 rounded-xl p-4 text-center space-y-2 animate-modal-in">
+              <p className="text-cyan-400 font-black text-xl">🤖 자동 배정</p>
+              <p className="text-white text-lg">
+                <span className="font-bold">{currentPlayer.name}</span>
+                {' → '}
+                <span className="text-cyan-300 font-bold">{captains[auction.autoAssignCaptainId]?.name}</span>
+                <span className="text-gray-400"> 팀 (10pt)</span>
+              </p>
+              <p className="text-gray-500 text-sm">3초 후 자동 확정됩니다</p>
+            </div>
           )}
 
           {/* Timer + progress bar */}

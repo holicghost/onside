@@ -49,7 +49,7 @@ function BlurCode({ text, className = '' }) {
   );
 }
 
-const STATUS_LABEL = { idle: '⏳ 대기 중', countdown: '⏱ 경매 준비', countdown_paused: '⏸ 대기 일시정지', bidding: '🔨 경매 중', paused: '⏸ 일시정지', sold: '✅ 낙찰', passed: '⏭ 유찰', pending_reauction: '🔄 유찰 경매 대기', done: '🏆 완료' };
+const STATUS_LABEL = { idle: '⏳ 대기 중', countdown: '⏱ 경매 준비', countdown_paused: '⏸ 대기 일시정지', bidding: '🔨 경매 중', paused: '⏸ 일시정지', sold: '✅ 낙찰', passed: '⏭ 유찰', auto_assign: '🤖 자동 배정', pending_reauction: '🔄 유찰 경매 대기', done: '🏆 완료' };
 const STATUS_COLOR = {
   idle: 'bg-gray-800 text-gray-400',
   countdown: 'bg-yellow-900/60 text-yellow-300 border border-yellow-700',
@@ -58,6 +58,7 @@ const STATUS_COLOR = {
   paused: 'bg-orange-900/60 text-orange-300 border border-orange-700',
   sold: 'bg-blue-900/60 text-blue-300 border border-blue-700',
   passed: 'bg-gray-700/60 text-gray-400',
+  auto_assign: 'bg-cyan-900/60 text-cyan-300 border border-cyan-700',
   pending_reauction: 'bg-yellow-900/60 text-yellow-300 border border-yellow-700',
   done: 'bg-purple-900/60 text-purple-300 border border-purple-700',
 };
@@ -326,6 +327,17 @@ export default function AuctionPage() {
     finalizeSale();
   }, [timeLeft]);
 
+  // Auto-confirm auto-assign after 3 seconds (admin only)
+  useEffect(() => {
+    if (auction?.status !== 'auto_assign' || roleRef.current !== 'admin') return;
+    const timer = setTimeout(() => {
+      if (auctionRef.current?.status === 'auto_assign') {
+        confirmAutoAssign();
+      }
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [auction?.status]);
+
   // No auto-advance — admin manually clicks "다음 경매로 넘어가기"
 
   const buildPlayerOrder = (playerMap) => {
@@ -403,9 +415,46 @@ export default function AuctionPage() {
       return;
     }
 
+    const nextPlayerId = order[nextIndex];
+    const isReAuc = a.isReAuction;
+
+    if (isReAuc) {
+      const currentPlayers = playersRef.current;
+      const currentCaptains = captainsRef.current;
+      const result = checkAutoAssign(nextPlayerId, currentPlayers, currentCaptains);
+
+      if (result?.type === 'skip') {
+        await update(ref(db), {
+          [`rooms/${code}/auction/currentIndex`]: nextIndex,
+          [`rooms/${code}/auction/currentPlayerId`]: nextPlayerId,
+          [`rooms/${code}/auction/status`]: 'passed',
+          [`rooms/${code}/auction/currentBid`]: 0,
+          [`rooms/${code}/auction/currentBidCaptainId`]: null,
+          [`rooms/${code}/auction/timerEnd`]: null,
+          [`rooms/${code}/auction/bidLog`]: null,
+        });
+        return;
+      }
+
+      if (result?.type === 'auto') {
+        await update(ref(db), {
+          [`rooms/${code}/auction/currentIndex`]: nextIndex,
+          [`rooms/${code}/auction/currentPlayerId`]: nextPlayerId,
+          [`rooms/${code}/auction/status`]: 'auto_assign',
+          [`rooms/${code}/auction/currentBid`]: 10,
+          [`rooms/${code}/auction/currentBidCaptainId`]: result.captainId,
+          [`rooms/${code}/auction/autoAssignCaptainId`]: result.captainId,
+          [`rooms/${code}/auction/timerEnd`]: null,
+          [`rooms/${code}/auction/countdownEnd`]: null,
+          [`rooms/${code}/auction/bidLog`]: null,
+        });
+        return;
+      }
+    }
+
     await update(ref(db), {
       [`rooms/${code}/auction/currentIndex`]: nextIndex,
-      [`rooms/${code}/auction/currentPlayerId`]: order[nextIndex],
+      [`rooms/${code}/auction/currentPlayerId`]: nextPlayerId,
       [`rooms/${code}/auction/status`]: 'countdown',
       [`rooms/${code}/auction/currentBid`]: 0,
       [`rooms/${code}/auction/currentBidCaptainId`]: null,
@@ -518,6 +567,49 @@ export default function AuctionPage() {
     setRedoConfirm(false);
   };
 
+  const checkAutoAssign = (playerId, currentPlayers, currentCaptains) => {
+    const player = currentPlayers[playerId];
+    if (!player) return null;
+    const playerLine = (player.tierType && player.position) ? `${player.tierType} ${player.position}` : null;
+    if (!playerLine) return null;
+    const eligibleCaptains = Object.entries(currentCaptains).filter(([capId, cap]) => {
+      if ((cap.budget || 0) < 10) return false;
+      const hasLine = Object.values(currentPlayers).some(
+        p => p.soldTo === capId && p.tierType && p.position && `${p.tierType} ${p.position}` === playerLine
+      );
+      return !hasLine;
+    });
+    if (eligibleCaptains.length === 0) return { type: 'skip' };
+    if (eligibleCaptains.length === 1) return { type: 'auto', captainId: eligibleCaptains[0][0], captainName: eligibleCaptains[0][1].name };
+    return { type: 'auction' };
+  };
+
+  const confirmAutoAssign = async () => {
+    const a = auctionRef.current;
+    if (!a || a.status !== 'auto_assign' || !a.autoAssignCaptainId) return;
+    const pid = a.currentPlayerId;
+    const capId = a.autoAssignCaptainId;
+    const cap = captainsRef.current[capId];
+    const updates = {};
+    updates[`rooms/${code}/players/${pid}/soldTo`] = capId;
+    updates[`rooms/${code}/players/${pid}/soldPrice`] = 10;
+    updates[`rooms/${code}/captains/${capId}/budget`] = Math.max(0, (cap?.budget || 0) - 10);
+    updates[`rooms/${code}/auction/history/${Date.now()}`] = { playerId: pid, captainId: capId, price: 10, timestamp: Date.now() };
+    updates[`rooms/${code}/auction/status`] = 'sold';
+    updates[`rooms/${code}/auction/timerEnd`] = null;
+    updates[`rooms/${code}/auction/autoAssignCaptainId`] = null;
+    await update(ref(db), updates);
+  };
+
+  const cancelAutoAssign = async () => {
+    const a = auctionRef.current;
+    if (!a || a.status !== 'auto_assign') return;
+    await update(ref(db), {
+      [`rooms/${code}/auction/status`] : 'passed',
+      [`rooms/${code}/auction/autoAssignCaptainId`]: null,
+    });
+  };
+
   const startReAuction = async () => {
     const currentPlayers = playersRef.current;
     const currentCaptains = captainsRef.current;
@@ -525,19 +617,37 @@ export default function AuctionPage() {
     if (unsoldEntries.length === 0) return;
     const unsoldMap = Object.fromEntries(unsoldEntries);
     const ordered = buildPlayerOrder(unsoldMap);
-    await update(ref(db), {
+    const firstPlayerId = ordered[0];
+    const autoResult = checkAutoAssign(firstPlayerId, currentPlayers, currentCaptains);
+    const baseUpdates = {
       [`rooms/${code}/auction/playerOrder`]: ordered,
       [`rooms/${code}/auction/currentIndex`]: 0,
-      [`rooms/${code}/auction/currentPlayerId`]: ordered[0],
-      [`rooms/${code}/auction/status`]: 'bidding',
+      [`rooms/${code}/auction/currentPlayerId`]: firstPlayerId,
       [`rooms/${code}/auction/currentBid`]: 0,
       [`rooms/${code}/auction/currentBidCaptainId`]: null,
-      [`rooms/${code}/auction/countdownEnd`]: null,
-      [`rooms/${code}/auction/timerEnd`]: Date.now() + 15000,
       [`rooms/${code}/auction/bidLog`]: null,
       [`rooms/${code}/auction/isReAuction`]: true,
       [`rooms/${code}/auction/roundStartUnsoldCount`]: unsoldEntries.length,
       [`rooms/${code}/info/status`]: 'auction',
+    };
+    if (autoResult?.type === 'auto') {
+      baseUpdates[`rooms/${code}/auction/status`] = 'auto_assign';
+      baseUpdates[`rooms/${code}/auction/currentBid`] = 10;
+      baseUpdates[`rooms/${code}/auction/currentBidCaptainId`] = autoResult.captainId;
+      baseUpdates[`rooms/${code}/auction/autoAssignCaptainId`] = autoResult.captainId;
+      baseUpdates[`rooms/${code}/auction/timerEnd`] = null;
+      baseUpdates[`rooms/${code}/auction/countdownEnd`] = null;
+    } else if (autoResult?.type === 'skip') {
+      baseUpdates[`rooms/${code}/auction/status`] = 'passed';
+      baseUpdates[`rooms/${code}/auction/timerEnd`] = null;
+      baseUpdates[`rooms/${code}/auction/countdownEnd`] = null;
+    } else {
+      baseUpdates[`rooms/${code}/auction/status`] = 'countdown';
+      baseUpdates[`rooms/${code}/auction/countdownEnd`] = Date.now() + 15000;
+      baseUpdates[`rooms/${code}/auction/timerEnd`] = null;
+    }
+    await update(ref(db), {
+      ...baseUpdates,
     });
   };
 
@@ -830,9 +940,29 @@ export default function AuctionPage() {
           )}
 
           {/* Active / resolved player */}
-          {['bidding', 'paused', 'sold', 'passed'].includes(auction?.status) && (
+          {['bidding', 'paused', 'sold', 'passed', 'auto_assign'].includes(auction?.status) && (
             <div key={auction?.currentPlayerId} className="animate-player-enter w-full">
               <AuctionPlayerCard player={currentPlayer} curBid={curBid} auction={auction} bidderCap={bidderCap} />
+            </div>
+          )}
+
+          {/* Auto-assign overlay */}
+          {auction?.status === 'auto_assign' && currentPlayer && (
+            <div className="bg-cyan-900/20 border border-cyan-700 rounded-xl p-4 text-center space-y-2 animate-modal-in">
+              <p className="text-cyan-400 font-black text-xl">🤖 자동 배정</p>
+              <p className="text-white text-lg">
+                <span className="font-bold">{currentPlayer.name}</span>
+                {' → '}
+                <span className="text-cyan-300 font-bold">{captains[auction.autoAssignCaptainId]?.name}</span>
+                <span className="text-gray-400"> 팀 (10pt)</span>
+              </p>
+              <p className="text-gray-500 text-sm">3초 후 자동 확정됩니다</p>
+              {role === 'admin' && (
+                <div className="flex gap-2 justify-center mt-2">
+                  <button onClick={confirmAutoAssign} className="px-5 py-2 text-sm font-bold bg-cyan-600 hover:bg-cyan-500 rounded-xl transition-all">✓ 즉시 확정</button>
+                  <button onClick={cancelAutoAssign} className="px-5 py-2 text-sm font-bold bg-gray-600 hover:bg-gray-500 rounded-xl transition-all">✕ 취소 (유찰)</button>
+                </div>
+              )}
             </div>
           )}
 
