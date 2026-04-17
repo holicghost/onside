@@ -85,7 +85,7 @@ export default function Home() {
       {mode === 'home' && (
         <div className="flex flex-col gap-3 w-full max-w-sm">
           <button onClick={() => router.push('/create')}
-            className="w-full py-5 font-bold bg-orange-500 hover:bg-orange-400 text-white rounded-xl transition-colors"
+            className="w-full py-5 font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition-colors"
             style={{ fontSize: '22px' }}>
             방 만들기
           </button>

@@ -2,7 +2,6 @@ const CACHE_NAME = 'onside-auction-v1';
 const STATIC_ASSETS = [
   '/',
   '/logo.png',
-  '/bgm.mp3',
 ];
 
 self.addEventListener('install', (event) => {
@@ -24,6 +23,9 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
+  // Skip range requests (audio streaming) — cannot cache partial responses
+  if (event.request.headers.get('range')) return;
+
   // Cache hero portraits from CloudFront and OverFast API
   if (url.hostname === 'd15f34w2p8l1cc.cloudfront.net' || url.hostname === 'overfast-api.tekrop.fr') {
     event.respondWith(
@@ -31,7 +33,7 @@ self.addEventListener('fetch', (event) => {
         cache.match(event.request).then((cached) => {
           if (cached) return cached;
           return fetch(event.request).then((response) => {
-            if (response.ok) cache.put(event.request, response.clone());
+            if (response.status === 200) cache.put(event.request, response.clone());
             return response;
           }).catch(() => cached);
         })
@@ -47,7 +49,7 @@ self.addEventListener('fetch', (event) => {
         cache.match(event.request).then((cached) => {
           if (cached) return cached;
           return fetch(event.request).then((response) => {
-            if (response.ok) cache.put(event.request, response.clone());
+            if (response.status === 200) cache.put(event.request, response.clone());
             return response;
           }).catch(() => cached);
         })
@@ -60,8 +62,10 @@ self.addEventListener('fetch', (event) => {
   if (event.request.mode === 'navigate' || STATIC_ASSETS.includes(url.pathname)) {
     event.respondWith(
       fetch(event.request).then((response) => {
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        if (response.status === 200) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        }
         return response;
       }).catch(() => caches.match(event.request))
     );

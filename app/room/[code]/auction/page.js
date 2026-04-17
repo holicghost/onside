@@ -767,7 +767,7 @@ export default function AuctionPage() {
           경매 포인트: <span className="text-gray-500">팀장별 개별 예산</span>
           &nbsp;|&nbsp; 최소 입찰가: <span className="text-gray-500">10P</span>
           &nbsp;|&nbsp; 10 단위 입찰만 가능
-          &nbsp;|&nbsp; 같은 라인의 선수는 중복 선발 불가
+          &nbsp;|&nbsp; 동일 티어 내 같은 라인의 선수는 2명 이상 선발 불가
         </p>
       </div>
 
