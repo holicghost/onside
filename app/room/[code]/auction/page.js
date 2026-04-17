@@ -168,6 +168,8 @@ function AuctionPlayerCard({ player, curBid, auction, bidderCap }) {
   );
 }
 
+const safeUpdate = async (...args) => { try { await update(...args); } catch { /* silent */ } };
+
 export default function AuctionPage() {
   const { code } = useParams();
   const router = useRouter();
@@ -282,11 +284,13 @@ export default function AuctionPage() {
   const startBidding = useCallback(async () => {
     const a = auctionRef.current;
     if (!a || a.status !== 'countdown') return;
-    await update(ref(db), {
-      [`rooms/${code}/auction/status`]: 'bidding',
-      [`rooms/${code}/auction/timerEnd`]: Date.now() + 15000,
-      [`rooms/${code}/auction/countdownEnd`]: null,
-    });
+    try {
+      await safeUpdate(ref(db), {
+        [`rooms/${code}/auction/status`]: 'bidding',
+        [`rooms/${code}/auction/timerEnd`]: Date.now() + 15000,
+        [`rooms/${code}/auction/countdownEnd`]: null,
+      });
+    } catch { /* ignore */ }
   }, [code]);
 
   const finalizeSale = useCallback(async () => {
@@ -305,7 +309,7 @@ export default function AuctionPage() {
       updates[`rooms/${code}/auction/status`] = 'passed';
     }
     updates[`rooms/${code}/auction/timerEnd`] = null;
-    await update(ref(db), updates);
+    await safeUpdate(ref(db), updates);
   }, [code]);
 
   // Pre-player countdown
@@ -372,7 +376,7 @@ export default function AuctionPage() {
         updates[`rooms/${code}/captains/${cid}/originalBudget`] = cap.budget || 1000;
       }
     });
-    await update(ref(db), updates);
+    await safeUpdate(ref(db), updates);
   };
 
   // Returns true if any captain can viably bid on any unsold player
@@ -410,13 +414,13 @@ export default function AuctionPage() {
         checkViableBids(unsoldEntries, currentCaptains, currentPlayers);
 
       if (anyViable) {
-        await update(ref(db), {
+        await safeUpdate(ref(db), {
           [`rooms/${code}/auction/status`]: 'pending_reauction',
           [`rooms/${code}/auction/timerEnd`]: null,
           [`rooms/${code}/auction/countdownEnd`]: null,
         });
       } else {
-        await update(ref(db), {
+        await safeUpdate(ref(db), {
           [`rooms/${code}/auction/status`]: 'done',
           [`rooms/${code}/info/status`]: 'result',
         });
@@ -433,7 +437,7 @@ export default function AuctionPage() {
       const result = checkAutoAssign(nextPlayerId, currentPlayers, currentCaptains);
 
       if (result?.type === 'skip') {
-        await update(ref(db), {
+        await safeUpdate(ref(db), {
           [`rooms/${code}/auction/currentIndex`]: nextIndex,
           [`rooms/${code}/auction/currentPlayerId`]: nextPlayerId,
           [`rooms/${code}/auction/status`]: 'passed',
@@ -446,7 +450,7 @@ export default function AuctionPage() {
       }
 
       if (result?.type === 'auto') {
-        await update(ref(db), {
+        await safeUpdate(ref(db), {
           [`rooms/${code}/auction/currentIndex`]: nextIndex,
           [`rooms/${code}/auction/currentPlayerId`]: nextPlayerId,
           [`rooms/${code}/auction/status`]: 'auto_assign',
@@ -461,7 +465,7 @@ export default function AuctionPage() {
       }
     }
 
-    await update(ref(db), {
+    await safeUpdate(ref(db), {
       [`rooms/${code}/auction/currentIndex`]: nextIndex,
       [`rooms/${code}/auction/currentPlayerId`]: nextPlayerId,
       [`rooms/${code}/auction/status`]: 'countdown',
@@ -494,7 +498,7 @@ export default function AuctionPage() {
 
   const pauseAuction = async () => {
     const remaining = Math.max(1000, (auction?.timerEnd || Date.now()) - Date.now());
-    await update(ref(db), {
+    await safeUpdate(ref(db), {
       [`rooms/${code}/auction/status`]: 'paused',
       [`rooms/${code}/auction/timerEnd`]: null,
       [`rooms/${code}/auction/pausedTimeLeft`]: remaining,
@@ -502,7 +506,7 @@ export default function AuctionPage() {
   };
 
   const resumeAuction = async () => {
-    await update(ref(db), {
+    await safeUpdate(ref(db), {
       [`rooms/${code}/auction/status`]: 'bidding',
       [`rooms/${code}/auction/timerEnd`]: Date.now() + (auction?.pausedTimeLeft || 15000),
       [`rooms/${code}/auction/pausedTimeLeft`]: null,
@@ -511,7 +515,7 @@ export default function AuctionPage() {
 
   const pauseCountdown = async () => {
     const remaining = Math.max(1000, (auction?.countdownEnd || Date.now()) - Date.now());
-    await update(ref(db), {
+    await safeUpdate(ref(db), {
       [`rooms/${code}/auction/status`]: 'countdown_paused',
       [`rooms/${code}/auction/countdownEnd`]: null,
       [`rooms/${code}/auction/pausedCountdownLeft`]: remaining,
@@ -519,7 +523,7 @@ export default function AuctionPage() {
   };
 
   const resumeCountdown = async () => {
-    await update(ref(db), {
+    await safeUpdate(ref(db), {
       [`rooms/${code}/auction/status`]: 'countdown',
       [`rooms/${code}/auction/countdownEnd`]: Date.now() + (auction?.pausedCountdownLeft || 15000),
       [`rooms/${code}/auction/pausedCountdownLeft`]: null,
@@ -527,7 +531,7 @@ export default function AuctionPage() {
   };
 
   const passCurrent = async () => {
-    await update(ref(db), {
+    await safeUpdate(ref(db), {
       [`rooms/${code}/auction/status`]: 'passed',
       [`rooms/${code}/auction/timerEnd`]: null,
     });
@@ -572,7 +576,7 @@ export default function AuctionPage() {
     updates[`rooms/${code}/auction/countdownEnd`] = Date.now() + 15000;
     updates[`rooms/${code}/auction/timerEnd`] = null;
     updates[`rooms/${code}/auction/bidLog`] = null;
-    await update(ref(db), updates);
+    await safeUpdate(ref(db), updates);
     setRedoConfirm(false);
   };
 
@@ -607,13 +611,13 @@ export default function AuctionPage() {
     updates[`rooms/${code}/auction/status`] = 'sold';
     updates[`rooms/${code}/auction/timerEnd`] = null;
     updates[`rooms/${code}/auction/autoAssignCaptainId`] = null;
-    await update(ref(db), updates);
+    await safeUpdate(ref(db), updates);
   };
 
   const cancelAutoAssign = async () => {
     const a = auctionRef.current;
     if (!a || a.status !== 'auto_assign') return;
-    await update(ref(db), {
+    await safeUpdate(ref(db), {
       [`rooms/${code}/auction/status`] : 'passed',
       [`rooms/${code}/auction/autoAssignCaptainId`]: null,
     });
@@ -655,7 +659,7 @@ export default function AuctionPage() {
       baseUpdates[`rooms/${code}/auction/countdownEnd`] = Date.now() + 15000;
       baseUpdates[`rooms/${code}/auction/timerEnd`] = null;
     }
-    await update(ref(db), {
+    await safeUpdate(ref(db), {
       ...baseUpdates,
     });
   };
@@ -678,7 +682,7 @@ export default function AuctionPage() {
     }
     const prevCaptainId = a.currentBidCaptainId || null;
     const newTimerEnd = Date.now() + 15000;
-    await update(ref(db), {
+    await safeUpdate(ref(db), {
       [`rooms/${code}/auction/currentBid`]: amt,
       [`rooms/${code}/auction/currentBidCaptainId`]: captainId,
       [`rooms/${code}/auction/timerEnd`]: newTimerEnd,
@@ -1119,7 +1123,7 @@ export default function AuctionPage() {
               )}
               {auction?.status === 'done' && (
                 <button onClick={async () => {
-                  await update(ref(db), { [`rooms/${code}/info/status`]: 'result' });
+                  await safeUpdate(ref(db), { [`rooms/${code}/info/status`]: 'result' });
                 }} className="w-full py-4 text-xl font-bold bg-purple-600 hover:bg-purple-500 rounded-xl transition-all">
                   🏆 결과 보기
                 </button>
