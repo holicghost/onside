@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ref, onValue, update, remove } from 'firebase/database';
 import { db } from '@/lib/firebase';
@@ -13,6 +13,28 @@ function CopyButton({ text }) {
     <button onClick={copy} className={`px-3 py-1 text-sm rounded-lg transition-all flex-shrink-0 ${copied ? 'bg-green-700 text-green-200' : 'bg-gray-700 hover:bg-gray-600 text-gray-300'}`}>
       {copied ? '복사됨!' : '복사'}
     </button>
+  );
+}
+
+function BlurText({ text, className = '' }) {
+  const [revealed, setRevealed] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const timerRef = useRef(null);
+  const handleClick = () => {
+    navigator.clipboard.writeText(text).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1000);
+    setRevealed(true);
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setRevealed(false), 3000);
+  };
+  return (
+    <span className={`relative inline-block cursor-pointer select-none ${className}`} onClick={handleClick}>
+      <span style={{ filter: revealed ? 'none' : 'blur(6px)', transition: 'filter 0.3s' }}>{text}</span>
+      {copied && (
+        <span className="absolute -top-6 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-green-700 text-green-100 text-xs font-bold rounded-full whitespace-nowrap pointer-events-none z-50">복사됨!</span>
+      )}
+    </span>
   );
 }
 
@@ -437,8 +459,8 @@ export default function AdminRoomPage() {
           <div className="flex-1">
             <h1 className="text-3xl font-black text-white">{roomInfo?.name || '로딩 중...'}</h1>
             <div className="flex items-center gap-3 mt-1">
-              <span className="font-mono text-orange-400 font-bold text-xl tracking-widest">{code}</span>
-              {roomInfo?.password ? <span className="text-gray-500 text-sm">비번: {roomInfo.password}</span> : <span className="text-xs bg-green-900/50 text-green-400 px-2 py-0.5 rounded-full">비밀번호 없음</span>}
+              <BlurText text={code} className="font-mono text-orange-400 font-bold text-xl tracking-widest" />
+              {roomInfo?.password ? <span className="text-gray-500 text-sm">비번: <BlurText text={roomInfo.password} className="text-gray-400" /></span> : <span className="text-xs bg-green-900/50 text-green-400 px-2 py-0.5 rounded-full">비밀번호 없음</span>}
               <span className="text-gray-600 text-sm">{roomInfo?.status}</span>
             </div>
           </div>
