@@ -198,6 +198,7 @@ export default function CaptainPage() {
   const [origin, setOrigin] = useState('');
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
+  const [autoAssignLeft, setAutoAssignLeft] = useState(0);
   const [, setPortraitsReady] = useState(false);
 
   // ── useRef ──
@@ -342,6 +343,16 @@ export default function CaptainPage() {
     }
   }, [chatMessages]);
 
+  // Auto-assign 10s countdown tick
+  useEffect(() => {
+    if (auction?.status !== 'auto_assign') { setAutoAssignLeft(0); return; }
+    setAutoAssignLeft(10000);
+    const start = Date.now();
+    const tick = () => setAutoAssignLeft(Math.max(0, 10000 - (Date.now() - start)));
+    const id = setInterval(tick, 100);
+    return () => clearInterval(id);
+  }, [auction?.status]);
+
   // ══════════════════════════════════════════
   // HANDLERS (not hooks — safe after hooks)
   // ══════════════════════════════════════════
@@ -385,12 +396,16 @@ export default function CaptainPage() {
       if (hasLine) { setBidError('이미 해당 라인의 선수를 보유하고 있습니다.'); return; }
     }
     const prevCaptainId = a.currentBidCaptainId || null;
-    const newTimerEnd = Date.now() + 15000;
+    const now = Date.now();
+    const capName = captains[captainId]?.name || '';
+    const playerId = a.currentPlayerId;
+    const newTimerEnd = now + 15000;
     await safeUpdate(ref(db), {
       [`rooms/${code}/auction/currentBid`]: amt,
       [`rooms/${code}/auction/currentBidCaptainId`]: captainId,
       [`rooms/${code}/auction/timerEnd`]: newTimerEnd,
-      [`rooms/${code}/auction/bidLog/${Date.now()}`]: { captainId, prevCaptainId, amount: amt, timestamp: Date.now() },
+      [`rooms/${code}/auction/bidLog/${now}`]: { captainId, prevCaptainId, amount: amt, timestamp: now },
+      [`rooms/${code}/bidHistory/${playerId}/${now}`]: { captainName: capName, amount: amt, timestamp: now },
     });
   };
 
@@ -697,7 +712,12 @@ export default function CaptainPage() {
                 <span className="text-cyan-300 font-bold">{captains[auction.autoAssignCaptainId]?.name}</span>
                 <span className="text-gray-400"> 팀 (10pt)</span>
               </p>
-              <p className="text-gray-500 text-sm">3초 후 자동 확정됩니다</p>
+              <div className="flex items-center gap-3 mt-2">
+                <div className="flex-1 h-2 bg-gray-700 rounded-full overflow-hidden">
+                  <div className="h-full bg-cyan-400 rounded-full transition-none" style={{ width: `${Math.max(0, (autoAssignLeft / 10000) * 100)}%` }} />
+                </div>
+                <span className="text-gray-400 text-sm font-bold tabular-nums flex-shrink-0">{Math.ceil(autoAssignLeft / 1000)}초 남음</span>
+              </div>
             </div>
           )}
 

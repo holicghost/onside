@@ -119,6 +119,8 @@ export default function AdminRoomPage() {
   const [chatClearDone, setChatClearDone] = useState(false);
   const [showLinks, setShowLinks] = useState(false);
   const [origin, setOrigin] = useState('');
+  const [bidHistory, setBidHistory] = useState({});
+  const [bidModalPlayer, setBidModalPlayer] = useState(null);
 
   useEffect(() => { setOrigin(window.location.origin); }, []);
   // 영웅 포트레이트 프리로드
@@ -147,6 +149,7 @@ export default function AdminRoomPage() {
       onValue(ref(db, `rooms/${code}/captains`), s => setCaptains(s.val() || {})),
       onValue(ref(db, `rooms/${code}/players`), s => setPlayers(s.val() || {})),
       onValue(ref(db, `rooms/${code}/auction`), s => setAuction(s.val())),
+      onValue(ref(db, `rooms/${code}/bidHistory`), s => setBidHistory(s.val() || {})),
     ];
     return () => unsubs.forEach(u => u());
   }, [code]);
@@ -841,7 +844,10 @@ export default function AdminRoomPage() {
                         )}
                       </div>
                     </div>
-                    <button onClick={() => startEditPlayer(p.id)} className="px-4 py-2 text-sm bg-gray-700 hover:bg-gray-600 rounded-xl transition-all flex-shrink-0">수정</button>
+                    <div className="flex gap-2 flex-shrink-0">
+                      <button onClick={() => setBidModalPlayer(p)} className="px-3 py-2 text-sm bg-blue-800 hover:bg-blue-700 rounded-xl transition-all">내역</button>
+                      <button onClick={() => startEditPlayer(p.id)} className="px-3 py-2 text-sm bg-gray-700 hover:bg-gray-600 rounded-xl transition-all">수정</button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -919,6 +925,96 @@ export default function AdminRoomPage() {
         </section>
 
       </div>
+
+      {/* Bid history modal */}
+      {bidModalPlayer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.7)' }}>
+          <div className="w-full max-w-lg bg-gray-900 border border-gray-700 rounded-2xl p-6 max-h-[80vh] overflow-y-auto mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-white">{bidModalPlayer.name} 입찰 내역</h3>
+              <button onClick={() => setBidModalPlayer(null)} className="text-gray-500 hover:text-gray-300 text-2xl leading-none">✕</button>
+            </div>
+            {(() => {
+              const bids = bidHistory[bidModalPlayer.id];
+              const events = bids ? Object.values(bids).sort((a, b) => a.timestamp - b.timestamp) : [];
+              const fmtTime = (ts) => {
+                const d = new Date(ts);
+                return `${d.getMonth()+1}월 ${d.getDate()}일 ${d.getHours()}시 ${String(d.getMinutes()).padStart(2,'0')}분 ${String(d.getSeconds()).padStart(2,'0')}초`;
+              };
+              const hasBids = events.some(e => e.type === 'bid' || (!e.type && e.captainName && e.amount));
+              const hasAnyEvent = events.length > 0;
+              return !hasAnyEvent ? (
+                <div className="text-center py-6">
+                  <p className="text-gray-500 font-bold text-lg">미진행</p>
+                  <p className="text-gray-600 text-sm mt-1">아직 경매가 진행되지 않은 선수입니다</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {events.map((e, i) => {
+                    const time = fmtTime(e.timestamp);
+                    if (e.type === 'bid' || (!e.type && e.captainName)) {
+                      return (
+                        <div key={i} className="flex items-start gap-2 text-sm">
+                          <span className="text-gray-600 flex-shrink-0">💰</span>
+                          <div>
+                            <p className="text-white"><span className="font-bold text-orange-400">{e.captainName}</span> - {e.amount}P 입찰</p>
+                            <p className="text-gray-600 text-xs">{time}</p>
+                          </div>
+                        </div>
+                      );
+                    }
+                    if (e.type === 'sold') {
+                      return (
+                        <div key={i} className="flex items-start gap-2 text-sm bg-green-950/30 rounded-lg p-2">
+                          <span className="flex-shrink-0">✅</span>
+                          <div>
+                            <p className="text-green-400 font-bold">낙찰 - {e.captainName} 팀 {e.amount}P</p>
+                            <p className="text-gray-600 text-xs">{time}</p>
+                          </div>
+                        </div>
+                      );
+                    }
+                    if (e.type === 'unsold') {
+                      return (
+                        <div key={i} className="flex items-start gap-2 text-sm bg-gray-800/50 rounded-lg p-2">
+                          <span className="flex-shrink-0">{hasBids ? '❌' : '⚪'}</span>
+                          <div>
+                            <p className="text-gray-400 font-bold">{hasBids ? '유찰' : '미낙찰 (입찰자 없음)'}</p>
+                            <p className="text-gray-600 text-xs">{time}</p>
+                          </div>
+                        </div>
+                      );
+                    }
+                    if (e.type === 'force_unsold') {
+                      return (
+                        <div key={i} className="flex items-start gap-2 text-sm bg-orange-950/30 rounded-lg p-2">
+                          <span className="flex-shrink-0">⚡</span>
+                          <div>
+                            <p className="text-orange-400 font-bold">❌ 강제 유찰 - 관리자 처리</p>
+                            <p className="text-gray-600 text-xs">{time}</p>
+                          </div>
+                        </div>
+                      );
+                    }
+                    if (e.type === 'resold') {
+                      return (
+                        <div key={i} className="flex items-start gap-2 text-sm bg-cyan-950/30 rounded-lg p-2">
+                          <span className="flex-shrink-0">🔄</span>
+                          <div>
+                            <p className="text-cyan-400 font-bold">유찰 후 재경매 낙찰 - {e.captainName} 팀 {e.amount}P</p>
+                            <p className="text-gray-600 text-xs">{time}</p>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })}
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
