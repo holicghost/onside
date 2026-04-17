@@ -376,8 +376,9 @@ export default function AdminRoomPage() {
       updates[`rooms/${code}/players/${pid}/soldTo`] = null;
       updates[`rooms/${code}/players/${pid}/soldPrice`] = null;
     });
+    const fixedBudgets = { '항상#킴성태': 1000, '이지상:)': 1000, '바밍_': 1000, '한남맛종욱': 900 };
     Object.entries(captains).forEach(([cid, cap]) => {
-      updates[`rooms/${code}/captains/${cid}/budget`] = cap.originalBudget || cap.budget || roomInfo?.budget || 1000;
+      updates[`rooms/${code}/captains/${cid}/budget`] = fixedBudgets[cap.name] ?? (cap.originalBudget || cap.budget || roomInfo?.budget || 1000);
     });
     updates[`rooms/${code}/auction`] = {
       status: 'idle', currentPlayerId: null, currentBid: 0, currentBidCaptainId: null,
