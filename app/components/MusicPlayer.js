@@ -153,7 +153,7 @@ export default function MusicPlayer() {
       >
         <button onClick={toggle} className="flex items-center gap-1.5 hover:scale-105 active:scale-95 transition-transform">
           <span className={`text-sm ${playing ? 'animate-spin-slow text-orange-400' : 'text-gray-500'}`}>🎵</span>
-          <span className="hidden sm:inline text-[11px] font-bold text-gray-400 max-w-[100px] truncate">OWCS War Gamer</span>
+          <span className="hidden sm:inline text-[11px] font-bold text-gray-400 max-w-[100px] truncate">CUSTOM BGM</span>
           <span className={`w-4.5 h-4.5 flex items-center justify-center rounded-full text-[10px] font-black flex-shrink-0 ${
             playing ? 'bg-orange-500 text-white' : 'bg-gray-700 text-gray-400'
           }`}>

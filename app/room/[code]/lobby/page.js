@@ -183,7 +183,7 @@ export default function LobbyPage() {
               {countdown > 0 ? countdown : '🔨'}
             </div>
             {role === 'admin' && (
-              <div className="mt-4">
+              <div className="mt-4 flex gap-3 justify-center">
                 {paused ? (
                   <button onClick={resumeLobbyCountdown}
                     className="px-8 py-3 text-xl font-bold bg-green-600 hover:bg-green-500 text-white rounded-xl transition-all">
@@ -195,6 +195,10 @@ export default function LobbyPage() {
                     ⏸ 일시정지
                   </button>
                 )}
+                <button onClick={() => update(ref(db), { [`rooms/${code}/info/status`]: 'auction' }).catch(() => {})}
+                  className="px-8 py-3 text-xl font-bold bg-green-600 hover:bg-green-500 text-white rounded-xl transition-all">
+                  ⚡ 바로 시작
+                </button>
               </div>
             )}
           </>
